@@ -476,8 +476,10 @@ input[type="range"] { accent-color: var(--color-ink); }
 .sheet-chips button[aria-pressed="true"]::before { content: '✓ '; }
 
 /* the venue's name as a way into its website: two arrows pointing onward, the way the page reads */
-.inv-venue-link { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px; border: 0; background: none; font: inherit; color: inherit; letter-spacing: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-.inv-venue-link svg { flex: none; color: var(--inv-accent-ink); transition: transform .2s; }
+.inv-venue-link { position: relative; display: inline-block; padding: 4px 6px; border: 0; background: none; font: inherit; color: inherit; letter-spacing: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+/* the arrows hang outside the name, to its left: the name itself stays exactly under the logo */
+.inv-venue-link svg { position: absolute; left: -24px; top: 50%; translate: 0 -50%; color: var(--inv-accent-ink); transition: transform .2s; }
+.inv-venue-link::after { content: ''; position: absolute; inset: -6px -8px -6px -34px; }
 @media (hover: hover) { .inv-venue-link:hover svg { transform: translateX(-4px); } .inv-venue-link:hover span { text-decoration: underline; text-underline-offset: 5px; } }
 .inv-venue-link:active svg { transform: translateX(-4px); }
 .inv-site { overflow: hidden; border-radius: var(--inv-radius-box); border: 1px solid var(--inv-line); background: #fff; }

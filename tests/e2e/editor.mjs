@@ -141,6 +141,7 @@ try {
     const dn = await p.evaluate(() => { const e = document.querySelector('.inv-datenum'), s = getComputedStyle(e), r = e.getBoundingClientRect(); return { weight: +s.fontWeight, size: parseFloat(s.fontSize), left: Math.round(r.left), right: Math.round(r.right), sw: e.scrollWidth, cw: e.clientWidth }; });
     check('date: large and bold', dn.weight >= 700 && dn.size >= 44 && dn.left >= 0 && dn.right <= 390 && dn.sw <= dn.cw + 1, JSON.stringify(dn));
     await p.locator('[data-testid=venue-site]').evaluate((e) => e.scrollIntoView({ block: 'center' })); await sleep(300);
+    check('venue: the name sits exactly under the middle of the page', await p.evaluate(() => { const s = document.querySelector('[data-testid=venue-site] span').getBoundingClientRect(), c = document.querySelector('.inv-col').getBoundingClientRect(); return Math.abs((s.left + s.right) / 2 - (c.left + c.right) / 2) <= 1; }));
     check('venue: two arrows sit to the left of the name', await p.evaluate(() => { const b = document.querySelector('[data-testid=venue-site]'); return b.querySelector('svg').getBoundingClientRect().right <= b.querySelector('span').getBoundingClientRect().left + 1 && b.querySelectorAll('svg path').length === 2; }));
     check('venue: nothing of its site is loaded before it is asked for', await p.locator('[data-testid=site-panel]').count() === 0);
     await p.locator('[data-testid=venue-site]').tap(); await p.locator('[data-testid=site-panel][data-open=true] iframe').waitFor();
