@@ -30,6 +30,8 @@ export default function Overview() {
   const s = useMemo(() => computeStats(guests), [guests]);
   const [log, setLog] = useState<ResponseRow[]>([]);
   const [wa, setWa] = useState<{ failed: number; next: string | null } | null>(null);
+  const [green, setGreen] = useState<boolean | null>(null);
+  useEffect(() => { fetch('/api/admin/integrations').then((r) => r.json()).then((j) => setGreen(!!j.greenApiConfigured)).catch(() => setGreen(null)); }, []);
   const [visits, setVisits] = useState<{ guest_id: string | null; kind: string; visitor: string | null }[] | null>(null);
   const stamp = guests.reduce((m, g) => (g.updated_at > m ? g.updated_at : m), '');
   const base = `/admin/events/${event.id}`;
@@ -84,6 +86,16 @@ export default function Overview() {
     { label: 'לא מגיעים', value: s.declinedFamilies, color: TONE.no }, { label: 'טרם השיבו', value: s.pendingFamilies, color: TONE.idle },
   ];
   const maxSeats = Math.max(s.allocatedSeats, s.confirmedSeats, seatsTotal, 1);
+  const ready: { ok: boolean; label: string; fix: string; href?: string }[] = [
+    { ok: event.published, label: 'ההזמנה מפורסמת', fix: 'אורחים לא יכולים לפתוח אותה', href: `${base}/editor` },
+    { ok: !!(event.venue_name || event.address), label: 'מקום האירוע וכתובת', fix: 'אורחים לא יודעים לאן להגיע', href: `${base}/editor` },
+    { ok: !!start, label: 'תאריך ושעה', fix: 'חסרים תאריך או שעה', href: `${base}/editor` },
+    { ok: !!event.hero_url, label: 'תמונה משלכם', fix: 'מוצגת תמונת ברירת המחדל', href: `${base}/editor` },
+    { ok: green === true, label: 'התראות WhatsApp למארחים', fix: green === null ? 'לא הצלחנו לבדוק' : 'לא מחובר: לא תקבלו הודעה כשאורח משיב', href: `${base}/connections` },
+    { ok: !!wa, label: 'הזמנות ותזכורות ב-WhatsApp', fix: 'נדרש עדכון חד-פעמי למסד הנתונים', href: `${base}/whatsapp` },
+    { ok: guests.length > 0, label: 'רשימת מוזמנים', fix: 'הרשימה ריקה', href: `${base}/guests` },
+  ];
+  const missing = ready.filter((r) => !r.ok).length;
   // the one thing most worth doing now
   const next = !event.published ? { text: 'ההזמנה עדיין טיוטה. אורחים לא יכולים לפתוח אותה עד הפרסום.', cta: 'לעיצוב ולפרסום', href: `${base}/editor` }
     : !guests.length ? { text: 'עדיין אין מוזמנים ברשימה.', cta: 'הוספת מוזמנים', href: `${base}/guests` }
@@ -98,11 +110,25 @@ export default function Overview() {
         {event.published && <a className="btn" href={`/e/${event.slug}`} target="_blank" rel="noopener noreferrer"><Icon name="eye" size={16} />פתיחת ההזמנה</a>}
       </PageHead>
 
-      {next && (
+      {next && missing === 0 && (
         <div className="card mb-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3">
           <p className="text-sm"><b className="font-semibold">הצעד הבא: </b>{next.text}</p>
           <Link className="btn btn-sm" href={next.href}>{next.cta}</Link>
         </div>
+      )}
+
+      {missing > 0 && (
+        <section className="card mb-4 p-4" data-testid="readiness">
+          <h2 className="text-[17px] font-semibold">מוכנות האירוע <span className="text-sm font-normal text-muted">· {ready.length - missing} מתוך {ready.length}</span></h2>
+          <ul className="mt-3 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+            {ready.map((r) => (
+              <li key={r.label} className="flex items-start gap-2 text-sm">
+                <span className={`mt-0.5 grid size-5 flex-none place-items-center rounded-full ${r.ok ? 'bg-[#e7f4ee] text-ok' : 'bg-[#fbeaea] text-no'}`}><Icon name={r.ok ? 'check' : 'close'} size={13} /></span>
+                <span className="min-w-0"><b className="font-medium">{r.label}</b>{!r.ok && <span className="block text-muted">{r.fix}{r.href && <> · <Link className="font-medium text-ink underline" href={r.href}>לתיקון</Link></>}</span>}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="kpis">
@@ -157,10 +183,10 @@ export default function Overview() {
             {funnel.steps.map((st, i) => {
               const top = Math.max(funnel.steps[0].value, 1);
               return (
-                <li key={st.label} className="grid grid-cols-[minmax(0,11rem)_1fr_auto] items-center gap-3 text-sm">
+                <li key={st.label} className="grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1 text-sm sm:grid-cols-[minmax(0,11rem)_1fr_auto]">
                   <span className="truncate text-muted">{st.label}</span>
-                  <span className="h-6 overflow-hidden rounded-md bg-paper"><span className="block h-full rounded-md" style={{ width: `${Math.max((st.value / top) * 100, st.value ? 3 : 0)}%`, background: i === funnel.steps.length - 1 ? TONE.ok : TONE.ink, opacity: i === funnel.steps.length - 1 ? 1 : 0.35 + i * 0.15 }} /></span>
-                  <span className="w-20 text-end tabular-nums"><b className="font-semibold">{st.value}</b>{i > 0 && <span className="ms-1.5 text-xs text-muted">{Math.round((st.value / top) * 100)}%</span>}</span>
+                  <span className="order-3 col-span-2 h-5 overflow-hidden rounded-md bg-paper sm:order-none sm:col-span-1 sm:h-6"><span className="block h-full rounded-md" style={{ width: `${Math.max((st.value / top) * 100, st.value ? 3 : 0)}%`, background: i === funnel.steps.length - 1 ? TONE.ok : TONE.ink, opacity: i === funnel.steps.length - 1 ? 1 : 0.35 + i * 0.15 }} /></span>
+                  <span className="inline-flex items-baseline justify-end gap-1.5 tabular-nums sm:w-20"><b className="font-semibold">{st.value}</b>{i > 0 && <span className="text-xs text-muted">{Math.round((st.value / top) * 100)}%</span>}</span>
                 </li>
               );
             })}

@@ -1,5 +1,8 @@
 import type { Design, TextStyle } from './types';
 
+/** Shown until the hosts upload their own photograph. A stock picture (Unsplash licence), served from this site. */
+export const DEFAULT_HERO = '/default-hero.jpg';
+
 export type Palette = { id: string; name: string; mood: string; colors: Design['colors']; fall: string[] };
 
 const pal = (id: string, name: string, mood: string, surface: string, soft: string, ink: string, muted: string, accent: string, line: string): Palette =>

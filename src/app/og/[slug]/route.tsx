@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-import { resolveDesign } from '@/lib/defaults';
+import { DEFAULT_HERO, resolveDesign } from '@/lib/defaults';
 import { dateParts } from '@/lib/hebrew-date';
 import { safeHttpUrl } from '@/lib/validation';
 import type { PublicInvitation } from '@/lib/types';
@@ -36,7 +36,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
   const c = d.colors;
   const date = dateParts(ev.event_date);
   const time = ev.reception_time || ev.ceremony_time;
-  const hero = safeHttpUrl(ev.hero_url);
+  const hero = safeHttpUrl(ev.hero_url) ?? `${new URL(req.url).origin}${DEFAULT_HERO}`;
   const line2 = [ev.weekday_label, ev.hebrew_date].filter(Boolean).join(' – ');
   const f = await loadFonts(new URL(req.url).origin);
   // with a photograph the picture is drawn smaller: a PNG of a photo grows fast, and messaging apps skip heavy previews

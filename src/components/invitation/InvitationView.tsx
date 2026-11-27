@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import type { PublicInvitation, TextStyle } from '@/lib/types';
-import { resolveDesign } from '@/lib/defaults';
+import { DEFAULT_HERO, resolveDesign } from '@/lib/defaults';
 import { fontStack, fontsHref } from '@/lib/fonts';
 import { dateParts } from '@/lib/hebrew-date';
 import { googleCalendarUrl, icsFile } from '@/lib/calendar';
@@ -204,7 +204,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
   const gmaps = safeHttpUrl(data.gmaps_url) ?? (place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}` : null);
   const gcal = googleCalendarUrl(data);
   const tel = data.contact_phone?.replace(/[^\d+]/g, '');
-  const hero = safeHttpUrl(data.hero_url);
+  const hero = safeHttpUrl(data.hero_url) ?? DEFAULT_HERO;
   const pos = Object.assign({ x: 50, y: 50, zoom: 1, ratio: '4/5', brightness: 1, contrast: 1, overlay: 0 }, data.hero_pos);
   const gallery = data.media.filter((m) => m.kind === 'gallery');
   const venue = data.media.filter((m) => m.kind === 'venue');

@@ -251,6 +251,7 @@ export default function EditorPage() {
             {tab === 'תמונות' && <>
               <span className="label">תמונה ראשית</span>
               {drop('hero', draft.hero_url ? 'החלפת התמונה הראשית' : 'העלאת תמונה ראשית')}
+              {!draft.hero_url && <p className="text-xs text-muted">עד שתעלו תמונה משלכם, ההזמנה מציגה את תמונת ברירת המחדל.</p>}
               {draft.hero_url && <>
                 <Range label="זום" value={pos.zoom} min={1} max={2.5} step={0.05} onChange={(n) => set('hero_pos', { ...pos, zoom: n })} suffix="×" />
                 <Range label="מיקום אופקי" value={pos.x} min={0} max={100} step={1} onChange={(n) => set('hero_pos', { ...pos, x: n })} suffix="%" />

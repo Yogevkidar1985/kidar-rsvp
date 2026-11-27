@@ -117,6 +117,27 @@ try {
   r = await api('/api/admin/campaigns/test', { eventId, body: INVITE, phones: ['123'] });
   check('a bad test number is refused', r.status === 400 && outbox.length === t0 + 1);
 
+  // ---------- the hosts are told about every answer ----------
+  const HOSTS = ['972543049491@c.us', '972559991052@c.us'];
+  const toHosts = (from) => outbox.slice(from).filter((m) => HOSTS.includes(m.to));
+  const rsvp = (body) => fetch(APP + '/api/rsvp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug: 'kidar-brit', notes: '', preferences: '', ...body }) }).then((x) => x.json());
+  let h0 = outbox.length;
+  let ans = await rsvp({ name: 'רונית שמש', phone: '054-8000001', status: 'attending', adults: 2, children: 1, babies: 0, preferences: 'צמחוני' });
+  await sleep(1500);
+  let got = toHosts(h0);
+  const [row] = await sql(`select status, adults, children, babies, preferences, source from guests where phone_norm = '0548000001'`);
+  check('a guest answer is stored exactly as given', ans.ok && row.status === 'attending' && row.adults === 2 && row.children === 1 && row.preferences === 'צמחוני' && row.source === 'public', JSON.stringify(row));
+  check('both hosts get a WhatsApp message about a new confirmation', got.length === 2 && new Set(got.map((m) => m.to)).size === 2, JSON.stringify(got.map((m) => m.to)));
+  check('the message says who, what they answered, how many, and the running total', got[0].text.includes('רונית שמש') && got[0].text.includes('מגיעים') && got[0].text.includes('מבוגרים 2 | ילדים 1') && got[0].text.includes('צמחוני') && got[0].text.includes('סה״כ מגיעים'), got[0]?.text);
+  h0 = outbox.length; ans = await rsvp({ name: 'רונית שמש', phone: '0548000001', status: 'declined', adults: 0, children: 0, babies: 0 }); await sleep(1500); got = toHosts(h0);
+  check('a changed answer updates the same guest and tells the hosts, with the earlier answer', ans.ok && got.length === 2 && got[0].text.includes('לא מגיעים') && got[0].text.includes('קודם: מגיעים') && (await sql(`select count(*)::int n from guests where phone_norm = '0548000001'`))[0].n === 1, got[0]?.text);
+  h0 = outbox.length; ans = await rsvp({ name: 'רונית שמש', phone: '0548000001', status: 'maybe', adults: 1, children: 0, babies: 0 }); await sleep(1500); got = toHosts(h0);
+  check('an undecided answer is reported under the same name the guest chose', got.length === 2 && got[0].text.includes('עדיין לא בטוחים'), got[0]?.text);
+  check('each answer is kept in the history', (await sql(`select count(*)::int n from rsvp_responses r join guests g on g.id = r.guest_id where g.phone_norm = '0548000001'`))[0].n === 3);
+  h0 = outbox.length; ans = await rsvp({ name: 'x', phone: '123', status: 'attending', adults: 1, children: 0, babies: 0 }); await sleep(600);
+  check('an invalid answer is refused, stored nowhere and reported to nobody', ans.ok === false && toHosts(h0).length === 0);
+  await sql(`delete from guests where phone_norm = '0548000001'`);
+
   // ---------- failures and retry ----------
   const g6 = await addGuest('משפחת נכשל', '0506666666');
   greenStatus = 500;
@@ -196,7 +217,7 @@ try {
   check('no reminder is sent once the event has started', late.status === 'cancelled' && outbox.length === n1, JSON.stringify(late));
 
   // without credentials nothing is sent and nothing is lost: covered by the "waiting" flag
-  check('test numbers only: every recipient in this run was a made-up number', outbox.every((m) => /^9725(0|2|3|4)\d{7}@c\.us$/.test(m.to)));
+  check('guest messages went only to made-up numbers', outbox.filter((m) => !['972543049491@c.us', '972559991052@c.us'].includes(m.to)).every((m) => /^9725(0|2|3|4)\d{7}@c\.us$/.test(m.to)));
 } catch (e) {
   check('run completed without an exception', false, e.stack ?? String(e));
 } finally {

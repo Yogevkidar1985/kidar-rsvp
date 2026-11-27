@@ -26,7 +26,7 @@ export async function invitationMetadata(slug: string, key: string | null): Prom
   // the preview picture must be an absolute address: built from the configured site, or from the host that was asked
   const h = await headers();
   const origin = (process.env.NEXT_PUBLIC_SITE_URL || `${h.get('x-forwarded-proto') ?? 'https'}://${h.get('x-forwarded-host') ?? h.get('host') ?? ''}`).replace(/\/+$/, '');
-  const k = data.hero_url ? 0.7 : 1; // the picture is drawn smaller when it carries a photograph
+  const k = 0.7; // the picture carries a photograph, so it is drawn smaller to stay light
   const image = { url: `${origin}/og/${data.slug}`, width: Math.round(1200 * k), height: Math.round(630 * k), alt: data.name };
   return {
     title: data.name, description, robots: { index: false, follow: false },

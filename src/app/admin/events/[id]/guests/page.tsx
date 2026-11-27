@@ -114,7 +114,7 @@ export default function GuestsPage() {
         {canEdit && <button className="btn" onClick={() => openEdit()}>הוספת משפחה</button>}
       </PageHead>
 
-      <div className="card mb-3 grid gap-2 p-3 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(3,1fr)_auto]">
+      <div className="card mb-3 grid grid-cols-2 gap-2 p-3 lg:grid-cols-[1.4fr_repeat(3,1fr)_auto] [&>input]:col-span-2 lg:[&>input]:col-span-1">
         <input className="field" type="search" placeholder="חיפוש לפי שם, טלפון או קבוצה" aria-label="חיפוש" value={q} onChange={(e) => setQ(e.target.value)} />
         <select className="field" aria-label="סינון לפי סטטוס" value={fStatus} onChange={(e) => setFStatus(e.target.value as GuestStatus | '')}>
           <option value="">כל הסטטוסים</option>{STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
@@ -131,7 +131,42 @@ export default function GuestsPage() {
       {!guests.length ? (
         <Empty title="הרשימה ריקה">הוסיפו משפחות כדי לשלוח לכל אחת קישור אישי עם מספר המקומות שהוקצה לה. אורחים שיאשרו דרך הקישור הכללי יתווספו לכאן לבד.</Empty>
       ) : !rows.length ? <Empty title="אין תוצאות לסינון הזה">נסו לשנות את החיפוש או לנקות את המסננים.</Empty> : (
-        <div className="card overflow-x-auto">
+        <>
+        <ul className="grid gap-2 lg:hidden" data-testid="guests-cards">
+          {rows.map((g) => (
+            <li key={g.id} className="card p-3.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate font-semibold">{g.is_vip && <span className="me-1 rounded bg-brass px-1.5 py-0.5 text-[11px] font-bold text-white">VIP</span>}{g.family_name}</div>
+                  <div className="text-sm text-muted"><span dir="ltr">{g.phone || 'אין טלפון'}</span>{g.group_name ? ` · ${g.group_name}` : ''}</div>
+                </div>
+                {canEdit ? (
+                  <select className={`pill pill-${g.status} min-h-9 flex-none border-0 !text-[13px]`} aria-label={`סטטוס של ${g.family_name}`} value={g.status}
+                    onChange={(e) => updateGuest(g.id, { status: e.target.value as GuestStatus }).then((ok) => ok && toast('הסטטוס עודכן'))}>
+                    {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+                  </select>
+                ) : <StatusPill status={g.status} />}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted">
+                {g.status !== 'pending' && g.status !== 'declined' && <span><b className="font-semibold text-text">{total(g)}</b> משתתפים ({g.adults} / {g.children} / {g.babies})</span>}
+                {g.allocated_seats != null && <span>הוקצו {g.allocated_seats}</span>}
+                {g.table_id && <span>{tname.get(g.table_id)}</span>}
+                {g.arrived && <span className="font-semibold text-ok">הגיעו: {g.arrived_count ?? total(g)}</span>}
+                {hasWa && <span>{g.opted_out ? 'לא לשלוח הודעות' : g.invited_at ? 'הזמנה נשלחה' : 'טרם הוזמנו'}</span>}
+              </div>
+              {[g.preferences, g.notes, g.admin_notes].some(Boolean) && <p className="mt-1.5 text-sm text-muted">{[g.preferences, g.notes, g.admin_notes].filter(Boolean).join(' · ')}</p>}
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                <button className="btn btn-ghost btn-sm" onClick={() => copy(g)}>קישור אישי</button>
+                {wa(g) && <a className="btn btn-ghost btn-sm" href={wa(g)!} target="_blank" rel="noopener noreferrer">WhatsApp</a>}
+                {canEdit && <>
+                  <button className="btn btn-ghost btn-sm" onClick={() => g.arrived ? updateGuest(g.id, { arrived: false }) : setArrive({ g, n: total(g) || g.allocated_seats || 1 })}>{g.arrived ? 'ביטול הגעה' : 'סימון הגעה'}</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => openEdit(g)}>עריכה</button>
+                </>}
+              </div>
+            </li>
+          ))}
+        </ul>
+        <div className="card hidden overflow-x-auto lg:block">
           <table className="w-full min-w-[980px] text-sm" data-testid="guests-table">
             <thead className="border-b border-line bg-paper/60 text-muted">
               <tr>
@@ -185,6 +220,7 @@ export default function GuestsPage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {edit && (
