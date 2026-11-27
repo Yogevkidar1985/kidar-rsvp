@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import type { PublicInvitation, TextStyle } from '@/lib/types';
 import { resolveDesign } from '@/lib/defaults';
 import { fontStack, fontsHref } from '@/lib/fonts';
@@ -9,6 +10,10 @@ import { safeHttpUrl } from '@/lib/validation';
 import Particles from './Particles';
 import RsvpSheet, { type Answer, type RsvpResult } from './RsvpSheet';
 import { useDialogFocus } from '@/lib/dialog';
+import { eventStart } from '@/lib/when';
+import { ornamentLottie, sparkleLottie } from './lotties';
+
+const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
 
 type Props = {
   data: PublicInvitation; token?: string | null;
@@ -79,6 +84,21 @@ const Icon = ({ name, size = 22 }: { name: keyof typeof ICONS; size?: number }) 
 const Ornament = () => (
   <div className="inv-orn" aria-hidden="true"><i /><svg width="9" height="9" viewBox="0 0 9 9"><path d="M4.5 0 9 4.5 4.5 9 0 4.5z" fill="currentColor" /></svg><i /></div>
 );
+/** Days, hours and minutes left. Renders nothing once the event has begun, or before the clock is known on the client. */
+function Countdown({ to }: { to: Date }) {
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => { setNow(Date.now()); const id = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(id); }, []);
+  if (now === null) return null;
+  const left = to.getTime() - now;
+  if (left <= 0) return null;
+  const days = Math.floor(left / 86400000), hours = Math.floor((left % 86400000) / 3600000), minutes = Math.floor((left % 3600000) / 60000);
+  const cells = days > 0 ? [[days, 'ימים'], [hours, 'שעות'], [minutes, 'דקות']] : [[hours, 'שעות'], [minutes, 'דקות']];
+  return (
+    <div className="inv-count" role="timer" aria-label={`נותרו ${days} ימים, ${hours} שעות ו-${minutes} דקות`}>
+      {cells.map(([n, l]) => <div key={l as string}><b>{n}</b><span>{l}</span></div>)}
+    </div>
+  );
+}
 const OPTIONS: { key: Answer; label: string }[] = [
   { key: 'attending', label: 'מגיעים' }, { key: 'maybe', label: 'עדיין לא בטוחים' }, { key: 'declined', label: 'לא מגיעים' },
 ];
@@ -208,6 +228,12 @@ export default function InvitationView({ data, token = null, preview = false, ce
     data.ceremony_time && { t: data.ceremony_time, l: 'טקס' },
   ].filter(Boolean) as { t: string; l: string }[];
   const shots = [...gallery, ...venue];
+  const start = useMemo(() => eventStart(data), [data]);
+  const [calm, setCalm] = useState(true); // until the client says motion is welcome, nothing extra moves
+  useEffect(() => { setCalm(window.matchMedia('(prefers-reduced-motion: reduce)').matches); }, []);
+  const lively = anim && d.extras.sparkle && !calm;
+  const sparkle = useMemo(() => sparkleLottie(d.colors.accent, d.colors.line), [d.colors.accent, d.colors.line]);
+  const ornament = useMemo(() => ornamentLottie(d.colors.accent), [d.colors.accent]);
   const hasPlace = !!(data.venue_name || data.address || venue.length || data.directions || data.parking || data.extra_info);
 
   function downloadIcs() {
@@ -258,10 +284,13 @@ export default function InvitationView({ data, token = null, preview = false, ce
         <main className="inv-body">
           <header className="inv-open">
             <Reveal on={anim}>
-              {d.latin && <p className="inv-latin" dir="ltr" lang="en">{d.latin}</p>}
-              {data.hosts && <p className="inv-names" style={css(d.styles.hosts)}>{data.hosts}</p>}
-              {data.name && <p className="inv-kicker">{data.name}</p>}
-              <Ornament />
+              <div className="inv-crest">
+                {lively && <Lottie className="inv-sparkle" animationData={sparkle} loop={3} aria-hidden="true" />}
+                {d.latin && <p className="inv-latin" dir="ltr" lang="en">{d.latin}</p>}
+                {data.hosts && <p className="inv-names" style={css(d.styles.hosts)}>{data.hosts}</p>}
+                {data.name && <p className="inv-kicker">{data.name}</p>}
+              </div>
+              {lively ? <Lottie className="inv-orn-draw" animationData={ornament} loop={false} aria-hidden="true" /> : <Ornament />}
             </Reveal>
           </header>
 
@@ -289,6 +318,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
                     </div>
                   )}
                 </div>
+                {d.extras.countdown && start && <Countdown to={start} />}
               </Reveal>
             </section>
           )}

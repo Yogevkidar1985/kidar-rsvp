@@ -45,6 +45,30 @@ try {
   await phone.click('.sheet button[type=submit]'); await phone.waitForSelector('[data-testid=rsvp-success]'); await sleep(1300);
   await phone.screenshot({ path: path.join(out, 'phone-thanks.png') });
   console.log('saved:', JSON.stringify(await mock.sql(`select family_name, status, adults from guests`)));
+  // the animated crest, caught at a few moments of its first pass
+  const cp = await (await browser.newContext({ ...devices['iPhone 13'], locale: 'he-IL' })).newPage();
+  await cp.goto(`${APP}/kidar-brit?test=1`, { waitUntil: 'domcontentloaded' });
+  await cp.waitForSelector('.inv-sparkle svg', { timeout: 15000 }); await cp.locator('.inv-open').scrollIntoViewIfNeeded();
+  for (let i = 0; i < 6; i++) { await cp.locator('.inv-open').screenshot({ path: path.join(out, `crest-${i}.png`) }); await sleep(260); }
+  await cp.context().close();
+  // the form on a phone: errors beside their field, Enter moves on, nothing is sent by surprise
+  const fp = await (await browser.newContext({ ...devices['iPhone 13'], locale: 'he-IL' })).newPage();
+  await fp.goto(`${APP}/kidar-brit?test=1`, { waitUntil: 'networkidle' }); await sleep(600);
+  await fp.click('[data-testid=rsvp-open]'); await fp.waitForSelector('.sheet form');
+  await fp.click('.sheet button[type=submit]'); await sleep(300);
+  const empty = await fp.evaluate(() => ({ hints: [...document.querySelectorAll('.sheet-hint')].map((e) => e.textContent), focused: document.activeElement?.getAttribute('name'), sent: !!document.querySelector('[data-testid=rsvp-success]') }));
+  await fp.fill('input[name=name]', 'דנה לוי'); await fp.press('input[name=name]', 'Enter'); await sleep(150);
+  const afterEnter = await fp.evaluate(() => ({ focused: document.activeElement?.getAttribute('name'), sent: !!document.querySelector('[data-testid=rsvp-success]') }));
+  await fp.fill('input[name=phone]', '12ab3'); const typed = await fp.inputValue('input[name=phone]');
+  await fp.press('input[name=phone]', 'Enter'); await sleep(150);
+  const closed = await fp.evaluate(() => document.activeElement?.tagName);
+  await fp.click('.sheet button[type=submit]'); await sleep(300);
+  const badPhone = await fp.evaluate(() => ({ hint: document.querySelector('#rsvp-phone-err')?.textContent, focused: document.activeElement?.getAttribute('name'), invalid: document.querySelector('input[name=phone]').getAttribute('aria-invalid') }));
+  await fp.screenshot({ path: path.join(out, 'phone-form-errors.png') });
+  console.log('form:', JSON.stringify({ empty, afterEnter, lettersStripped: typed, keyboardClosedOnDone: closed !== 'INPUT', badPhone,
+    fontSizes: await fp.$$eval('.sheet input, .sheet textarea', (els) => [...new Set(els.map((e) => getComputedStyle(e).fontSize))]),
+    hints: await fp.$$eval('.sheet input', (els) => els.map((e) => `${e.name}:${e.getAttribute('enterkeyhint') ?? '-'}:${e.getAttribute('inputmode') ?? e.type}:${e.autocomplete || '-'}`)) }));
+  console.log('extras:', JSON.stringify(await fp.evaluate(() => ({ sparkle: !!document.querySelector('.inv-sparkle svg'), ornament: !!document.querySelector('.inv-orn-draw svg'), countdown: document.querySelector('.inv-count')?.innerText.replace(/\n/g, ' ') }))));
   // test mode: the whole journey on screen, nothing written
   const before = (await mock.sql(`select count(*)::int n from guests`))[0].n, seen = (await mock.sql(`select count(*)::int n from invitation_events`))[0].n;
   const tp = await (await browser.newContext({ ...devices['iPhone 13'], locale: 'he-IL' })).newPage();

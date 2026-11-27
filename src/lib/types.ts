@@ -27,6 +27,8 @@ export type Design = {
   entrance: boolean;
   fall: { enabled: boolean; kind: ParticleKind; speed: number; intensity: number; count: number; duration: number; colors: string[] };
   celebrate: { enabled: boolean; kind: ParticleKind; count: number; duration: number };
+  /** small animated touches: sparkles beside the names, a divider that draws itself, a countdown to the event */
+  extras: { sparkle: boolean; countdown: boolean };
 };
 export type HeroPos = { x: number; y: number; zoom: number; ratio: string; brightness?: number; contrast?: number; overlay?: number };
 export type Media = { id: string; kind: 'gallery' | 'venue'; url: string; caption: string | null; path?: string | null; sort?: number };

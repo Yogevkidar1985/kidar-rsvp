@@ -45,6 +45,7 @@ export const DEFAULT_DESIGN: Design = {
   entrance: true,
   fall: { enabled: true, kind: 'confetti', speed: 0.7, intensity: 0.7, count: 22, duration: 0, colors: P0.fall },
   celebrate: { enabled: true, kind: 'confetti', count: 140, duration: 4 },
+  extras: { sparkle: true, countdown: true },
 };
 
 /** Colours, text colours and falling-piece colours of a palette, as one design patch. */
@@ -83,5 +84,6 @@ function merge(x: Partial<Design>, s: Partial<Design['styles']>): Design {
     buttons: { ...DEFAULT_DESIGN.buttons, ...x.buttons },
     fall: { ...DEFAULT_DESIGN.fall, ...x.fall },
     celebrate: { ...DEFAULT_DESIGN.celebrate, ...x.celebrate },
+    extras: { ...DEFAULT_DESIGN.extras, ...x.extras },
   };
 }

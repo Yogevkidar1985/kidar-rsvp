@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import type { GuestStatus, PublicGuest } from '@/lib/types';
 import { normPhone } from '@/lib/phone';
-import { successLottie } from './successLottie';
+import { successLottie } from './lotties';
 import { useDialogFocus } from '@/lib/dialog';
 
 const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
@@ -61,6 +61,9 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, initia
   const [notes, setNotes] = useState(guest?.notes ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [bad, setBad] = useState<{ name?: string; phone?: string; status?: string; count?: string }>({});
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const back = useRef<HTMLDivElement>(null);
   const [done, setDone] = useState<Answer | null>(null);
   const first = useRef<HTMLInputElement>(null);
   const box = useRef<HTMLDivElement>(null);
@@ -79,6 +82,24 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, initia
     return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', esc); };
   }, [key, onClose]);
 
+  // On a phone the keyboard covers the bottom of the screen without resizing it. The sheet follows the part that is
+  // really visible, and the field being typed in is kept in view.
+  useEffect(() => {
+    const vv = window.visualViewport, el = back.current;
+    if (!vv || !el) return;
+    const fit = () => { el.style.setProperty('--vvh', `${vv.height}px`); el.style.setProperty('--vvt', `${vv.offsetTop}px`); };
+    fit(); vv.addEventListener('resize', fit); vv.addEventListener('scroll', fit);
+    const show = (e: FocusEvent) => { const t = e.target as HTMLElement; if (t.matches?.('input, textarea')) window.setTimeout(() => t.scrollIntoView({ block: 'center', behavior: 'smooth' }), 250); };
+    el.addEventListener('focusin', show);
+    return () => { vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit); el.removeEventListener('focusin', show); };
+  }, []);
+  /** Enter on the keyboard goes to the next field, and closes the keyboard on the last one. It never sends the form by surprise. */
+  const enter = (next?: () => void) => (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (next) next(); else (e.target as HTMLInputElement).blur();
+  };
+
   const seatCap = guest?.allocated_seats ?? null;
   const seated = adults + children;
   const total = seated + babies;
@@ -87,10 +108,20 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, initia
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    if (name.trim().length < 2) return setError('נא למלא שם מלא.');
-    if (!normPhone(phone)) return setError('מספר הטלפון אינו תקין.');
-    if (!status) return setError('נא לבחור אם אתם מגיעים.');
-    if (status === 'attending' && seated < 1) return setError('נא לציין כמה מגיעים.');
+    const found: typeof bad = {};
+    if (!status) found.status = 'נא לבחור אם אתם מגיעים.';
+    if (status === 'attending' && seated < 1) found.count = 'נא לציין כמה מגיעים.';
+    if (name.trim().length < 2) found.name = 'נא למלא שם מלא.';
+    if (!phone.trim()) found.phone = 'נא למלא מספר טלפון נייד.';
+    else if (!normPhone(phone)) found.phone = 'המספר לא נראה תקין. דוגמה: 050-1234567';
+    setBad(found);
+    if (Object.keys(found).length) {
+      // the first problem gets the focus, so the guest lands on what to fix
+      if (found.status || found.count) box.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      else if (found.name) first.current?.focus(); else phoneRef.current?.focus();
+      return;
+    }
+    if (!status) return;
     if (test) { setDone(status); onSaved({ status, adults, children, babies }); return; }
     setBusy(true);
     try {
@@ -109,7 +140,7 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, initia
   }
 
   return (
-    <div className={`sheet-back${closing ? ' closing' : ''}`} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div ref={back} className={`sheet-back${closing ? ' closing' : ''}`} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div ref={box} tabIndex={-1} className="sheet" role="dialog" aria-modal="true" aria-label="אישור הגעה" dir="rtl">
         {done ? (
           <div style={{ textAlign: 'center', padding: '8px 0 6px' }} data-testid="rsvp-success">
@@ -138,9 +169,10 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, initia
               <legend className="sr-only">מגיעים?</legend>
               <div className="seg">
                 {STATUSES.map((s) => (
-                  <button key={s.key} type="button" aria-pressed={status === s.key} onClick={() => setStatus(s.key)}>{s.label}</button>
+                  <button key={s.key} type="button" aria-pressed={status === s.key} onClick={() => { setStatus(s.key); setBad((b) => ({ ...b, status: undefined, count: undefined })); }}>{s.label}</button>
                 ))}
               </div>
+              {bad.status && <p role="alert" className="sheet-hint">{bad.status}</p>}
             </fieldset>
 
             {status && status !== 'declined' && (
@@ -148,22 +180,27 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, initia
                 <Stepper label="מבוגרים" value={adults} set={setAdults} max={adults + Math.max(0, roomSeats)} />
                 <Stepper label="ילדים" value={children} set={setChildren} max={children + Math.max(0, roomSeats)} />
                 <Stepper label="תינוקות" hint="ללא כיסא" value={babies} set={setBabies} max={seatCap !== null ? 10 : babies + Math.max(0, roomSeats)} />
+                {bad.count && <p role="alert" className="sheet-hint">{bad.count}</p>}
                 <p style={{ display: 'flex', justifyContent: 'space-between', margin: '14px 0 0', fontWeight: 600 }}>
                   <span>סה״כ משתתפים</span><span data-testid="rsvp-total">{total}</span>
                 </p>
                 <label style={{ display: 'block', marginTop: 14 }}><span className="sheet-label">העדפות מיוחדות (צמחוני, כיסא תינוק, נגישות)</span>
-                  <input className="sheet-field" maxLength={500} value={preferences} onChange={(e) => setPreferences(e.target.value)} /></label>
+                  <input className="sheet-field" name="preferences" autoComplete="off" enterKeyHint="next" maxLength={500} value={preferences} onChange={(e) => setPreferences(e.target.value)} onKeyDown={enter(() => first.current?.focus())} /></label>
               </div>
             )}
             <div style={{ display: 'grid', gap: 12, marginTop: 18 }}>
               <label><span className="sheet-label">שם מלא</span>
-                <input ref={first} className="sheet-field" name="name" autoComplete="name" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} required /></label>
+                <input ref={first} className="sheet-field" name="name" autoComplete="name" autoCapitalize="words" enterKeyHint="next" maxLength={80} aria-invalid={!!bad.name} aria-describedby={bad.name ? 'rsvp-name-err' : undefined}
+                  value={name} onChange={(e) => { setName(e.target.value); if (bad.name) setBad((b) => ({ ...b, name: undefined })); }} onKeyDown={enter(() => phoneRef.current?.focus())} required />
+                {bad.name && <span id="rsvp-name-err" role="alert" className="sheet-hint">{bad.name}</span>}</label>
               <label><span className="sheet-label">טלפון נייד</span>
-                <input className="sheet-field" name="phone" type="tel" inputMode="tel" autoComplete="tel" dir="ltr" style={{ textAlign: 'right' }} maxLength={20} value={phone} onChange={(e) => setPhone(e.target.value)} required /></label>
+                <input ref={phoneRef} className="sheet-field" name="phone" type="tel" inputMode="tel" autoComplete="tel" enterKeyHint="done" dir="ltr" style={{ textAlign: 'right' }} maxLength={20} placeholder="050-1234567" aria-invalid={!!bad.phone} aria-describedby={bad.phone ? 'rsvp-phone-err' : undefined}
+                  value={phone} onChange={(e) => { setPhone(e.target.value.replace(/[^\d+\-\s()]/g, '')); if (bad.phone) setBad((b) => ({ ...b, phone: undefined })); }} onKeyDown={enter()} required />
+                {bad.phone && <span id="rsvp-phone-err" role="alert" className="sheet-hint">{bad.phone}</span>}</label>
             </div>
 
             <label style={{ display: 'block', marginTop: 12 }}><span className="sheet-label">הערות לבעלי האירוע</span>
-              <textarea className="sheet-field" rows={2} maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
+              <textarea className="sheet-field" name="notes" autoComplete="off" rows={2} maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
 
             {error && <p role="alert" className="sheet-error">{error}</p>}
             <button type="submit" className="inv-btn" style={{ marginTop: 18 }} disabled={busy}>

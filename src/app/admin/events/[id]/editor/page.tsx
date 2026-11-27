@@ -329,6 +329,8 @@ export default function EditorPage() {
             </>}
             {tab === 'אנימציות' && <>
               <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={design.entrance} onChange={(e) => setDesign({ entrance: e.target.checked })} />כניסה הדרגתית של התמונה והטקסטים</label>
+              <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={design.extras.sparkle} onChange={(e) => setDesign({ extras: { ...design.extras, sparkle: e.target.checked } })} />נצנוצים ליד השמות וקו מפריד שמצייר את עצמו</label>
+              <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={design.extras.countdown} onChange={(e) => setDesign({ extras: { ...design.extras, countdown: e.target.checked } })} />ספירה לאחור עד האירוע</label>
               <div className="grid gap-3 border-t border-line pt-3">
                 <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={design.fall.enabled} onChange={(e) => setDesign({ fall: { ...design.fall, enabled: e.target.checked } })} />אלמנטים שנופלים מהתמונה</label>
                 <Field label="סוג האלמנט"><select className="field" value={design.fall.kind} onChange={(e) => setDesign({ fall: { ...design.fall, kind: e.target.value as ParticleKind } })}>{KINDS.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}</select></Field>

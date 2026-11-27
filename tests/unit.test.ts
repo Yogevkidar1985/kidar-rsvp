@@ -123,7 +123,7 @@ describe('design', () => {
   });
   it('produces a well-formed Lottie document', () => {
     const l = successLottie('#2F7D5B');
-    expect(l.layers).toHaveLength(3); expect(l.op).toBe(90);
+    expect(l.layers.map((x) => x.nm)).toEqual(['check', 'disc', 'rays', 'ring']); expect(l.op).toBe(90);
     expect(JSON.stringify(l)).not.toContain('undefined');
   });
 });
