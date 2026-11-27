@@ -12,6 +12,7 @@ const VenueMap = dynamic(() => import('@/components/invitation/VenueMap'), { ssr
 import InvitationView from '@/components/invitation/InvitationView';
 import { HEBREW_FONTS, PALETTES, applyFont, applyPalette, resolveDesign } from '@/lib/defaults';
 import { hebrewDate, weekdayLabel } from '@/lib/hebrew-date';
+import MediaGrid from '@/components/admin/MediaGrid';
 import { MIX, shape } from '@/components/invitation/Particles';
 import type { Design, EventRow, Media, ParticleKind, TextStyle } from '@/lib/types';
 
@@ -191,6 +192,7 @@ export default function EditorPage() {
   async function upload(files: FileList | null, kind: 'hero' | 'gallery' | 'venue') {
     if (!files?.length) return;
     setUploading(true);
+    let next = Math.max(-1, ...media.map((m) => m.sort ?? 0)) + 1; // new photos go to the end, in the order they were picked
     try {
       for (const f of Array.from(files).slice(0, kind === 'hero' ? 1 : 12)) {
         if (f.size > 25 * 1024 * 1024) { toast('הקובץ גדול מדי (עד 25MB).', true); continue; }
@@ -205,7 +207,7 @@ export default function EditorPage() {
           if (error || !data) { toast(dbError(error), true); continue; }
           setEvent(data as EventRow); setDraftRaw((d) => ({ ...d, hero_url: url, hero_pos: pos, updated_at: (data as EventRow).updated_at }));
         } else {
-          const { error } = await db.from('media_assets').insert({ event_id: event.id, kind, url, path, sort: media.length });
+          const { error } = await db.from('media_assets').insert({ event_id: event.id, kind, url, path, sort: next++ });
           if (error) toast(dbError(error), true);
         }
       }
@@ -229,16 +231,16 @@ export default function EditorPage() {
       <input type="file" accept="image/*" multiple={kind !== 'hero'} className="sr-only" disabled={uploading || !canEdit} onChange={(e) => { void upload(e.target.files, kind); e.target.value = ''; }} />
     </label>
   );
+  async function reorder(kind: 'gallery' | 'venue', ids: string[]) {
+    const before = media;
+    const byId = new Map(media.map((m) => [m.id, m]));
+    setMedia([...media.filter((m) => m.kind !== kind), ...ids.map((id, i) => ({ ...byId.get(id)!, sort: i }))]);
+    const res = await Promise.all(ids.map((id, i) => (byId.get(id)?.sort === i ? null : db.from('media_assets').update({ sort: i }).eq('id', id))));
+    const failed = res.find((r) => r?.error);
+    if (failed?.error) { setMedia(before); toast(dbError(failed.error), true); await loadMedia(); }
+  }
   const thumbs = (kind: 'gallery' | 'venue') => (
-    <div className="mt-2 grid grid-cols-3 gap-2">
-      {media.filter((m) => m.kind === kind).map((m) => (
-        <div key={m.id} className="relative">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={m.url} alt="" className="aspect-square w-full rounded-lg object-cover" />
-          <button type="button" className="absolute left-1 top-1 rounded-md bg-white/90 px-1.5 text-sm font-bold text-no" aria-label="הסרת התמונה" onClick={() => removeMedia(m)}>×</button>
-        </div>
-      ))}
-    </div>
+    <MediaGrid name={kind} items={media.filter((m) => m.kind === kind)} disabled={!canEdit} onReorder={(ids) => reorder(kind, ids)} onRemove={removeMedia} />
   );
 
   const tileColors = design.fall.colors.map((c) => (/^#f{3}(f{3})?$/i.test(c) ? design.colors.line : c));

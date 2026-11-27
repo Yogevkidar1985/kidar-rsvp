@@ -15,7 +15,7 @@ const check = (name, ok, extra = '') => { results.push(ok); console.log(`${ok ? 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const mock = await startMock(MOCK, root);
-await mock.sql(`update events set published = true where slug = 'kidar-brit'`);
+await mock.sql(`update events set published = true, venue_name = 'אולם הדוגמה', address = 'הרצל 1, כפר סבא' where slug = 'kidar-brit'`);
 const [{ id }] = await mock.sql(`select id from events where slug = 'kidar-brit'`);
 const env = { ...process.env, NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${MOCK}`, NEXT_PUBLIC_SUPABASE_ANON_KEY: ANON, SUPABASE_SERVICE_ROLE_KEY: SERVICE, RSVP_HASH_SECRET: 'test', GREEN_API_INSTANCE_ID: '', GREEN_API_TOKEN: '' };
 const app = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-p', '3115', '-H', '127.0.0.1'], { cwd: root, env, stdio: 'ignore' });
@@ -68,6 +68,54 @@ try {
     await p.screenshot({ path: path.join(out, `connections-${tag}.png`), fullPage: true });
     check(`${tag}: no script errors`, errs.length === 0, errs.join(' ; '));
     await ctx.close();
+  }
+
+  // photos: uploaded, then dragged into a new order with a mouse and with a finger
+  {
+    const imgs = process.argv[3];
+    const names = async (p) => (await mock.sql(`select path from media_assets where kind = 'venue' order by sort, created_at`)).map((r) => r.path.slice(-12, -4));
+    for (const [tag, opts] of [['mouse', { viewport: { width: 1280, height: 900 } }], ['finger', { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true }]]) {
+      const ctx = await browser.newContext({ ...opts, locale: 'he-IL' });
+      const p = await ctx.newPage();
+      await p.goto(APP + '/admin/login'); await p.fill('input', '1007'); await p.click('button[aria-label="כניסה"]'); await p.waitForURL(/admin\/events/);
+      await p.goto(`${APP}/admin/events/${id}/editor`, { waitUntil: 'networkidle' });
+      await p.getByRole('tab', { name: 'תמונות' }).click();
+      if (tag === 'mouse') {
+        await p.locator('label', { hasText: 'הוספת תמונות של המקום' }).locator('input').setInputFiles(['a.jpg', 'b.jpg', 'c.jpg', 'd.jpg'].map((f) => path.join(imgs, f)));
+        await p.locator('[data-testid=media-venue] li').nth(3).waitFor({ timeout: 30000 }); await sleep(500);
+      }
+      const tiles = p.locator('[data-testid=media-venue] li');
+      const before = await names(p);
+      const box = async (i) => tiles.nth(i).boundingBox();
+      if (tag === 'mouse') {
+        const a = await box(3), b = await box(0);
+        await p.mouse.move(a.x + a.width / 2, a.y + a.height / 2); await p.mouse.down();
+        await p.mouse.move(b.x + b.width / 2 + 20, b.y + b.height / 2, { steps: 12 }); await p.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 4 }); await p.mouse.up();
+      } else {
+        await tiles.first().scrollIntoViewIfNeeded();
+        const grip = await tiles.nth(0).locator('.media-grip').boundingBox(), b = await box(2);
+        const cdp = await ctx.newCDPSession(p);
+        const pt = (x, y) => [{ x: Math.round(x), y: Math.round(y) }];
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pt(grip.x + 20, grip.y + 20) });
+        for (let i = 1; i <= 10; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: pt(grip.x + 20 + (b.x + b.width / 2 - grip.x - 20) * i / 10, grip.y + 20 + (b.y + b.height / 2 - grip.y - 20) * i / 10) });
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        check('finger: every control on a photo is big enough to tap', await p.$$eval('[data-testid=media-venue] button', (bs) => bs.every((b) => b.getBoundingClientRect().height >= 36 && b.getBoundingClientRect().width >= 30)));
+      }
+      await sleep(900);
+      const after = await names(p);
+      const want = tag === 'mouse' ? [before[3], before[0], before[1], before[2]] : [before[1], before[2], before[0], before[3]];
+      check(`${tag}: a dragged photo lands where it was dropped, and the order is saved`, after.join() === want.join(), `${before} -> ${after}`);
+      if (tag === 'finger') {
+        await p.getByRole('button', { name: 'הזזת תמונה 4 מקום אחד קדימה' }).click(); await sleep(700);
+        const stepped = await names(p);
+        check('finger: the arrow buttons move a photo one place', stepped.join() === [after[0], after[1], after[3], after[2]].join(), `${after} -> ${stepped}`);
+        await p.screenshot({ path: path.join(out, 'media-grid-phone.png') });
+        const inv = await ctx.newPage(); await inv.goto(`${APP}/kidar-brit`, { waitUntil: 'networkidle' });
+        const shown = await inv.$$eval('section.inv-band [data-testid=stack-gallery] img', (i) => i.map((x) => x.src.slice(-12, -4)));
+        check('finger: the invitation shows the photos in the new order', shown.join() === stepped.slice(0, 3).join(), `${shown}`);
+      }
+      await ctx.close();
+    }
   }
 
   // the setup notice, shown while the database update has not been run
