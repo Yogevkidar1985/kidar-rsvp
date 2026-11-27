@@ -227,6 +227,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
 
   const date = dateParts(data.event_date);
   const place = [data.venue_name, data.address].filter(Boolean).join(', ');
+  const logo = safeHttpUrl(d.venueLogo);
   const waze = safeHttpUrl(data.waze_url) ?? (place ? `https://waze.com/ul?q=${encodeURIComponent(place)}&navigate=yes` : null);
   const gmaps = safeHttpUrl(data.gmaps_url) ?? (place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}` : null);
   const gcal = googleCalendarUrl(data);
@@ -401,7 +402,10 @@ export default function InvitationView({ data, token = null, preview = false, ce
                   </div>
                   <div className="way__info">
                     <span className="way__eyebrow">איך מגיעים</span>
-                    <h3 className="way__title">{data.venue_name || 'מיקום האירוע'}</h3>
+                    {logo
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      ? <h3 className="way__title way__title--logo"><img className="way__logo" src={img(logo, 384)} alt={data.venue_name || 'לוגו המקום'} loading="lazy" decoding="async" /></h3>
+                      : <h3 className="way__title">{data.venue_name || 'מיקום האירוע'}</h3>}
                     <ul className="way__facts">
                       {data.address && <li><Icon name="pin" size={17} /><span>{data.address}</span></li>}
                       {(date || times.length > 0) && <li><Icon name="clock" size={17} /><span>{[data.weekday_label, date?.numeric].filter(Boolean).join(', ')}{times[0] ? <> · <b dir="ltr">{times[0].t}</b></> : null}</span></li>}

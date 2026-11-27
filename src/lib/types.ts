@@ -33,6 +33,8 @@ export type Design = {
   geo: { lat: number; lng: number; place: string } | null;
   /** what a link shows inside WhatsApp; an empty field falls back to the event's own texts */
   share: { title: string; description: string };
+  /** the venue's own logo, shown in the "how to get there" card */
+  venueLogo: string | null;
 };
 export type HeroPos = { x: number; y: number; zoom: number; ratio: string; brightness?: number; contrast?: number; overlay?: number };
 export type Media = { id: string; kind: 'gallery' | 'venue'; url: string; caption: string | null; path?: string | null; sort?: number };

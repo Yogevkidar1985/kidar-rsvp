@@ -229,6 +229,21 @@ export default function EditorPage() {
       await loadMedia(); void refreshPublic(event.id); toast('התמונות הועלו');
     } finally { setUploading(false); }
   }
+  /** The venue's logo is kept as it was drawn: a PNG keeps its transparent background. */
+  async function uploadLogo(files: FileList | null) {
+    const f = files?.[0];
+    if (!f) return;
+    if (!/^image\/(png|jpeg|webp)$/.test(f.type)) return toast('לוגו מעלים כקובץ PNG, JPG או WebP.', true);
+    if (f.size > 3 * 1024 * 1024) return toast('הקובץ גדול מדי (עד 3MB).', true);
+    setUploading(true);
+    try {
+      const path = `${event.id}/logo-${crypto.randomUUID()}.${f.type.split('/')[1].replace('jpeg', 'jpg')}`;
+      const up = await db.storage.from('event-media').upload(path, f, { contentType: f.type, cacheControl: '31536000' });
+      if (up.error) return toast('ההעלאה נכשלה. נסו שוב.', true);
+      setDesign({ venueLogo: db.storage.from('event-media').getPublicUrl(path).data.publicUrl });
+      toast('הלוגו נוסף. שמרו כדי שיופיע בהזמנה.');
+    } finally { setUploading(false); }
+  }
   async function removeMedia(m: Media) {
     const { error } = await db.from('media_assets').delete().eq('id', m.id);
     if (error) return toast(dbError(error), true);
@@ -330,6 +345,16 @@ export default function EditorPage() {
             {tab === 'מקום' && <>
               {text('venue_name', 'שם המקום')}
               {text('address', 'כתובת מלאה')}
+              <div>
+                <span className="label">לוגו המקום (מוצג בכרטיס "איך מגיעים" במקום השם)</span>
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {design.venueLogo && <img src={design.venueLogo} alt="לוגו המקום" className="h-12 max-w-40 rounded border border-line bg-white object-contain p-1" />}
+                  <label role="button" className={`btn btn-ghost btn-sm ${uploading ? 'pointer-events-none opacity-60' : ''}`}>{design.venueLogo ? 'החלפת הלוגו' : 'העלאת לוגו'}
+                    <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={uploading || !canEdit} onChange={(e) => { void uploadLogo(e.target.files); e.target.value = ''; }} /></label>
+                  {design.venueLogo && <button type="button" className="btn btn-danger btn-sm" onClick={() => setDesign({ venueLogo: null })}>הסרה</button>}
+                </div>
+              </div>
               {text('waze_url', 'קישור Waze', { ltr: true, placeholder: 'https://waze.com/ul/...', hint: 'אם יישאר ריק, הניווט ייפתח לפי הכתובת.' })}
               {text('gmaps_url', 'קישור Google Maps', { ltr: true, placeholder: 'https://maps.app.goo.gl/...' })}
               {text('contact_phone', 'טלפון ליצירת קשר', { ltr: true })}

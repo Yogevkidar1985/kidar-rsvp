@@ -432,3 +432,7 @@ input[type="range"] { accent-color: var(--color-ink); }
   .ed-tabs { top: 12px; }
   .ed-preview { position: sticky; top: 12px; }
 }
+
+/* the venue's own logo in place of its name */
+.way__title--logo { margin: 2px 0 6px; line-height: 0; }
+.way__logo { display: block; max-width: min(190px, 70%); max-height: 64px; width: auto; height: auto; object-fit: contain; }

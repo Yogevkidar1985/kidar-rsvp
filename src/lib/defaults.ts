@@ -51,6 +51,7 @@ export const DEFAULT_DESIGN: Design = {
   extras: { sparkle: true, countdown: true },
   geo: null,
   share: { title: '', description: '' },
+  venueLogo: null,
 };
 
 /** Colours, text colours and falling-piece colours of a palette, as one design patch. */
