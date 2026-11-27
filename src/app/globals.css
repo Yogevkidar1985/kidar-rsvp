@@ -70,6 +70,9 @@ input[type="range"] { accent-color: var(--color-ink); }
   .stat dt, .stat .stat-label { font-size: 13px; font-weight: 500; color: var(--color-muted); }
   .stat dd, .stat .stat-value { font-size: 27px; line-height: 1.15; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
   @media (min-width: 1024px) { .stat dd, .stat .stat-value { font-size: 32px; } }
+  /* a phone on the desk: the invitation exactly as a guest gets it */
+  .phone { width: min(100%, 340px); margin-inline: auto; padding: 10px; border-radius: 40px; background: #182230; box-shadow: 0 18px 40px -22px rgb(16 24 40 / .55); }
+  .phone > iframe { display: block; width: 100%; height: min(70dvh, 640px); border: 0; border-radius: 30px; background: #fff; }
   .notice { border-radius: 12px; padding: .7rem .9rem; font-size: 14px; border: 1px solid; }
   .notice-warn { background: #fdf7ea; border-color: #f0dcb4; color: #7a5413; }
   .notice-bad { background: #fdf1f1; border-color: #f1cccc; color: #a83232; }
@@ -135,6 +138,7 @@ input[type="range"] { accent-color: var(--color-ink); }
 .inv-quick:empty { display: none; }
 .inv-share { display: flex; justify-content: center; flex-wrap: wrap; gap: 0 18px; margin-top: 18px; white-space: nowrap; }
 .inv-share button { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 0 4px; border: 0; background: none; color: var(--inv-dim); font: 400 14.5px/1 var(--inv-font); }
+.inv-test { position: sticky; top: 0; z-index: 40; padding: 8px 14px; background: #b97a22; color: #fff; font: 500 13px/1.3 var(--inv-font); text-align: center; }
 .inv-toast { position: fixed; inset-inline: 0; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 65; width: max-content; max-width: 86vw; margin: 0 auto; padding: 11px 18px; border-radius: 999px;
   background: var(--inv-ink); color: var(--inv-surface); font: 400 15px/1.2 var(--inv-font); animation: inv-fade .2s ease both; }
 

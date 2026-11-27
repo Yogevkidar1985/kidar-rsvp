@@ -91,7 +91,7 @@ export async function runTick(budgetMs = 6500, now = new Date()): Promise<TickRe
     if (!ev.published) { await finish('failed', { error: 'ההזמנה לא מפורסמת, הקישור לא ייפתח' }); continue; }
 
     // the guest is read again right before sending: the answer may have changed since the message was queued
-    const g = m.guest_id ? (await db.from('guests').select('id,family_name,contact_name,invite_token,status,reminders_enabled,opted_out,invited_at').eq('id', m.guest_id).maybeSingle()).data : null;
+    const g = m.guest_id ? (await db.from('guests').select('*').eq('id', m.guest_id).maybeSingle()).data : null;
     if (g?.opted_out) { await finish('skipped', { error: 'האורח ביקש לא לקבל הודעות' }); continue; }
     if (c.kind === 'reminder') {
       const start = eventStart(ev);

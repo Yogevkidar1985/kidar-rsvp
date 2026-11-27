@@ -59,6 +59,8 @@ export type Guest = {
   created_at: string; updated_at: string;
   /** present once supabase/migrations/0002_whatsapp.sql has run */
   invited_at?: string | null; reminders_enabled?: boolean; opted_out?: boolean;
+  /** present once supabase/migrations/0003_links_analytics.sql has run */
+  link_code?: string | null;
 };
 export type CampaignStatus = 'scheduled' | 'sending' | 'paused' | 'done' | 'cancelled';
 export type Campaign = {

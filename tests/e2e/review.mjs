@@ -45,6 +45,18 @@ try {
   await phone.click('.sheet button[type=submit]'); await phone.waitForSelector('[data-testid=rsvp-success]'); await sleep(1300);
   await phone.screenshot({ path: path.join(out, 'phone-thanks.png') });
   console.log('saved:', JSON.stringify(await mock.sql(`select family_name, status, adults from guests`)));
+  // test mode: the whole journey on screen, nothing written
+  const before = (await mock.sql(`select count(*)::int n from guests`))[0].n, seen = (await mock.sql(`select count(*)::int n from invitation_events`))[0].n;
+  const tp = await (await browser.newContext({ ...devices['iPhone 13'], locale: 'he-IL' })).newPage();
+  await tp.goto(`${APP}/kidar-brit?test=1`, { waitUntil: 'networkidle' }); await sleep(800);
+  const banner = await tp.locator('.inv-test').innerText();
+  await tp.click('[data-testid=rsvp-open]'); await tp.waitForSelector('.sheet form');
+  await tp.fill('input[name=name]', 'בודק בדיקה'); await tp.fill('input[name=phone]', '0541234567');
+  await tp.click('.sheet button[type=submit]'); await tp.waitForSelector('[data-testid=rsvp-success]'); await sleep(600);
+  await tp.screenshot({ path: path.join(out, 'phone-test-mode.png') });
+  console.log('test mode:', JSON.stringify({ banner: banner.includes('מצב בדיקה'), thanks: (await tp.locator('[data-testid=rsvp-success]').innerText()).includes('לא נשמרה'),
+    guestsAdded: (await mock.sql(`select count(*)::int n from guests`))[0].n - before, visitsCounted: (await mock.sql(`select count(*)::int n from invitation_events`))[0].n - seen }));
+  console.log('real visits recorded so far:', (await mock.sql(`select count(*)::int n from invitation_events where kind = 'visit'`))[0].n);
   const desk = await (await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'he-IL' })).newPage();
   await desk.goto(`${APP}/e/kidar-brit`, { waitUntil: 'networkidle' }); await sleep(1200);
   await desk.screenshot({ path: path.join(out, 'desktop-top.png') });

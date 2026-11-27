@@ -12,6 +12,8 @@ type Props = {
   slug: string; token: string | null; guest?: PublicGuest; maxParty: number; accent: string;
   /** the answer picked on the invitation itself */
   initial?: Answer | null;
+  /** test mode: validate and show the thank-you screen without sending anything to the server */
+  test?: boolean;
   onClose: () => void; onSaved: (r: RsvpResult) => void;
 };
 type Saved = { name: string; phone: string };
@@ -38,7 +40,7 @@ function Stepper({ label, hint, value, set, max }: { label: string; hint?: strin
   );
 }
 
-export default function RsvpSheet({ slug, token, guest, maxParty, accent, initial = null, onClose, onSaved }: Props) {
+export default function RsvpSheet({ slug, token, guest, maxParty, accent, initial = null, test = false, onClose, onSaved }: Props) {
   const answered = guest && guest.status !== 'pending';
   const [name, setName] = useState(guest?.contact_name || guest?.family_name || '');
   const [phone, setPhone] = useState('');
@@ -78,6 +80,7 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, initia
     if (!normPhone(phone)) return setError('מספר הטלפון אינו תקין.');
     if (!status) return setError('נא לבחור אם אתם מגיעים.');
     if (status === 'attending' && seated < 1) return setError('נא לציין כמה מגיעים.');
+    if (test) { setDone(status); onSaved({ status, adults, children, babies }); return; }
     setBusy(true);
     try {
       const res = await fetch('/api/rsvp', {
@@ -104,7 +107,7 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, initia
             </div>
             <h2 className="sheet-title" style={{ margin: '4px 0 8px' }}>{THANKS[done][0]}</h2>
             {done !== 'declined' && total > 0 && <p style={{ margin: '0 0 6px', fontWeight: 600 }}>נרשמו {total} משתתפים</p>}
-            <p style={{ margin: 0, color: 'var(--inv-muted)', lineHeight: 1.6 }}>{THANKS[done][1]}</p>
+            <p style={{ margin: 0, color: 'var(--inv-muted)', lineHeight: 1.6 }}>{test ? 'מצב בדיקה: כך ייראה המסך לאורח. התשובה לא נשמרה.' : THANKS[done][1]}</p>
             <div style={{ display: 'grid', gap: 8, marginTop: 22 }}>
               <button type="button" className="inv-btn" onClick={onClose}>חזרה להזמנה</button>
               <button type="button" className="inv-btn ghost" onClick={() => setDone(null)}>עדכון התשובה</button>

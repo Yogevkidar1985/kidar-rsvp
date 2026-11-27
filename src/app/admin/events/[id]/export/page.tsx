@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react';
 import { useEvent } from '@/components/admin/EventContext';
 import { PageHead } from '@/components/admin/Shell';
+import { inviteUrl } from '@/lib/templates';
 import { COLUMNS, SCOPES, download, guestRows, seatingRows, toCsv, toXlsx, type ColumnKey, type Scope } from '@/lib/export';
 
 const DEFAULT: ColumnKey[] = ['family_name', 'contact_name', 'phone', 'allocated_seats', 'adults', 'children', 'babies', 'total', 'status', 'responded_at', 'table', 'notes'];
@@ -12,8 +13,8 @@ export default function ExportPage() {
   const [scope, setScope] = useState<Scope>('all');
   const [cols, setCols] = useState<ColumnKey[]>(DEFAULT);
   const rows = useMemo(() => what === 'guests'
-    ? guestRows(guests, tables, scope, COLUMNS.map((c) => c.key).filter((k) => cols.includes(k)))
-    : seatingRows(guests, tables), [what, guests, tables, scope, cols]);
+    ? guestRows(guests, tables, scope, COLUMNS.map((c) => c.key).filter((k) => cols.includes(k)), (g) => inviteUrl(typeof window === 'undefined' ? '' : window.location.origin, event.slug, g))
+    : seatingRows(guests, tables), [what, guests, tables, scope, cols, event.slug]);
   const title = what === 'guests' ? SCOPES.find((s) => s.key === scope)!.label : 'סידור שולחנות';
   const file = `${event.slug}-${what === 'guests' ? scope : 'seating'}`;
   const empty = rows.length < 2 || (what === 'guests' && !cols.length);

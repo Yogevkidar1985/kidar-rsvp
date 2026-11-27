@@ -32,6 +32,7 @@ export async function startMock(port, root) {
   await db.exec(readFileSync(`${root}/supabase/migrations/0001_init.sql`, 'utf8'));
   await db.exec(readFileSync(`${root}/supabase/seed_kidar.sql`, 'utf8'));
   await db.exec(readFileSync(`${root}/supabase/migrations/0002_whatsapp.sql`, 'utf8'));
+  await db.exec(readFileSync(`${root}/supabase/migrations/0003_links_analytics.sql`, 'utf8'));
   const files = new Map();
   let chain = Promise.resolve();
   const locked = (fn) => { const p = chain.then(fn, fn); chain = p.catch(() => {}); return p; };

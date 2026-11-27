@@ -30,7 +30,7 @@ const hm = (d) => new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem',
 await sql(`update events set published = true, venue_name = 'אולם הדוגמה', address = 'הרצל 1, כפר סבא', event_date = $1, reception_time = $2 where slug = 'kidar-brit'`, [ymd(tomorrow), hm(tomorrow)]);
 const [{ id: eventId }] = await sql(`select id from events where slug = 'kidar-brit'`);
 const addGuest = async (name, phone, extra = {}) => (await sql(
-  `insert into guests (event_id, family_name, phone, status, adults, reminders_enabled, opted_out, invited_at) values ($1, $2, $3, $4, $5, $6, $7, $8) returning id, invite_token`,
+  `insert into guests (event_id, family_name, phone, status, adults, reminders_enabled, opted_out, invited_at) values ($1, $2, $3, $4, $5, $6, $7, $8) returning id, invite_token, link_code`,
   [eventId, name, phone, extra.status ?? 'pending', extra.status === 'attending' ? 2 : 0, extra.reminders ?? true, extra.opted ?? false, extra.invited ?? null]))[0];
 
 const env = { ...process.env, NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${MOCK}`, NEXT_PUBLIC_SUPABASE_ANON_KEY: ANON, SUPABASE_SERVICE_ROLE_KEY: SERVICE, RSVP_HASH_SECRET: 'test',
@@ -68,7 +68,7 @@ try {
   await drain();
   check('Green API received one message per eligible guest', outbox.length === 2 && outbox.map((m) => m.to).sort().join() === '972501111111@c.us,972502222222@c.us', JSON.stringify(outbox.map((m) => m.to)));
   check('each message carries the guest name, the Hebrew text and a personal link',
-    outbox[0].text.includes('שלום משפחת כהן') && outbox[0].text.includes(`https://invite.example/e/kidar-brit?g=${g1.invite_token}`) && outbox[1].text.includes(`?g=${g2.invite_token}`) && outbox[0].text.includes(hm(tomorrow)), outbox[0].text);
+    outbox[0].text.includes('שלום משפחת כהן') && /^[A-Za-z0-9]{8}$/.test(g1.link_code) && outbox[0].text.includes(`https://invite.example/kidar-brit/${g1.link_code}`) && outbox[1].text.includes(`/kidar-brit/${g2.link_code}`) && !outbox[0].text.includes('?g=') && outbox[0].text.includes(hm(tomorrow)), outbox[0].text);
   let rows = await sql(`select status, provider_id, sent_at is not null s from messages order by id`);
   check('every send is logged with the provider id', rows.length === 2 && rows.every((m) => m.status === 'sent' && m.provider_id && m.s));
   check('guests are marked as invited and the campaign closes', (await sql(`select count(*)::int n from guests where invited_at is not null`))[0].n === 3 && (await sql(`select status from campaigns`))[0].status === 'done');
@@ -81,13 +81,41 @@ try {
 
   r = await api('/api/admin/campaigns', { eventId, kind: 'invite', name: 'אדם אחד', body: INVITE, manual: { name: 'דנה חדשה', phone: '052-7777777', save: true } });
   await drain();
-  const [saved] = await sql(`select id, invite_token, invited_at from guests where phone_norm = '0527777777'`);
-  check('an individual invitation to a new number saves the guest and sends a personal link', !!saved?.invited_at && outbox.at(-1).to === '972527777777@c.us' && outbox.at(-1).text.includes(`?g=${saved.invite_token}`) && outbox.at(-1).text.includes('שלום דנה חדשה'));
+  const [saved] = await sql(`select id, invite_token, link_code, invited_at from guests where phone_norm = '0527777777'`);
+  check('an individual invitation to a new number saves the guest and sends a personal link', !!saved?.invited_at && outbox.at(-1).to === '972527777777@c.us' && outbox.at(-1).text.includes(`/kidar-brit/${saved.link_code}`) && outbox.at(-1).text.includes('שלום דנה חדשה'));
   r = await api('/api/admin/campaigns', { eventId, kind: 'invite', name: 'אדם אחד שוב', body: INVITE, manual: { name: 'דנה חדשה', phone: '0527777777', save: true } });
   check('the same number is not invited twice by accident', r.status === 400);
 
   r = await api('/api/admin/campaigns', { eventId, kind: 'invite', name: 'משתנה חסר', body: 'היי {{guest_name}} {{no_such_thing}}', guestIds: [g1.id], allowResend: true });
   check('a message with a variable that has no value is refused', r.status === 400 && r.json.message.includes('no_such_thing'));
+
+  // ---------- short links and opening counts ----------
+  const page = async (p) => { const x = await fetch(APP + p); return { status: x.status, html: await x.text() }; };
+  let pg = await page(`/kidar-brit/${g1.link_code}`);
+  check('the short personal link opens the invitation for that guest', pg.status === 200 && pg.html.includes('משפחת כהן'));
+  pg = await page(`/e/kidar-brit?g=${g1.invite_token}`);
+  check('a link in the old form still opens for the same guest', pg.status === 200 && pg.html.includes('משפחת כהן'));
+  pg = await page('/kidar-brit');
+  check('the short event link opens without naming any guest', pg.status === 200 && !pg.html.includes('משפחת כהן') && !pg.html.includes(g1.link_code));
+  check('a wrong code, a reserved name and extra path segments show nothing private', (await page('/kidar-brit/AAAAAAAA')).html.includes('משפחת כהן') === false && (await page('/admin-x/zzz')).status === 404 && (await page(`/kidar-brit/${g1.link_code}/more`)).status === 404);
+  check('fetching the page alone, as a link preview does, counts no visit', (await sql(`select count(*)::int n from invitation_events`))[0].n === 0);
+  const beacon = (token, kind = 'visit', visitor = 'v1') => fetch(APP + '/api/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug: 'kidar-brit', token, kind, visitor }) });
+  for (let i = 0; i < 5; i++) await beacon(g1.link_code);
+  await beacon(g1.link_code, 'rsvp_start'); await beacon(null, 'visit', 'anon-a'); await beacon(null, 'visit', 'anon-a'); await beacon('not-a-code'); await beacon(g1.link_code, 'made-up-kind');
+  const ev = await sql(`select kind, guest_id, visitor from invitation_events order by id`);
+  const mine = ev.filter((e) => e.guest_id === g1.id);
+  check('five openings by one guest are five views and one unique guest', mine.filter((e) => e.kind === 'visit').length === 5 && new Set(mine.map((e) => e.guest_id)).size === 1 && mine.filter((e) => e.kind === 'rsvp_start').length === 1, JSON.stringify(ev.length));
+  const anon = ev.filter((e) => !e.guest_id);
+  check('visitors through the general link are counted apart, and repeat visits share one id', anon.length === 3 && new Set(anon.slice(0, 2).map((e) => e.visitor)).size === 1 && !ev.some((e) => e.kind === 'made-up-kind'));
+  check('opening counts never create or change a guest', (await sql(`select count(*)::int n from guests`))[0].n === 6);
+
+  // ---------- test sends ----------
+  let t0 = outbox.length;
+  r = await api('/api/admin/campaigns/test', { eventId, body: INVITE, phones: ['052-9990001'] });
+  check('a test message goes to the typed number with a test-mode link', r.json?.ok && outbox.length === t0 + 1 && outbox.at(-1).to === '972529990001@c.us' && outbox.at(-1).text.startsWith('[בדיקה]') && outbox.at(-1).text.includes('https://invite.example/kidar-brit?test=1'), outbox.at(-1)?.text);
+  check('a test send leaves no campaign, message or guest behind', (await sql(`select count(*)::int n from messages where phone = '0529990001'`))[0].n === 0 && (await sql(`select count(*)::int n from guests where phone_norm = '0529990001'`))[0].n === 0);
+  r = await api('/api/admin/campaigns/test', { eventId, body: INVITE, phones: ['123'] });
+  check('a bad test number is refused', r.status === 400 && outbox.length === t0 + 1);
 
   // ---------- failures and retry ----------
   const g6 = await addGuest('משפחת נכשל', '0506666666');
@@ -168,7 +196,7 @@ try {
   check('no reminder is sent once the event has started', late.status === 'cancelled' && outbox.length === n1, JSON.stringify(late));
 
   // without credentials nothing is sent and nothing is lost: covered by the "waiting" flag
-  check('test numbers only: every recipient in this run was a made-up number', outbox.every((m) => /^9725(0|2|3)\d{7}@c\.us$/.test(m.to)));
+  check('test numbers only: every recipient in this run was a made-up number', outbox.every((m) => /^9725(0|2|3|4)\d{7}@c\.us$/.test(m.to)));
 } catch (e) {
   check('run completed without an exception', false, e.stack ?? String(e));
 } finally {

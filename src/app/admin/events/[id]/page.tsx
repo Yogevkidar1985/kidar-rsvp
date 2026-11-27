@@ -30,6 +30,7 @@ export default function Overview() {
   const s = useMemo(() => computeStats(guests), [guests]);
   const [log, setLog] = useState<ResponseRow[]>([]);
   const [wa, setWa] = useState<{ failed: number; next: string | null } | null>(null);
+  const [visits, setVisits] = useState<{ guest_id: string | null; kind: string; visitor: string | null }[] | null>(null);
   const stamp = guests.reduce((m, g) => (g.updated_at > m ? g.updated_at : m), '');
   const base = `/admin/events/${event.id}`;
   useEffect(() => {
@@ -42,7 +43,37 @@ export default function Overview() {
       db.from('messages').select('id', { count: 'exact', head: true }).eq('event_id', event.id).eq('status', 'failed'),
       db.from('campaigns').select('scheduled_at').eq('event_id', event.id).eq('kind', 'reminder').eq('status', 'scheduled').order('scheduled_at').limit(1),
     ]).then(([f, c]) => setWa(f.error || c.error ? null : { failed: f.count ?? 0, next: (c.data as { scheduled_at: string }[] | null)?.[0]?.scheduled_at ?? null }));
+    // who opened the invitation: present once the analytics table was added
+    db.from('invitation_events').select('guest_id,kind,visitor').eq('event_id', event.id).limit(20000)
+      .then(({ data, error }: { data: typeof visits; error: unknown }) => setVisits(error ? null : data ?? []));
   }, [event.id, stamp]);
+  // re-read every half minute so openings show up without a refresh
+  const [beat, setBeat] = useState(0);
+  useEffect(() => { const id = setInterval(() => { if (!document.hidden) setBeat((n) => n + 1); }, 30000); return () => clearInterval(id); }, []);
+  useEffect(() => {
+    if (!beat) return;
+    supabaseBrowser().from('invitation_events').select('guest_id,kind,visitor').eq('event_id', event.id).limit(20000)
+      .then(({ data, error }: { data: typeof visits; error: unknown }) => { if (!error) setVisits(data ?? []); });
+  }, [beat, event.id]);
+  const funnel = useMemo(() => {
+    if (!visits) return null;
+    const opened = new Set(visits.filter((v) => v.kind === 'visit' && v.guest_id).map((v) => v.guest_id));
+    const started = new Set(visits.filter((v) => v.kind === 'rsvp_start' && v.guest_id).map((v) => v.guest_id));
+    const anon = new Set(visits.filter((v) => v.kind === 'visit' && !v.guest_id).map((v) => v.visitor));
+    const answered = guests.filter((g) => g.status !== 'pending');
+    // a family that answered has certainly opened the invitation, even from a browser that blocked the count
+    const openedAll = new Set([...opened, ...answered.filter((g) => g.source === 'admin' ? opened.has(g.id) : true).map((g) => g.id)]);
+    return {
+      views: visits.filter((v) => v.kind === 'visit').length, anon: anon.size, started: started.size,
+      steps: [
+        { label: 'משפחות ברשימה', value: guests.length },
+        { label: 'קיבלו הזמנה ב-WhatsApp', value: guests.filter((g) => g.invited_at).length },
+        { label: 'פתחו את ההזמנה', value: [...openedAll].filter((id) => guests.some((g) => g.id === id)).length },
+        { label: 'השיבו', value: answered.length },
+        { label: 'אישרו הגעה', value: guests.filter((g) => g.status === 'attending').length },
+      ],
+    };
+  }, [visits, guests]);
   const names = useMemo(() => new Map(guests.map((g) => [g.id, g.family_name])), [guests]);
   const url = typeof window !== 'undefined' ? `${window.location.origin}/e/${event.slug}` : `/e/${event.slug}`;
   const seatsTotal = tables.reduce((n, t) => n + t.capacity, 0);
@@ -115,6 +146,28 @@ export default function Overview() {
           <div className="border-t border-line pt-4"><Row label="הגיעו בפועל" value={`${s.arrivedPeople} אנשים · ${s.arrivedFamilies} משפחות`} /></div>
         </section>
       </div>
+
+      {funnel && (
+        <section className="card mt-3 p-5" data-testid="funnel">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-[17px] font-semibold">מסלול ההזמנה</h2>
+            <span className="text-xs text-muted">{funnel.views} צפיות בסך הכול{funnel.anon ? ` · ${funnel.anon} מבקרים דרך הקישור הכללי` : ''}</span>
+          </div>
+          <ol className="mt-4 grid gap-2.5">
+            {funnel.steps.map((st, i) => {
+              const top = Math.max(funnel.steps[0].value, 1);
+              return (
+                <li key={st.label} className="grid grid-cols-[minmax(0,11rem)_1fr_auto] items-center gap-3 text-sm">
+                  <span className="truncate text-muted">{st.label}</span>
+                  <span className="h-6 overflow-hidden rounded-md bg-paper"><span className="block h-full rounded-md" style={{ width: `${Math.max((st.value / top) * 100, st.value ? 3 : 0)}%`, background: i === funnel.steps.length - 1 ? TONE.ok : TONE.ink, opacity: i === funnel.steps.length - 1 ? 1 : 0.35 + i * 0.15 }} /></span>
+                  <span className="w-20 text-end tabular-nums"><b className="font-semibold">{st.value}</b>{i > 0 && <span className="ms-1.5 text-xs text-muted">{Math.round((st.value / top) * 100)}%</span>}</span>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="mt-3 text-xs text-muted">האחוזים הם מתוך כל המשפחות ברשימה. הספירה היא של משפחות, לא של אנשים: {s.attendingFamilies} משפחות שאישרו הן {s.attendingPeople} משתתפים. "פתחו" נספר רק כשההזמנה נטענה בדפדפן של אדם, לא בתצוגת קישור של WhatsApp.</p>
+        </section>
+      )}
 
       <section className="card mt-3 p-5">
         <h2 className="text-[17px] font-semibold">תשובות אחרונות</h2>

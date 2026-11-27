@@ -15,6 +15,8 @@ type Props = {
   preview?: boolean;
   /** bump to replay the celebration (editor) */
   celebrateKey?: number;
+  /** test mode: the whole journey works, nothing is saved or counted */
+  test?: boolean;
 };
 
 const css = (s: TextStyle): React.CSSProperties => ({
@@ -79,7 +81,7 @@ const OPTIONS: { key: Answer; label: string }[] = [
 ];
 const ANSWERED: Record<Answer, string> = { attending: 'אישרתם הגעה', maybe: 'רשמנו שאתם עדיין לא בטוחים', declined: 'עדכנתם שלא תגיעו' };
 
-export default function InvitationView({ data, token = null, preview = false, celebrateKey = 0 }: Props) {
+export default function InvitationView({ data, token = null, preview = false, celebrateKey = 0, test = false }: Props) {
   const d = useMemo(() => resolveDesign(data.design), [data.design]);
   const [guest, setGuest] = useState(data.guest);
   const [sheet, setSheet] = useState<null | 'rsvp' | 'cal'>(null);
@@ -131,6 +133,19 @@ export default function InvitationView({ data, token = null, preview = false, ce
     return () => { window.removeEventListener('scroll', onScroll); if (raf) cancelAnimationFrame(raf); };
   }, [preview, d.entrance, data.hero_url]);
 
+  // tell the dashboard that a person opened the invitation, and later that they began to answer
+  const track = useCallback((kind: 'visit' | 'rsvp_start') => {
+    if (preview || test) return;
+    try {
+      const once = `kidar:${kind}:${data.slug}:${token ?? ''}`;
+      if (kind === 'rsvp_start' && sessionStorage.getItem(once)) return;
+      sessionStorage.setItem(once, '1');
+      let visitor = localStorage.getItem('kidar:visitor');
+      if (!visitor) { visitor = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('kidar:visitor', visitor); }
+      void fetch('/api/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug: data.slug, token, kind, visitor }), keepalive: true }).catch(() => {});
+    } catch { /* storage is blocked: the visit simply is not counted */ }
+  }, [preview, test, data.slug, token]);
+  useEffect(() => { track('visit'); }, [track]);
   const closeSheet = useCallback(() => setSheet(null), []);
   const onSaved = useCallback((r: RsvpResult) => {
     setMine(r);
@@ -145,7 +160,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
     if (navigator.share) { try { await navigator.share({ title: data.name, url: window.location.href }); } catch { /* the guest closed the share sheet */ } }
     else await copyLink();
   }
-  const openRsvp = (a: Answer | null) => { if (preview) return; setPick(a); setSheet('rsvp'); };
+  const openRsvp = (a: Answer | null) => { if (preview) return; track('rsvp_start'); setPick(a); setSheet('rsvp'); };
 
   const date = dateParts(data.event_date);
   const place = [data.venue_name, data.address].filter(Boolean).join(', ');
@@ -199,6 +214,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
   return (
     <div className="inv" style={vars} dir="rtl">
       {fonts && <link rel="stylesheet" href={fonts} />}
+      {test && <div className="inv-test" role="status">מצב בדיקה · תשובה שתישלח מכאן לא נשמרת ולא נספרת</div>}
       <div className={`inv-col${anim ? ' inv-load' : ''}`}>
         {d.fall.enabled && origin.height > 0 && (
           <Particles mode="fall" kind={d.fall.kind} count={d.fall.count} colors={d.fall.colors} speed={d.fall.speed}
@@ -335,7 +351,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
       )}
       {sheet === 'rsvp' && (
         <RsvpSheet slug={data.slug} token={token} guest={guest} initial={pick} maxParty={data.rsvp_settings?.max_party ?? 15}
-          accent={d.colors.accent} onClose={closeSheet} onSaved={onSaved} />
+          accent={d.colors.accent} test={test} onClose={closeSheet} onSaved={onSaved} />
       )}
       {sheet === 'cal' && (
         <Sheet title="הוספה ליומן" onClose={closeSheet}>

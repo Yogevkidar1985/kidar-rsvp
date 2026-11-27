@@ -75,16 +75,17 @@ export function GreenNotice({ green }: { green: boolean | null }) {
 }
 
 /** Sample guest for previews when nobody is selected. */
-export const SAMPLE = { family_name: 'משפחת ישראלי', contact_name: 'ישראל', invite_token: '' } as Pick<Guest, 'family_name' | 'contact_name' | 'invite_token'>;
+export type PreviewGuest = Pick<Guest, 'family_name' | 'contact_name' | 'invite_token'> & { link_code?: string | null };
+export const SAMPLE: PreviewGuest = { family_name: 'משפחת ישראלי', contact_name: 'ישראל', invite_token: '' };
 export function useRender(event: EventRow) {
-  return useCallback((body: string, guest: Pick<Guest, 'family_name' | 'contact_name' | 'invite_token'> = SAMPLE) =>
+  return useCallback((body: string, guest: PreviewGuest = SAMPLE) =>
     render(body, variables(event, guest, typeof window === 'undefined' ? '' : window.location.origin)), [event]);
 }
 
 /** Template picker, editable text, variable chips and a WhatsApp-like preview of the result. */
 export function MessageEditor({ kind, templates, body, setBody, templateId, setTemplateId, previewFor, label = 'נוסח ההודעה' }: {
   kind: TemplateKind; templates: Template[]; body: string; setBody: (s: string) => void;
-  templateId: string; setTemplateId: (id: string) => void; previewFor?: Pick<Guest, 'family_name' | 'contact_name' | 'invite_token'>; label?: string;
+  templateId: string; setTemplateId: (id: string) => void; previewFor?: PreviewGuest; label?: string;
 }) {
   const { event } = useEvent();
   const rr = useRender(event);

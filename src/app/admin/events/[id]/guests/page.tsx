@@ -6,6 +6,7 @@ import { PageHead } from '@/components/admin/Shell';
 import { Empty, Field, Modal, StatusPill, dbError, fmtDateTime, useToast } from '@/components/admin/ui';
 import { STATUS_LABEL, type Guest, type GuestStatus, type ResponseRow } from '@/lib/types';
 import { intlPhone } from '@/lib/phone';
+import { inviteUrl } from '@/lib/templates';
 import { tableLoad } from '@/lib/stats';
 
 type SortKey = 'family_name' | 'status' | 'responded_at' | 'total' | 'allocated_seats';
@@ -60,7 +61,7 @@ export default function GuestsPage() {
       .then(({ data }: { data: typeof log | null }) => setLog(data ?? []));
   }, [db, edit?.id]);
 
-  const link = (g: Guest) => `${window.location.origin}/e/${event.slug}?g=${g.invite_token}`;
+  const link = (g: Guest) => inviteUrl(window.location.origin, event.slug, g);
   const copy = (g: Guest) => navigator.clipboard.writeText(link(g)).then(() => toast('הקישור האישי הועתק'), () => toast('לא הצלחנו להעתיק', true));
   const wa = (g: Guest) => {
     const p = g.phone && intlPhone(g.phone);

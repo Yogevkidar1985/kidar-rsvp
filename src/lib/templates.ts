@@ -133,19 +133,26 @@ export type EventForMessage = {
   reception_time: string | null; ceremony_time: string | null; venue_name: string | null; address: string | null;
   waze_url: string | null; gmaps_url: string | null;
 };
-export type GuestForMessage = { family_name: string; contact_name?: string | null; invite_token?: string | null };
+export type GuestForMessage = { family_name: string; contact_name?: string | null; invite_token?: string | null; link_code?: string | null };
+
+/** The address a guest receives: short when they have a code, the original form otherwise. `test` opens it in test mode. */
+export function inviteUrl(siteUrl: string, slug: string, guest?: { invite_token?: string | null; link_code?: string | null } | null, test = false): string {
+  const base = siteUrl.replace(/\/+$/, '');
+  if (!base) return '';
+  const url = guest?.link_code ? `${base}/${slug}/${guest.link_code}` : guest?.invite_token ? `${base}/e/${slug}?g=${guest.invite_token}` : `${base}/${slug}`;
+  return test ? url + (url.includes('?') ? '&' : '?') + 'test=1' : url;
+}
 
 /** Values for every variable. An empty string means the event or the guest has nothing to put there. */
-export function variables(ev: EventForMessage, guest: GuestForMessage, siteUrl: string): Record<string, string> {
+export function variables(ev: EventForMessage, guest: GuestForMessage, siteUrl: string, test = false): Record<string, string> {
   const d = dateParts(ev.event_date);
   const place = [ev.venue_name, ev.address].filter(Boolean).join(', ');
-  const base = siteUrl.replace(/\/+$/, '');
   return {
     guest_name: (guest.contact_name || guest.family_name || '').trim(), family_name: (guest.family_name || '').trim(),
     event_name: ev.name ?? '', hosts: ev.hosts ?? '', weekday: ev.weekday_label ?? '',
     event_date: d?.numeric ?? '', event_date_long: d ? `${d.day} ב${d.month} ${d.year}` : '', hebrew_date: ev.hebrew_date ?? '',
     event_time: ev.reception_time || ev.ceremony_time || '', venue_name: ev.venue_name ?? '', venue_address: ev.address ?? '',
-    invitation_url: base ? `${base}/e/${ev.slug}${guest.invite_token ? `?g=${guest.invite_token}` : ''}` : '',
+    invitation_url: inviteUrl(siteUrl, ev.slug, guest, test),
     waze_url: safeHttpUrl(ev.waze_url) ?? (place ? `https://waze.com/ul?q=${encodeURIComponent(place)}&navigate=yes` : ''),
     maps_url: safeHttpUrl(ev.gmaps_url) ?? (place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}` : ''),
   };
