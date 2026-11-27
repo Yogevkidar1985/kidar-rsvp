@@ -7,10 +7,12 @@ import 'leaflet/dist/leaflet.css';
  * and every street named, a round pin on a short stem, and a fixed white plate above it with the name and the address.
  * Drawn with Leaflet on OpenStreetMap tiles, toned down in CSS, so it needs no key. With `onPick`, a tap moves the pin (the editor).
  */
-type Props = { lat: number; lng: number; label: string; sublabel?: string; zoom?: number; onPick?: (lat: number, lng: number) => void };
+type Props = { lat: number; lng: number; label: string; sublabel?: string; zoom?: number; onPick?: (lat: number, lng: number) => void;
+  /** false: a still picture of the map inside a scrolling page, so a finger moving down the page never drags the map instead */
+  interactive?: boolean };
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
 
-export default function VenueMap({ lat, lng, label, sublabel = '', zoom = 16, onPick }: Props) {
+export default function VenueMap({ lat, lng, label, sublabel = '', zoom = 16, onPick, interactive = true }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const pick = useRef(onPick);
   pick.current = onPick;
@@ -21,7 +23,8 @@ export default function VenueMap({ lat, lng, label, sublabel = '', zoom = 16, on
     (async () => {
       const L = (await import('leaflet')).default;
       if (dead || !box.current) return;
-      const map = L.map(box.current, { center: [lat, lng], zoom, zoomControl: true, attributionControl: true, scrollWheelZoom: false });
+      const map = L.map(box.current, { center: [lat, lng], zoom, zoomControl: interactive, attributionControl: true, scrollWheelZoom: false,
+        dragging: interactive, touchZoom: interactive, doubleClickZoom: interactive, boxZoom: interactive, keyboard: interactive });
       // OpenStreetMap's own tiles need no key. The stylesheet drains their colour to the pale layer the design calls for.
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
@@ -40,7 +43,7 @@ export default function VenueMap({ lat, lng, label, sublabel = '', zoom = 16, on
       cleanup = () => { timers.forEach(clearTimeout); ro.disconnect(); map.remove(); };
     })();
     return () => { dead = true; cleanup(); };
-  }, [lat, lng, label, sublabel, zoom]);
+  }, [lat, lng, label, sublabel, zoom, interactive]);
 
   // the map lays its tiles out left to right; the plate above the pin declares its own direction
   return <div ref={box} className="venue-map" role="img" aria-label={`מפה: ${label}${sublabel ? `, ${sublabel}` : ''}`} dir="ltr" data-testid="venue-map" />;

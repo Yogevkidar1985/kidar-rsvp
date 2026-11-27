@@ -216,7 +216,17 @@ export default function InvitationView({ data, token = null, preview = false, ce
   const gmaps = safeHttpUrl(data.gmaps_url) ?? (place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}` : null);
   const gcal = googleCalendarUrl(data);
   // an interactive map of the address, shown inside the invitation. Built from the written address, so it needs no key.
+  const wayRef = useRef<HTMLDivElement>(null);
+  const [wayOn, setWayOn] = useState(false);
   const mapSrc = place ? `https://www.google.com/maps?q=${encodeURIComponent(place)}&hl=he&z=16&output=embed` : null;
+  useEffect(() => {
+    const el = wayRef.current;
+    if (!el || wayOn) return;
+    if (typeof IntersectionObserver === 'undefined') { setWayOn(true); return; }
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { setWayOn(true); io.disconnect(); } }, { rootMargin: '320px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [wayOn, mapSrc]);
   const amaps = place ? `https://maps.apple.com/?daddr=${encodeURIComponent(place)}` : null;
   const hostWa = data.contact_phone ? intlPhone(data.contact_phone) : null;
   const tel = data.contact_phone?.replace(/[^\d+]/g, '');
@@ -349,7 +359,30 @@ export default function InvitationView({ data, token = null, preview = false, ce
               </div>
               {(venue.length > 0 || mapSrc || data.directions || data.parking || data.extra_info) && <h2 className="inv-more">מידע נוסף</h2>}
               {venue.length > 0 && <PlaceGallery images={venue} allLabel="כל התמונות מהמקום" onOpen={(i) => !preview && setLightbox(shots.findIndex((x) => x.id === venue[i].id))} />}
-              {mapSrc && <button type="button" className="inv-btn ghost inv-mapbtn" data-testid="map-open" onClick={() => !preview && setSheet('map')}><Icon name="map" size={20} />למפת הגעה</button>}
+              {mapSrc && (
+                <div className="way" data-testid="way-card">
+                  <div className="way__map" ref={wayRef}>
+                    {wayOn
+                      ? d.geo
+                        ? <VenueMap interactive={false} lat={d.geo.lat} lng={d.geo.lng} label={data.venue_name || data.name} sublabel={data.address ?? ''} />
+                        : <iframe title={`מפה: ${place}`} src={mapSrc} loading="lazy" referrerPolicy="no-referrer-when-downgrade" tabIndex={-1} />
+                      : <span className="way__skeleton" aria-hidden="true" />}
+                    <button type="button" className="way__open" data-testid="map-open" onClick={() => !preview && setSheet('map')} aria-label="פתיחת המפה המלאה"><span><Icon name="map" size={16} />מפה מלאה</span></button>
+                  </div>
+                  <div className="way__info">
+                    <span className="way__eyebrow">איך מגיעים</span>
+                    <h3 className="way__title">{data.venue_name || 'מיקום האירוע'}</h3>
+                    <ul className="way__facts">
+                      {data.address && <li><Icon name="pin" size={17} /><span>{data.address}</span></li>}
+                      {(date || times.length > 0) && <li><Icon name="clock" size={17} /><span>{[data.weekday_label, date?.numeric].filter(Boolean).join(', ')}{times[0] ? <> · <b dir="ltr">{times[0].t}</b></> : null}</span></li>}
+                    </ul>
+                    <div className="way__actions">
+                      <button type="button" className="inv-btn" onClick={() => !preview && setSheet(waze || gmaps ? 'nav' : 'map')}>נווטו אלינו<Icon name="navigation" size={17} /></button>
+                      {tel && <a className="inv-btn ghost" href={`tel:${tel}`}><Icon name="phone" size={17} /><span dir="ltr">{data.contact_phone}</span></a>}
+                    </div>
+                  </div>
+                </div>
+              )}
               {(data.directions || data.parking || data.extra_info) && (
                 <dl className="inv-notes">
                   {data.directions && <div><dt>הוראות הגעה</dt><dd>{data.directions}</dd></div>}
@@ -362,7 +395,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
 
           {(gallery.length > 0 || video) && (
             <section className="inv-sec">
-              {gallery.length > 0 && <Reveal on={anim}>{photos(gallery, 'inv-gallery')}</Reveal>}
+              {gallery.length > 0 && <Reveal on={anim}><h2 className="inv-more inv-more--first">רגעים שלנו</h2><PlaceGallery images={gallery} allLabel="כל התמונות" onOpen={(i) => !preview && setLightbox(shots.findIndex((x) => x.id === gallery[i].id))} /></Reveal>}
               {video && (
                 <Reveal on={anim}>
                   <div className="inv-video">
