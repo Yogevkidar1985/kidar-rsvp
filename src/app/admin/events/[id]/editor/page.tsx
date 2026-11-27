@@ -17,7 +17,7 @@ import { refreshPublic } from '@/lib/refresh-public';
 import { MIX, shape } from '@/components/invitation/Particles';
 import type { Design, EventRow, Media, ParticleKind, TextStyle } from '@/lib/types';
 
-const TABS = ['תוכן', 'מועד', 'מקום', 'תמונות', 'טיפוגרפיה', 'צבעים', 'אנימציות', 'אישורי הגעה'] as const;
+const TABS = ['תוכן', 'מועד', 'מקום', 'תמונות', 'גדלים', 'טיפוגרפיה', 'צבעים', 'אנימציות', 'אישורי הגעה'] as const;
 type Tab = (typeof TABS)[number];
 const DEVICES = [{ key: 'mobile', label: 'נייד', w: 390 }, { key: 'tablet', label: 'טאבלט', w: 768 }, { key: 'desktop', label: 'מחשב', w: 1180 }] as const;
 const KINDS: { key: ParticleKind; label: string }[] = [
@@ -30,6 +30,10 @@ const COLOR_SETS: { name: string; colors: string[] }[] = [
   { name: 'פסטל', colors: ['#F7C6CE', '#BFD8F2', '#FCE7A8', '#C9E4C5', '#DCCBEA'] },
   { name: 'זהב', colors: ['#C9A24A', '#E6CF8F', '#F6EBCB', '#9C7A2B'] },
   { name: 'תכלת', colors: ['#7FB4DE', '#B9D8F0', '#3F7FB5', '#EAF4FB'] },
+];
+const SIZE_KEYS: { key: keyof Design['sizes']; label: string; min: number; max: number }[] = [
+  { key: 'date', label: 'התאריך', min: 0.6, max: 1.3 }, { key: 'countdown', label: 'הספירה לאחור', min: 0.6, max: 1.4 }, { key: 'emblem', label: 'האייקון שמעל השמות', min: 0.5, max: 2.5 },
+  { key: 'logo', label: 'לוגו המקום', min: 0.5, max: 2.5 }, { key: 'arrow', label: 'החץ שעל התמונה', min: 0.5, max: 2 }, { key: 'buttons', label: 'הכפתורים', min: 0.8, max: 1.4 }, { key: 'gallery', label: 'כרטיסי הגלריה', min: 0.6, max: 1.1 },
 ];
 const STYLE_KEYS: { key: keyof Design['styles']; label: string }[] = [
   { key: 'headline', label: 'כותרת ראשית' }, { key: 'hosts', label: 'שמות ומקום' }, { key: 'date', label: 'תאריך ושעות' }, { key: 'body', label: 'טקסט רץ' },
@@ -78,12 +82,19 @@ function KindPicker({ value, colors, thick, onChange, name }: { value: ParticleK
   return <div className="kind-grid" role="group" aria-label={name} data-testid={`kinds-${name}`}>{KINDS.map((k) => <KindTile key={k.key} kind={k.key} label={k.label} colors={colors} thick={thick} active={value === k.key} onPick={() => onChange(k.key)} />)}</div>;
 }
 
+/** A slider with a minus and a plus beside it: on a phone a finger lands on a button more surely than on a thin track. */
 function Range({ label, value, min, max, step, onChange, suffix = '' }: { label: string; value: number; min: number; max: number; step: number; onChange: (n: number) => void; suffix?: string }) {
+  const digits = (String(step).split('.')[1] ?? '').length;
+  const move = (by: number) => onChange(Math.min(max, Math.max(min, +(value + by * step).toFixed(digits))));
   return (
-    <label className="block">
-      <span className="label flex justify-between"><span>{label}</span><span dir="ltr">{value}{suffix}</span></span>
-      <input type="range" className="w-full " min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
-    </label>
+    <div className="rng">
+      <div className="rng-top"><span className="label !mb-0">{label}</span><output dir="ltr">{+value.toFixed(digits)}{suffix}</output></div>
+      <div className="rng-row">
+        <button type="button" aria-label={`${label}: פחות`} disabled={value <= min} onClick={() => move(-1)}>−</button>
+        <label><span className="sr-only">{label}</span><input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} /></label>
+        <button type="button" aria-label={`${label}: יותר`} disabled={value >= max} onClick={() => move(1)}>+</button>
+      </div>
+    </div>
   );
 }
 
@@ -413,14 +424,22 @@ export default function EditorPage() {
               <div className="border-t border-line pt-3"><span className="label">תמונות האולם והמקום</span>{drop('venue', 'הוספת תמונות של המקום')}{thumbs('venue')}</div>
               {text('video_url', 'סרטון (קישור YouTube או קובץ MP4)', { ltr: true, placeholder: 'https://' })}
             </>}
+            {tab === 'גדלים' && <>
+              <p className="text-sm text-muted">כל חלק בהזמנה אפשר להגדיל ולהקטין. 1× הוא הגודל שתוכנן.</p>
+              <Range label="כל הטקסט בהזמנה" value={design.textScale} min={0.85} max={1.4} step={0.05} onChange={(n) => setDesign({ textScale: n })} suffix="×" />
+              {SIZE_KEYS.map((s) => <Range key={s.key} label={s.label} value={design.sizes[s.key]} min={s.min} max={s.max} step={0.05} onChange={(n) => setDesign({ sizes: { ...design.sizes, [s.key]: n } })} suffix="×" />)}
+              <Range label="מרווח בין חלקי ההזמנה" value={design.spacing} min={0.4} max={1.8} step={0.05} onChange={(n) => setDesign({ spacing: n })} suffix="×" />
+              <Range label="כמות הקונפטי" value={design.fall.count} min={4} max={120} step={2} onChange={(n) => setDesign({ fall: { ...design.fall, count: n } })} />
+              <Range label="גודל הקונפטי" value={design.fall.size} min={0.5} max={2.5} step={0.1} onChange={(n) => setDesign({ fall: { ...design.fall, size: n } })} suffix="×" />
+              <Range label="עובי הקונפטי" value={design.fall.thick} min={0.4} max={2.5} step={0.1} onChange={(n) => setDesign({ fall: { ...design.fall, thick: n } })} suffix="×" />
+              <button type="button" className="btn btn-ghost btn-sm justify-self-start" onClick={() => setDesign({ textScale: 1.15, spacing: 1, sizes: { date: 1, countdown: 1, emblem: 1, logo: 1, arrow: 1, buttons: 1, gallery: 1 } })}>חזרה לגדלים המקוריים</button>
+            </>}
             {tab === 'טיפוגרפיה' && <>
               <Field label="פונט אחיד לכל ההזמנה" hint="מחליף את הפונט בכל הטקסטים, הכפתורים והטופס בבת אחת.">
                 <select className="field" data-testid="font" value={design.font} onChange={(e) => setDesign(applyFont(design, e.target.value))}>
                   {HEBREW_FONTS.map((f, i) => <option key={f} value={f}>{f}{i ? '' : ' (מומלץ)'}</option>)}</select></Field>
               <Field label="פינות הכפתורים והשדות"><select className="field" value={design.corners} onChange={(e) => setDesign({ corners: e.target.value as Design['corners'] })}>
                 <option value="soft">מעוגלות בעדינות</option><option value="sharp">חדות</option><option value="pill">עגולות לגמרי</option></select></Field>
-              <Range label="גודל הטקסט בכל ההזמנה" value={design.textScale} min={0.85} max={1.4} step={0.05} onChange={(n) => setDesign({ textScale: n })} suffix="×" />
-              <Range label="מרווח בין חלקי ההזמנה" value={design.spacing} min={0.6} max={1.6} step={0.05} onChange={(n) => setDesign({ spacing: n })} suffix="×" />
               <p className="border-t border-line pt-3 text-xs text-muted">כוונון עדין לכל סוג טקסט בנפרד:</p>
               <div className="tabs">{STYLE_KEYS.map((s) => <button key={s.key} type="button" aria-pressed={styleKey === s.key} onClick={() => setStyleKey(s.key)}>{s.label}</button>)}</div>
               <Range label="גודל" value={st.size} min={12} max={96} step={1} onChange={(n) => setStyle({ size: n })} suffix="px" />
@@ -433,6 +452,9 @@ export default function EditorPage() {
               </div>
             </>}
             {tab === 'צבעים' && <>
+              <Range label="ניגודיות הטקסט" value={design.contrast} min={0} max={1} step={0.05} onChange={(n) => setDesign({ contrast: n })} />
+              <Range label="עוצמת צבעי הקונפטי" value={design.fall.intensity} min={0.2} max={1} step={0.05} onChange={(n) => setDesign({ fall: { ...design.fall, intensity: n } })} />
+              <p className="text-xs text-muted">ניגודיות גבוהה מכהה את הטקסט האפור (תאריך עברי, כתובת, תוויות) עד לצבע הטקסט הראשי.</p>
               <span className="label">פלטות מוכנות</span>
               <div className="grid gap-2" data-testid="palettes">
                 {PALETTES.map((p) => (
@@ -481,7 +503,7 @@ export default function EditorPage() {
                 <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={design.fall.enabled} onChange={(e) => setDesign({ fall: { ...design.fall, enabled: e.target.checked } })} />קונפטי שנופל מהתמונה</label>
                 {design.fall.enabled && <>
                   <div><span className="label">סוג</span><KindPicker name="fall" value={design.fall.kind} colors={tileColors} thick={design.fall.thick} onChange={(k) => setDesign({ fall: { ...design.fall, kind: k } })} /></div>
-                  <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+                  <div className="grid gap-3">
                     <Range label="מהירות" value={design.fall.speed} min={0.3} max={2.5} step={0.1} onChange={(n) => setDesign({ fall: { ...design.fall, speed: n } })} suffix="×" />
                     <Range label="כמות" value={design.fall.count} min={4} max={120} step={1} onChange={(n) => setDesign({ fall: { ...design.fall, count: n } })} />
                     <Range label="גודל" value={design.fall.size} min={0.5} max={2.5} step={0.1} onChange={(n) => setDesign({ fall: { ...design.fall, size: n } })} suffix="×" />
@@ -512,7 +534,7 @@ export default function EditorPage() {
                 {design.celebrate.enabled && <>
                   <p className="text-xs text-muted">האפקט מופעל רק אחרי שהתשובה נשמרה בשרת, בצבעים שנבחרו למעלה.</p>
                   <div><span className="label">סוג</span><KindPicker name="celebrate" value={design.celebrate.kind} colors={tileColors} thick={design.celebrate.thick} onChange={(k) => setDesign({ celebrate: { ...design.celebrate, kind: k } })} /></div>
-                  <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+                  <div className="grid gap-3">
                     <Range label="מהירות" value={design.celebrate.speed} min={0.5} max={2} step={0.1} onChange={(n) => setDesign({ celebrate: { ...design.celebrate, speed: n } })} suffix="×" />
                     <Range label="כמות" value={design.celebrate.count} min={20} max={300} step={10} onChange={(n) => setDesign({ celebrate: { ...design.celebrate, count: n } })} />
                     <Range label="גודל" value={design.celebrate.size} min={0.5} max={2.5} step={0.1} onChange={(n) => setDesign({ celebrate: { ...design.celebrate, size: n } })} suffix="×" />

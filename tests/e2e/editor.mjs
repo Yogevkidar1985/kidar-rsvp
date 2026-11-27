@@ -211,6 +211,38 @@ try {
     await ctx.close();
   }
 
+  // sizes and contrast: every part can be made larger or smaller, with a finger
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, locale: 'he-IL' });
+    const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message));
+    await p.goto(APP + '/admin/login'); await p.fill('input', '1007'); await p.click('button[aria-label="כניסה"]'); await p.waitForURL(/admin\/events/);
+    await p.goto(`${APP}/admin/events/${id}/editor?tab=${encodeURIComponent('גדלים')}`, { waitUntil: 'networkidle' }); await sleep(500);
+    const rows = await p.locator('.rng').count();
+    check('sizes: a control for the text, each part, the spacing and the confetti', rows >= 12, String(rows));
+    check('sizes: plus and minus are big enough for a finger', await p.$$eval('.rng-row button', (b) => b.every((x) => x.getBoundingClientRect().width >= 40 && x.getBoundingClientRect().height >= 40)));
+    check('sizes: the tab fits a phone', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('.rng')].every((r) => r.getBoundingClientRect().right <= innerWidth && r.getBoundingClientRect().left >= 0)));
+    const plus = (name) => p.getByRole('button', { name: `${name}: יותר` });
+    for (let i = 0; i < 4; i++) await plus('התאריך').tap();
+    for (let i = 0; i < 6; i++) await plus('האייקון שמעל השמות').tap();
+    for (let i = 0; i < 3; i++) await p.getByRole('button', { name: 'הספירה לאחור: פחות' }).tap();
+    await p.getByRole('button', { name: 'כמות הקונפטי: יותר' }).tap();
+    await p.screenshot({ path: path.join(out, 'sizes-phone.png'), fullPage: true });
+    await p.locator('.fixed button', { hasText: 'שמירה' }).tap(); await sleep(1200);
+    const [{ d }] = await mock.sql(`select design d from events where id = $1`, [id]);
+    check('sizes: taps on plus and minus are saved', d.sizes.date === 1.2 && d.sizes.emblem === 1.3 && d.sizes.countdown === 0.85, JSON.stringify(d.sizes));
+    await p.getByRole('tab', { name: 'צבעים' }).tap(); await sleep(300);
+    for (let i = 0; i < 15; i++) await p.getByRole('button', { name: 'ניגודיות הטקסט: יותר' }).tap();
+    await p.locator('.fixed button', { hasText: 'שמירה' }).tap(); await sleep(1200);
+    const inv = await ctx.newPage(); await inv.goto(`${APP}/kidar-brit`, { waitUntil: 'networkidle' }); await sleep(600);
+    const seen = await inv.evaluate(() => { const cs = getComputedStyle(document.querySelector('.inv')); const dl = getComputedStyle(document.querySelector('.inv-dateline')).color, ink = getComputedStyle(document.querySelector('.inv-datenum')).color; return { date: cs.getPropertyValue('--sz-date'), emblem: Math.round(document.querySelector('[data-testid=emblem]').getBoundingClientRect().width), dim: dl, ink, wider: document.documentElement.scrollWidth - innerWidth, dateFits: document.querySelector('.inv-datenum').getBoundingClientRect().right <= innerWidth }; });
+    check('sizes: the invitation follows them and still fits', seen.date === '1.2' && seen.emblem >= 80 && seen.emblem <= 100 && seen.wider <= 0 && seen.dateFits, JSON.stringify(seen));
+    const rgbOf = (c) => { const n = c.match(/[\d.]+/g).map(Number); return (c.startsWith('color(') ? n.slice(0, 3).map((v) => Math.round(v * 255)) : n.slice(0, 3)).join(); };
+    check('contrast: at full, grey text takes the main text colour', rgbOf(seen.dim) === rgbOf(seen.ink), `${seen.dim} vs ${seen.ink}`);
+    await mock.sql(`update events set design = design - 'sizes' - 'contrast' where id = $1`, [id]);
+    check('sizes and contrast: no script errors', errs.length === 0, errs.join(' ; '));
+    await ctx.close();
+  }
+
   // the editor's guide, and the guest's last moments on the invitation
   {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'he-IL' });

@@ -55,6 +55,8 @@ export const DEFAULT_DESIGN: Design = {
   textScale: 1.15,
   venueUrl: '',
   emblem: 'pacifier',
+  sizes: { date: 1, countdown: 1, emblem: 1, logo: 1, arrow: 1, buttons: 1, gallery: 1 },
+  contrast: 0.25,
 };
 
 /** Colours, text colours and falling-piece colours of a palette, as one design patch. */
@@ -95,5 +97,6 @@ function merge(x: Partial<Design>, s: Partial<Design['styles']>): Design {
     celebrate: { ...DEFAULT_DESIGN.celebrate, ...x.celebrate },
     extras: { ...DEFAULT_DESIGN.extras, ...x.extras },
     share: { ...DEFAULT_DESIGN.share, ...x.share },
+    sizes: { ...DEFAULT_DESIGN.sizes, ...x.sizes },
   };
 }

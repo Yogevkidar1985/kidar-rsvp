@@ -59,7 +59,7 @@ export function StackGallery({ images, onOpen }: Props) {
   return (
     <div className="sgal" data-testid="stack-gallery">
       <LayoutGroup id={group}>
-        <motion.div ref={area} layout className={`sgal__area ${open ? 'is-expanded' : 'is-stacked'}`} style={{ ['--fan' as string]: `${card}px` }} transition={spring}>
+        <motion.div ref={area} layout className={`sgal__area ${open ? 'is-expanded' : 'is-stacked'}`} style={{ ['--fan' as string]: `calc(${card}px * min(var(--sz-gal, 1), 1.1))` }} transition={spring}>
           {images.map((m, i) => {
             if (i >= 3 && !open) return null;
             const fan = images.length === 1 ? { rotate: 0, x: 0, y: 0, zIndex: 10 } : FAN[i] ?? { rotate: 0, x: 0, y: 0, zIndex: i };
