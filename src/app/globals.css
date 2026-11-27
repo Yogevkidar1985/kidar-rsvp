@@ -447,3 +447,8 @@ input[type="range"] { accent-color: var(--color-ink); }
 .sheet-add { display: inline-flex; align-items: center; min-height: 44px; margin-top: 8px; padding: 0 2px; border: 0; background: none; font: 500 15px/1 var(--inv-font); color: var(--inv-accent-ink, var(--inv-ink)); text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
 .sheet-foot { position: sticky; bottom: calc(-24px - env(safe-area-inset-bottom)); z-index: 2; margin: 16px -24px calc(-24px - env(safe-area-inset-bottom)); padding: 12px 24px calc(14px + env(safe-area-inset-bottom)); background: linear-gradient(to top, var(--inv-surface, #fff) 78%, transparent); }
 .sheet-foot .inv-btn { min-height: 56px; font-size: 18px; font-weight: 600; box-shadow: 0 12px 24px -16px var(--inv-button); }
+
+/* larger text must not leave one word alone on a line: lines are evened out */
+.inv-sec p, .inv-sec h1, .inv-sec h2 { text-wrap: balance; }
+/* on the narrowest phones the two buttons of the map card sit one under the other, so the phone number always fits */
+@container (max-width: 350px) { .way__actions { flex-direction: column; } .way__actions .inv-btn { flex: none; width: 100%; font-size: 16px; } }
