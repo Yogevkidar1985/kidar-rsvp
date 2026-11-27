@@ -29,7 +29,7 @@ const THANKS: Record<Answer, [string, string]> = {
 };
 
 /** The preferences most guests have, kashrut first. */
-const PREFS = ['כשרות', 'צמחוני', 'טבעוני', 'כיסא תינוק', 'נגישות'];
+const PREFS = ['כשרות (מחפוד)', 'צמחוני', 'כיסא תינוק', 'נגישות'];
 function splitPrefs(text: string | null | undefined) {
   const parts = (text ?? '').split(',').map((x) => x.trim()).filter(Boolean);
   return { picked: PREFS.filter((p) => parts.includes(p)), other: parts.filter((p) => !PREFS.includes(p)).join(', ') };
