@@ -522,3 +522,18 @@ input[type="range"] { accent-color: var(--color-ink); }
 .site-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .site-panel .inv-site iframe { position: relative; height: min(70dvh, 660px); background: transparent; }
 .site-panel .sheet { padding-top: 18px; }
+
+/* the pin never rests: every few seconds it lifts, stabs the exact spot again, and rings open from the point */
+.pm-pin__ring { position: absolute; left: 0; top: 0; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 50%; border: 2px solid var(--inv-ink, #202a45); opacity: 0; transform: scale(.1); pointer-events: none; }
+.pm-pin.pm-wait .pm-pin__ring { display: none; }
+.pm-pin.pm-live .pm-pin__head, .pm-pin.pm-live .pm-pin__stem { animation: pin-stab 3.2s cubic-bezier(.3, 0, .3, 1) infinite; }
+.pm-pin.pm-live .pm-pin__shadow { animation: pin-stab-shadow 3.2s ease-in-out infinite; }
+.pm-pin.pm-live .pm-pin__ring { animation: pin-ring 3.2s ease-out infinite; }
+.pm-pin.pm-live .pm-pin__ring--late { animation-delay: .28s; }
+@keyframes pin-stab { 0%, 42% { transform: translate(-50%, 0); } 56% { transform: translate(-50%, -16px); } 64% { transform: translate(-50%, 3px); } 70% { transform: translate(-50%, -4px); } 76%, 100% { transform: translate(-50%, 0); } }
+@keyframes pin-stab-shadow { 0%, 42% { transform: translate(-50%, -50%) scale(1); opacity: 1; } 56% { transform: translate(-50%, -50%) scale(.55); opacity: .5; } 64% { transform: translate(-50%, -50%) scale(1.25); opacity: 1; } 76%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+@keyframes pin-ring { 0%, 62% { transform: scale(.1); opacity: 0; } 66% { opacity: .75; } 100% { transform: scale(1.5); opacity: 0; } }
+/* and the still map leans in toward the spot with each stab, then eases back */
+.venue-map.is-stabbing { animation: map-lean 3.2s cubic-bezier(.3, 0, .3, 1) infinite; transform-origin: 50% 50%; will-change: transform; }
+@keyframes map-lean { 0%, 44% { transform: scale(1); } 64% { transform: scale(1.09); } 78% { transform: scale(1.07); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .pm-pin.pm-live *, .venue-map.is-stabbing { animation: none !important; } }
