@@ -346,7 +346,7 @@ export default function EditorPage() {
               {text('venue_name', 'שם המקום')}
               {text('address', 'כתובת מלאה')}
               <div>
-                <span className="label">לוגו המקום (מוצג בכרטיס "איך מגיעים" במקום השם)</span>
+                <span className="label">לוגו המקום (מוצג בכרטיס "איך מגיעים", מעל השם)</span>
                 <div className="flex flex-wrap items-center gap-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   {design.venueLogo && <img src={design.venueLogo} alt="לוגו המקום" className="h-12 max-w-40 rounded border border-line bg-white object-contain p-1" />}

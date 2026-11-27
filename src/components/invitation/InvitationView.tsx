@@ -377,7 +377,8 @@ export default function InvitationView({ data, token = null, preview = false, ce
             <Reveal on={anim}>
               {(data.venue_name || data.address) && (
                 <>
-                  <span className="inv-pin"><Icon name="pin" size={24} /></span>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {logo ? <img className="inv-venue-logo" src={img(logo, 384)} alt="" decoding="async" /> : <span className="inv-pin"><Icon name="pin" size={24} /></span>}
                   {data.venue_name && <p style={css(d.styles.hosts)}>{data.venue_name}</p>}
                   {data.address && <p style={{ ...body, marginTop: 2 }}>{data.address}</p>}
                 </>
@@ -402,10 +403,9 @@ export default function InvitationView({ data, token = null, preview = false, ce
                   </div>
                   <div className="way__info">
                     <span className="way__eyebrow">איך מגיעים</span>
-                    {logo
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      ? <h3 className="way__title way__title--logo"><img className="way__logo" src={img(logo, 384)} alt={data.venue_name || 'לוגו המקום'} loading="lazy" decoding="async" /></h3>
-                      : <h3 className="way__title">{data.venue_name || 'מיקום האירוע'}</h3>}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {logo && <img className="way__logo" src={img(logo, 384)} alt="" loading="lazy" decoding="async" />}
+                    <h3 className="way__title">{data.venue_name || 'מיקום האירוע'}</h3>
                     <ul className="way__facts">
                       {data.address && <li><Icon name="pin" size={17} /><span>{data.address}</span></li>}
                       {(date || times.length > 0) && <li><Icon name="clock" size={17} /><span>{[data.weekday_label, date?.numeric].filter(Boolean).join(', ')}{times[0] ? <> · <b dir="ltr">{times[0].t}</b></> : null}</span></li>}
