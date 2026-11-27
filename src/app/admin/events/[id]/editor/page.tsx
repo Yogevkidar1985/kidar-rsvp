@@ -25,6 +25,7 @@ const KINDS: { key: ParticleKind; label: string }[] = [
   { key: 'sparkles', label: 'נצנוצים' }, { key: 'stars', label: 'כוכבים' }, { key: 'hearts', label: 'לבבות' }, { key: 'petals', label: 'עלי כותרת' }, { key: 'feathers', label: 'נוצות' },
 ];
 const COLOR_SETS: { name: string; colors: string[] }[] = [
+  { name: 'ניגודי', colors: ['#3D3531', '#F0655F', '#E9B44C', '#2E9E8F', '#FFFFFF', '#8A6BBE'] },
   { name: 'צבעוני', colors: ['#F25F5C', '#FFB703', '#3A86FF', '#2EC4B6', '#8E7DBE'] },
   { name: 'פסטל', colors: ['#F7C6CE', '#BFD8F2', '#FCE7A8', '#C9E4C5', '#DCCBEA'] },
   { name: 'זהב', colors: ['#C9A24A', '#E6CF8F', '#F6EBCB', '#9C7A2B'] },
@@ -474,13 +475,15 @@ export default function EditorPage() {
               <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={design.entrance} onChange={(e) => setDesign({ entrance: e.target.checked })} />כניסה הדרגתית של התמונה והטקסטים</label>
               <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={design.extras.sparkle} onChange={(e) => setDesign({ extras: { ...design.extras, sparkle: e.target.checked } })} />נצנוצים ליד השמות וקו מפריד שמצייר את עצמו</label>
               <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={design.extras.countdown} onChange={(e) => setDesign({ extras: { ...design.extras, countdown: e.target.checked } })} />ספירה לאחור עד האירוע</label>
+              <Field label="האייקון שבין התמונה לשמות"><select className="field" data-testid="emblem-pick" value={design.emblem} onChange={(e) => setDesign({ emblem: e.target.value as Design['emblem'] })}>
+                <option value="pacifier">מוצץ</option><option value="stroller">עגלת תינוק</option><option value="heart">לב</option><option value="star">כוכב</option><option value="none">בלי אייקון</option></select></Field>
               <div className="grid gap-3 border-t border-line pt-3" data-testid="fall-controls">
                 <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={design.fall.enabled} onChange={(e) => setDesign({ fall: { ...design.fall, enabled: e.target.checked } })} />קונפטי שנופל מהתמונה</label>
                 {design.fall.enabled && <>
                   <div><span className="label">סוג</span><KindPicker name="fall" value={design.fall.kind} colors={tileColors} thick={design.fall.thick} onChange={(k) => setDesign({ fall: { ...design.fall, kind: k } })} /></div>
                   <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
                     <Range label="מהירות" value={design.fall.speed} min={0.3} max={2.5} step={0.1} onChange={(n) => setDesign({ fall: { ...design.fall, speed: n } })} suffix="×" />
-                    <Range label="כמות" value={design.fall.count} min={4} max={80} step={1} onChange={(n) => setDesign({ fall: { ...design.fall, count: n } })} />
+                    <Range label="כמות" value={design.fall.count} min={4} max={120} step={1} onChange={(n) => setDesign({ fall: { ...design.fall, count: n } })} />
                     <Range label="גודל" value={design.fall.size} min={0.5} max={2.5} step={0.1} onChange={(n) => setDesign({ fall: { ...design.fall, size: n } })} suffix="×" />
                     <Range label="עובי" value={design.fall.thick} min={0.4} max={2.5} step={0.1} onChange={(n) => setDesign({ fall: { ...design.fall, thick: n } })} suffix="×" />
                     <Range label="עוצמת הצבע" value={design.fall.intensity} min={0.2} max={1} step={0.05} onChange={(n) => setDesign({ fall: { ...design.fall, intensity: n } })} />

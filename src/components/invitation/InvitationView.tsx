@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import type { PublicInvitation, TextStyle } from '@/lib/types';
+import type { PublicInvitation, TextStyle, Design } from '@/lib/types';
 import { DEFAULT_HERO, resolveDesign } from '@/lib/defaults';
 import { fontStack, fontsHref } from '@/lib/fonts';
 import { dateParts } from '@/lib/hebrew-date';
@@ -55,6 +55,32 @@ function SiteFrame({ src, title }: { src: string; title: string }) {
       {!ready && <p className="inv-site-wait" role="status"><span className="inv-site-spin" aria-hidden="true" />טוענים את האתר…</p>}
       <iframe title={title} src={src} referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-popups allow-forms" onLoad={() => setReady(true)} />
     </div>
+  );
+}
+
+/** The small picture between the photo and the names. Drawn in the invitation's own colour, and it moves a little. */
+function Emblem({ kind }: { kind: Design['emblem'] }) {
+  if (kind === 'none') return null;
+  const common = { width: 64, height: 64, viewBox: '0 0 64 64', fill: 'none', stroke: 'currentColor', strokeWidth: 2.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  return (
+    <span className={`inv-emblem inv-emblem--${kind}`} aria-hidden="true" data-testid="emblem">
+      {kind === 'pacifier' && (
+        <svg {...common}>
+          <g className="em-ring"><circle cx="32" cy="47" r="9" /></g>
+          <path d="M14 30c0-5 8-9 18-9s18 4 18 9-8 9-18 9-18-4-18-9Z" fill="currentColor" fillOpacity=".14" />
+          <path d="M26 21c-1-8 1-13 6-13s7 5 6 13" fill="currentColor" fillOpacity=".14" />
+          <circle cx="32" cy="30" r="2.4" fill="currentColor" stroke="none" />
+        </svg>
+      )}
+      {kind === 'stroller' && (
+        <svg {...common}>
+          <path d="M12 14h6l6 22h22" /><path d="M24 36a16 16 0 0 0 28-10H21" fill="currentColor" fillOpacity=".14" /><path d="M36 26V10a16 16 0 0 1 16 16" />
+          <g className="em-wheel"><circle cx="27" cy="50" r="5" /></g><g className="em-wheel"><circle cx="47" cy="50" r="5" /></g>
+        </svg>
+      )}
+      {kind === 'heart' && <svg {...common}><path d="M32 52S10 39 10 24a11 11 0 0 1 22-3 11 11 0 0 1 22 3c0 15-22 28-22 28Z" fill="currentColor" fillOpacity=".16" /></svg>}
+      {kind === 'star' && <svg {...common}><path d="m32 8 6.5 15.5L55 25l-12.5 11L46 53l-14-8.5L18 53l3.5-17L9 25l16.5-1.5Z" fill="currentColor" fillOpacity=".16" /></svg>}
+    </span>
   );
 }
 
@@ -270,7 +296,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
   const vars = {
     '--inv-bg': d.colors.bg, '--inv-surface': d.colors.surface, '--inv-soft': d.colors.soft, '--inv-ink': d.colors.ink, '--inv-muted': d.colors.muted,
     '--inv-scale': String(Math.min(1.5, Math.max(0.8, d.textScale || 1))), '--inv-accent': d.colors.accent, '--inv-button': d.colors.button, '--inv-button-text': d.colors.buttonText,
-    '--inv-line': d.colors.line, '--inv-font': fontStack(d.font), '--inv-gap': `${Math.round(42 * d.spacing)}px`,
+    '--inv-line': d.colors.line, '--inv-font': fontStack(d.font), '--inv-gap': `${Math.round(30 * d.spacing)}px`,
     '--inv-radius': d.corners === 'sharp' ? '2px' : d.corners === 'pill' ? '999px' : '10px',
   } as React.CSSProperties;
   const burstColors = useMemo(() => [...d.fall.colors.filter((c) => c.toUpperCase() !== '#FFFFFF'), d.colors.accent, d.colors.button], [d.fall.colors, d.colors.accent, d.colors.button]);
@@ -340,12 +366,13 @@ export default function InvitationView({ data, token = null, preview = false, ce
           ) : (
             <div className="inv-hero-empty">{preview ? 'כאן תופיע התמונה הראשית. מעלים אותה בלשונית "תמונות".' : ''}</div>
           )}
-          {hero && <span className="inv-scroll" aria-hidden="true"><Icon name="down" size={26} /></span>}
+          {hero && <span className="inv-scroll" aria-hidden="true"><i /><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m6 8 6 6 6-6" /><path d="m6 13 6 6 6-6" opacity=".45" /></svg></span>}
         </div>
 
         <main className="inv-body">
           <header className="inv-open">
             <Reveal on={anim}>
+              <Emblem kind={d.emblem} />
               <div className="inv-crest">
                 {lively && <Lottie className="inv-sparkle" animationData={sparkle} loop={3} aria-hidden="true" />}
                 {d.latin && <p className="inv-latin" dir="ltr" lang="en">{d.latin}</p>}
@@ -359,7 +386,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
           <section className="inv-sec inv-first">
             {guest && <Reveal on={anim}><p className="inv-dear">{guest.family_name} היקרים</p></Reveal>}
             {data.headline && <Reveal on={anim}><Headline style={css(d.styles.headline)}>{data.headline}</Headline></Reveal>}
-            {data.intro_text && <Reveal on={anim} delay={50}><p style={{ ...body, marginTop: 20, whiteSpace: 'pre-line' }}>{data.intro_text}</p></Reveal>}
+            {data.intro_text && <Reveal on={anim} delay={50}><p style={{ ...body, marginTop: 12, whiteSpace: 'pre-line' }}>{data.intro_text}</p></Reveal>}
             {(data.closing_text || data.hosts) && (
               <Reveal on={anim} delay={100}>
                 {data.closing_text && <p style={{ ...body, marginTop: 24, whiteSpace: 'pre-line' }}>{data.closing_text}</p>}

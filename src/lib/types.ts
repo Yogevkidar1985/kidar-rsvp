@@ -39,6 +39,8 @@ export type Design = {
   textScale: number;
   /** the venue's own website, opened from the arrows beside its name */
   venueUrl: string;
+  /** the small moving picture between the photo and the names */
+  emblem: 'pacifier' | 'stroller' | 'heart' | 'star' | 'none';
 };
 export type HeroPos = { x: number; y: number; zoom: number; ratio: string; brightness?: number; contrast?: number; overlay?: number };
 export type Media = { id: string; kind: 'gallery' | 'venue'; url: string; caption: string | null; path?: string | null; sort?: number };

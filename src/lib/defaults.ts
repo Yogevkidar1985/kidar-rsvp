@@ -54,6 +54,7 @@ export const DEFAULT_DESIGN: Design = {
   venueLogo: null,
   textScale: 1.15,
   venueUrl: '',
+  emblem: 'pacifier',
 };
 
 /** Colours, text colours and falling-piece colours of a palette, as one design patch. */
