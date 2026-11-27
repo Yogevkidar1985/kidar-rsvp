@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useId, useRef, useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
+import { IMG, cardSet, img } from '@/lib/img';
 
 /**
  * The photo gallery, in the two forms it takes on the Kurkoos Group site's execution page:
@@ -16,7 +17,7 @@ const FAN = [
   { rotate: -2, x: 0, y: -12, zIndex: 20 },
   { rotate: 12, x: 74, y: 7, zIndex: 30 },
 ];
-const spring = { type: 'spring' as const, stiffness: 160, damping: 18, mass: 1 };
+const spring = { type: 'spring' as const, stiffness: 320, damping: 30, mass: 0.8 };
 
 function useNarrow(query = '(max-width: 768px)') {
   const [narrow, setNarrow] = useState(true); // phones first: most guests are on one
@@ -43,6 +44,17 @@ export function StackGallery({ images, onOpen }: Props) {
     return () => ro.disconnect();
   }, []);
   const card = Math.round(Math.min(216, room * 0.5)), k = Math.min(1, (room * 0.19) / 74);
+  // the photos behind the fan are fetched while the guest is still looking at it, so the grid opens with everything in place
+  useEffect(() => {
+    const rest = images.slice(3);
+    if (!rest.length) return;
+    const go = () => rest.forEach((m) => { const im = new Image(); im.decoding = 'async'; const set = cardSet(m.url); if (set) { im.sizes = '(max-width: 480px) 50vw, 240px'; im.srcset = set; } im.src = img(m.url, IMG.thumb); });
+    const el = area.current;
+    if (!el || typeof IntersectionObserver === 'undefined') { go(); return; }
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); go(); } }, { rootMargin: '600px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [images]);
   if (!images.length) return null;
   return (
     <div className="sgal" data-testid="stack-gallery">
@@ -61,7 +73,7 @@ export function StackGallery({ images, onOpen }: Props) {
                 aria-label={open ? m.caption || `הגדלת תמונה ${i + 1}` : 'הצגת כל התמונות'}>
                 <motion.span layout="position" className="sgal__imgwrap">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img className="sgal__img" src={m.url} alt={m.caption ?? ''} loading="lazy" decoding="async" draggable={false} />
+                  <img className="sgal__img" src={img(m.url, IMG.thumb)} srcSet={cardSet(m.url)} sizes="(max-width: 480px) 50vw, 240px" alt={m.caption ?? `תמונה ${i + 1}`} loading={i < 3 ? 'eager' : 'lazy'} decoding="async" draggable={false} />
                 </motion.span>
               </motion.button>
             );
@@ -94,7 +106,7 @@ export function ExpandableGallery({ images, onOpen }: Props) {
             onMouseEnter={() => setHovered(i)} onMouseLeave={() => setHovered(null)} onFocus={() => setHovered(i)} onBlur={() => setHovered(null)}
             onClick={() => onOpen(i)} aria-label={m.caption || `הגדלת תמונה ${i + 1}`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="xgal__img" src={m.url} alt={m.caption ?? ''} loading="lazy" decoding="async" />
+            <img className="xgal__img" src={img(m.url, IMG.card)} alt={m.caption ?? `תמונה ${i + 1}`} loading="lazy" decoding="async" />
             <span className="xgal__shade" style={{ opacity: hovered === i ? 0 : 0.16 }} aria-hidden="true" />
           </motion.button>
         ))}

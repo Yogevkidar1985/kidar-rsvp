@@ -14,6 +14,7 @@ import { useDialogFocus } from '@/lib/dialog';
 import { eventStart } from '@/lib/when';
 import { ornamentLottie, sparkleLottie } from './lotties';
 import { PlaceGallery } from './Galleries';
+import { IMG, img } from '@/lib/img';
 
 const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
 const VenueMap = dynamic(() => import('./VenueMap'), { ssr: false });
@@ -94,17 +95,26 @@ const Ornament = () => (
   <div className="inv-orn" aria-hidden="true"><i /><svg width="9" height="9" viewBox="0 0 9 9"><path d="M4.5 0 9 4.5 4.5 9 0 4.5z" fill="currentColor" /></svg><i /></div>
 );
 /** Days, hours and minutes left. Renders nothing once the event has begun, or before the clock is known on the client. */
+/** The time left, read like a clock: days on the left, seconds on the right, each number stepping as it changes. */
 function Countdown({ to }: { to: Date }) {
   const [now, setNow] = useState<number | null>(null);
-  useEffect(() => { setNow(Date.now()); const id = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(id); }, []);
+  useEffect(() => {
+    setNow(Date.now());
+    // ticks on the second itself, and stops while the page is in the background
+    let id = 0;
+    const tick = () => { setNow(Date.now()); id = window.setTimeout(tick, 1000 - (Date.now() % 1000) + 5); };
+    const vis = () => { window.clearTimeout(id); if (!document.hidden) tick(); };
+    tick(); document.addEventListener('visibilitychange', vis);
+    return () => { window.clearTimeout(id); document.removeEventListener('visibilitychange', vis); };
+  }, []);
   if (now === null) return null;
   const left = to.getTime() - now;
   if (left <= 0) return null;
-  const days = Math.floor(left / 86400000), hours = Math.floor((left % 86400000) / 3600000), minutes = Math.floor((left % 3600000) / 60000);
-  const cells = days > 0 ? [[days, 'ימים'], [hours, 'שעות'], [minutes, 'דקות']] : [[hours, 'שעות'], [minutes, 'דקות']];
+  const days = Math.floor(left / 86400000), hours = Math.floor((left % 86400000) / 3600000), minutes = Math.floor((left % 3600000) / 60000), seconds = Math.floor((left % 60000) / 1000);
+  const cells: [number, string][] = [...(days > 0 ? [[days, 'ימים'] as [number, string]] : []), [hours, 'שעות'], [minutes, 'דקות'], [seconds, 'שניות']];
   return (
-    <div className="inv-count" role="timer" aria-label={`נותרו ${days} ימים, ${hours} שעות ו-${minutes} דקות`}>
-      {cells.map(([n, l]) => <div key={l as string}><b>{n}</b><span>{l}</span></div>)}
+    <div className="inv-count" dir="ltr" role="timer" aria-live="off" aria-label={`נותרו ${days} ימים, ${hours} שעות ו-${minutes} דקות`} data-testid="countdown">
+      {cells.map(([n, l]) => <div key={l}><b key={n} aria-hidden="true">{String(n).padStart(l === 'ימים' ? 1 : 2, '0')}</b><span dir="rtl" aria-hidden="true">{l}</span></div>)}
     </div>
   );
 }
@@ -123,24 +133,29 @@ export default function InvitationView({ data, token = null, preview = false, ce
   const [lightbox, setLightbox] = useState<number | null>(null);
   const [sticky, setSticky] = useState(false);
   const [note, setNote] = useState('');
-  const touch = useRef(0);
+  const touch = useRef({ x: 0, y: 0 });
+  const swiped = useRef(0);
+  const [dir, setDir] = useState(1);
+  /** which photos have their full-size version in hand; until then the small one, already on the phone, is shown enlarged */
+  const [sharp, setSharp] = useState<Record<string, boolean>>({});
   const [origin, setOrigin] = useState({ top: 0, height: 0 });
   const heroRef = useRef<HTMLDivElement>(null);
   const driftRef = useRef<HTMLDivElement>(null);
   const rsvpRef = useRef<HTMLElement>(null);
   const lightRef = useRef<HTMLDivElement>(null);
   useDialogFocus(lightRef, lightbox !== null);
+  /** One photo forward (1) or back (-1), round and round. In a right-to-left page forward is to the left. */
+  const turn = (by: 1 | -1) => { const n = data.media.length; if (n < 2) return; setDir(by); setLightbox((i) => (i === null ? i : (i + by + n) % n)); };
   useEffect(() => {
     if (lightbox === null) return;
-    const n = data.media.length;
     const key = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setLightbox(null);
-      else if (e.key === 'ArrowLeft' && n > 1) setLightbox((i) => (i === null ? i : (i + 1) % n));
-      else if (e.key === 'ArrowRight' && n > 1) setLightbox((i) => (i === null ? i : (i + n - 1) % n));
+      else if (e.key === 'ArrowLeft') turn(1);
+      else if (e.key === 'ArrowRight') turn(-1);
     };
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
-  }, [lightbox, data.media.length]);
+  }, [lightbox, data.media.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { setGuest(data.guest); }, [data.guest]);
   useEffect(() => { if (celebrateKey) setBurst((n) => n + 1); }, [celebrateKey]);
@@ -256,6 +271,19 @@ export default function InvitationView({ data, token = null, preview = false, ce
     data.ceremony_time && { t: data.ceremony_time, l: 'טקס' },
   ].filter(Boolean) as { t: string; l: string }[];
   const shots = [...gallery, ...venue];
+  // the open photo's full-size version, and its two neighbours', are fetched as soon as it opens: turning the page never waits
+  const shotKey = shots.map((s) => s.id).join();
+  useEffect(() => {
+    if (lightbox === null || !shots.length) return;
+    const n = shots.length;
+    for (const i of [...new Set([lightbox, (lightbox + 1) % n, (lightbox + n - 1) % n])]) {
+      const s = shots[i];
+      if (!s || sharp[s.id]) continue;
+      const im = new Image();
+      im.onload = () => setSharp((m) => (m[s.id] ? m : { ...m, [s.id]: true }));
+      im.src = img(s.url, IMG.full);
+    }
+  }, [lightbox, shotKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const start = useMemo(() => eventStart(data), [data]);
   const [calm, setCalm] = useState(true); // until the client says motion is welcome, nothing extra moves
   useEffect(() => { setCalm(window.matchMedia('(prefers-reduced-motion: reduce)').matches); }, []);
@@ -291,7 +319,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
             <div className={anim ? 'inv-kenburns' : ''} style={{ position: 'absolute', inset: 0 }}>
               <div ref={driftRef} className="inv-drift">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={hero} alt={data.name} fetchPriority="high" decoding="async"
+                <img src={img(hero, 828)} srcSet={img(hero, 828) === hero ? undefined : `${img(hero, 640)} 640w, ${img(hero, 828)} 828w, ${img(hero, 1080)} 1080w`} sizes="(max-width: 520px) 100vw, 520px" alt={data.name} fetchPriority="high" decoding="async"
                   style={{ objectPosition: `${pos.x}% ${pos.y}%`, transform: `scale(${pos.zoom})`, transformOrigin: `${pos.x}% ${pos.y}%`, filter: `brightness(${pos.brightness}) contrast(${pos.contrast})` }} />
               </div>
               {pos.overlay > 0 && <div className="inv-veil" style={{ opacity: pos.overlay }} />}
@@ -335,7 +363,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
                   {(data.weekday_label || data.hebrew_date) && <div className="inv-dateline">{[data.weekday_label, data.hebrew_date].filter(Boolean).join(' – ')}</div>}
                   {times.length > 0 && (
                     <div className="inv-times">
-                      {times.map((x) => <div key={x.l}><Icon name="clock" size={18} /><b dir="ltr">{x.t}</b>{times.length > 1 && <small>{x.l}</small>}</div>)}
+                      {times.map((x) => <div key={x.l}><b dir="ltr">{x.t}</b><Icon name="clock" size={18} />{times.length > 1 && <small>{x.l}</small>}</div>)}
                     </div>
                   )}
                 </div>
@@ -501,19 +529,25 @@ export default function InvitationView({ data, token = null, preview = false, ce
       )}
       {note && <div className="inv-toast" role="status">{note}</div>}
       {lightbox !== null && shots[lightbox] && (
-        <div ref={lightRef} tabIndex={-1} className="inv-light" onClick={() => setLightbox(null)} role="dialog" aria-modal="true" aria-label="תמונה מוגדלת"
-          onTouchStart={(e) => { touch.current = e.touches[0].clientX; }}
-          onTouchEnd={(e) => { const dx = e.changedTouches[0].clientX - touch.current; if (Math.abs(dx) > 50 && shots.length > 1) { e.preventDefault(); setLightbox((lightbox + (dx > 0 ? 1 : shots.length - 1)) % shots.length); } }}>
+        <div ref={lightRef} tabIndex={-1} className="inv-light" role="dialog" aria-modal="true" aria-label={`תמונה ${lightbox + 1} מתוך ${shots.length}`} data-testid="lightbox"
+          onClick={() => { if (Date.now() - swiped.current > 350) turn(1); }}
+          onTouchStart={(e) => { const p = e.touches[0]; touch.current = { x: p.clientX, y: p.clientY }; }}
+          onTouchEnd={(e) => {
+            const p = e.changedTouches[0], dx = p.clientX - touch.current.x, dy = p.clientY - touch.current.y;
+            if (Math.abs(dx) > 36 && Math.abs(dx) > Math.abs(dy) * 1.2) { swiped.current = Date.now(); turn(dx > 0 ? 1 : -1); }
+            else if (dy > 90 && Math.abs(dy) > Math.abs(dx) * 1.5) { swiped.current = Date.now(); setLightbox(null); }
+          }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={shots[lightbox].url} alt={shots[lightbox].caption ?? ''} />
+          <img key={shots[lightbox].id} className={`inv-light-img ${dir > 0 ? 'from-next' : 'from-prev'}`} draggable={false}
+            src={sharp[shots[lightbox].id] ? img(shots[lightbox].url, IMG.full) : img(shots[lightbox].url, IMG.thumb)} alt={shots[lightbox].caption ?? `תמונה ${lightbox + 1}`} />
           {shots.length > 1 && (
-            <div className="inv-light-nav" onClick={(e) => e.stopPropagation()}>
-              <button type="button" aria-label="התמונה הקודמת" onClick={() => setLightbox((lightbox + shots.length - 1) % shots.length)}>‹</button>
-              <span dir="ltr">{lightbox + 1} / {shots.length}</span>
-              <button type="button" aria-label="התמונה הבאה" onClick={() => setLightbox((lightbox + 1) % shots.length)}>›</button>
+            <div className="inv-light-nav" dir="ltr" onClick={(e) => e.stopPropagation()}>
+              <button type="button" aria-label="התמונה הבאה" onClick={() => turn(1)}>‹</button>
+              <span>{lightbox + 1} / {shots.length}</span>
+              <button type="button" aria-label="התמונה הקודמת" onClick={() => turn(-1)}>›</button>
             </div>
           )}
-          <button type="button" className="inv-light-x" aria-label="סגירה" onClick={() => setLightbox(null)}>×</button>
+          <button type="button" className="inv-light-x" aria-label="סגירה" onClick={(e) => { e.stopPropagation(); setLightbox(null); }}>×</button>
         </div>
       )}
       {burst > 0 && (

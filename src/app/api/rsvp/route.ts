@@ -34,6 +34,8 @@ export async function POST(req: Request) {
   if (!data?.ok) {
     const code = String(data?.error ?? '');
     let message = RSVP_ERRORS[code] ?? 'לא הצלחנו לשמור את האישור.';
+    // a database that has not had the "phone is optional" update yet still asks for a number
+    if (code === 'INVALID_PHONE' && !v.phone) message = 'נא למלא מספר טלפון נייד.';
     if (code === 'OVER_ALLOCATION') message = `הוקצו לכם ${data.allocated} מקומות. לתוספת פנו לבעלי האירוע.`;
     return NextResponse.json({ ok: false, code, message }, { status: code === 'RATE_LIMITED' ? 429 : 422 });
   }
@@ -43,6 +45,8 @@ export async function POST(req: Request) {
   const g = data.guest;
   return NextResponse.json({
     ok: true, created: data.created,
+    // a family that answered from the general link gets its own code back, so a later change from the same phone updates the same answer
+    key: data.created && !v.token && typeof g.link_code === 'string' ? g.link_code : undefined,
     guest: { status: g.status, adults: g.adults, children: g.children, babies: g.babies },
   });
 }

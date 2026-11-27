@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import type { Media } from '@/lib/types';
+import { img } from '@/lib/img';
 
 /**
  * The photos of one gallery, in the order guests see them. A photo is moved by dragging it over another:
@@ -53,7 +54,7 @@ export default function MediaGrid({ items, disabled, onReorder, onRemove, name }
           <li key={m.id} data-media-id={m.id} data-grid={name} className={`media-tile ${drag === m.id ? 'is-drag' : ''}`}
             onPointerDown={(e) => { if (e.pointerType === 'mouse' && !(e.target as HTMLElement).closest('button')) begin(e, m.id); }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={m.url} alt={m.caption ?? `תמונה ${i + 1}`} draggable={false} />
+            <img src={img(m.url, 256)} alt={m.caption ?? `תמונה ${i + 1}`} loading="lazy" decoding="async" draggable={false} />
             <span className="media-num" aria-hidden>{i + 1}</span>
             <button type="button" className="media-grip" aria-label={`גרירת תמונה ${i + 1} למקום אחר`} disabled={disabled} onPointerDown={(e) => begin(e, m.id)}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden><circle cx="8" cy="5" r="2" /><circle cx="16" cy="5" r="2" /><circle cx="8" cy="12" r="2" /><circle cx="16" cy="12" r="2" /><circle cx="8" cy="19" r="2" /><circle cx="16" cy="19" r="2" /></svg>

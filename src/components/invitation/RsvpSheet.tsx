@@ -107,6 +107,9 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, colors
   const total = seated + babies;
   const roomSeats = seatCap !== null ? seatCap - seated : maxParty - total;
 
+  /** The code this phone was given when it first answered from the general link. */
+  const ownKey = (): string | null => { try { const k = localStorage.getItem(`${key}:own`); return k && /^[A-Za-z0-9][A-Za-z0-9-]{3,23}$/.test(k) ? k : null; } catch { return null; } };
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -114,8 +117,7 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, colors
     if (!status) found.status = 'נא לבחור אם אתם מגיעים.';
     if (status === 'attending' && seated < 1) found.count = 'נא לציין כמה מגיעים.';
     if (name.trim().length < 2) found.name = 'נא למלא שם מלא.';
-    if (!phone.trim()) found.phone = 'נא למלא מספר טלפון נייד.';
-    else if (!normPhone(phone)) found.phone = 'המספר לא נראה תקין. דוגמה: 050-1234567';
+    if (phone.trim() && !normPhone(phone)) found.phone = 'המספר לא נראה תקין. דוגמה: 050-1234567';
     setBad(found);
     if (Object.keys(found).length) {
       // the first problem gets the focus, so the guest lands on what to fix
@@ -129,10 +131,15 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, colors
     try {
       const res = await fetch('/api/rsvp', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slug, token, name, phone, status, adults, children, babies, notes, preferences }),
+        body: JSON.stringify({ slug, token: token ?? ownKey(), name, phone: phone.trim(), status, adults, children, babies, notes, preferences }),
       });
       const json = await res.json().catch(() => null);
-      if (!res.ok || !json?.ok) { setError(json?.message ?? 'לא הצלחנו לשמור את התשובה. נסו שוב.'); return; }
+      if (!res.ok || !json?.ok) {
+        if (json?.code === 'INVALID_PHONE') { setBad({ phone: json.message }); phoneRef.current?.focus(); return; }
+        if (json?.code === 'INVALID_LINK' && !token && ownKey()) { try { localStorage.removeItem(`${key}:own`); } catch { /* ignore */ } }
+        setError(json?.message ?? 'לא הצלחנו לשמור את התשובה. נסו שוב.'); return;
+      }
+      if (json.key) { try { localStorage.setItem(`${key}:own`, json.key); } catch { /* ignore */ } }
       try { localStorage.setItem(key, JSON.stringify({ name: name.trim(), phone } satisfies Saved)); } catch { /* ignore */ }
       setDone(status);
       onSaved({ status, ...json.guest });
@@ -196,9 +203,9 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, colors
                 <input ref={first} className="sheet-field" name="name" autoComplete="name" autoCapitalize="words" enterKeyHint="next" maxLength={80} aria-invalid={!!bad.name} aria-describedby={bad.name ? 'rsvp-name-err' : undefined}
                   value={name} onChange={(e) => { setName(e.target.value); if (bad.name) setBad((b) => ({ ...b, name: undefined })); }} onKeyDown={enter(() => phoneRef.current?.focus())} required />
                 {bad.name && <span id="rsvp-name-err" role="alert" className="sheet-hint">{bad.name}</span>}</label>
-              <label><span className="sheet-label">טלפון נייד</span>
+              <label><span className="sheet-label">טלפון נייד <span style={{ fontWeight: 400, opacity: .8 }}>(לא חובה)</span></span>
                 <input ref={phoneRef} className="sheet-field" name="phone" type="tel" inputMode="tel" autoComplete="tel" enterKeyHint="done" dir="ltr" style={{ textAlign: 'right' }} maxLength={20} placeholder="050-1234567" aria-invalid={!!bad.phone} aria-describedby={bad.phone ? 'rsvp-phone-err' : undefined}
-                  value={phone} onChange={(e) => { setPhone(e.target.value.replace(/[^\d+\-\s()]/g, '')); if (bad.phone) setBad((b) => ({ ...b, phone: undefined })); }} onKeyDown={enter()} required />
+                  value={phone} onChange={(e) => { setPhone(e.target.value.replace(/[^\d+\-\s()]/g, '')); if (bad.phone) setBad((b) => ({ ...b, phone: undefined })); }} onKeyDown={enter()} />
                 {bad.phone && <span id="rsvp-phone-err" role="alert" className="sheet-hint">{bad.phone}</span>}</label>
             </div>
 

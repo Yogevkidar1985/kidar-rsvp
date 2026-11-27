@@ -114,9 +114,11 @@ input[type="range"] { accent-color: var(--color-ink); }
 .inv-crest > p { position: relative; }
 .inv-sparkle { position: absolute; inset: 0; margin: auto; width: 100%; max-width: 340px; pointer-events: none; }
 .inv-orn-draw { display: block; width: 220px; height: 24px; margin: 20px auto 0; }
-.inv-count { display: flex; justify-content: center; gap: 10px; margin-top: 22px; }
-.inv-count > div { min-width: 76px; padding: 12px 8px 10px; border: 1px solid var(--inv-line); border-radius: var(--inv-radius-box); background: var(--inv-surface); }
-.inv-count b { display: block; font: 300 30px/1 var(--inv-font); font-variant-numeric: tabular-nums; color: var(--inv-ink); }
+.inv-count { display: flex; justify-content: center; gap: 8px; margin-top: 22px; }
+.inv-count > div { flex: 0 1 76px; min-width: 0; padding: 12px 4px 10px; overflow: hidden; border: 1px solid var(--inv-line); border-radius: var(--inv-radius-box); background: var(--inv-surface); }
+.inv-count b { display: block; font: 300 30px/1 var(--inv-font); font-variant-numeric: tabular-nums; color: var(--inv-ink); animation: count-tick .32s cubic-bezier(.2, .8, .2, 1); }
+@keyframes count-tick { from { transform: translateY(-55%); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .inv-count b { animation: none; } }
 .inv-count span { display: block; margin-top: 6px; font: 400 13px/1 var(--inv-font); color: var(--inv-dim); }
 .inv-latin { margin: 0 0 10px; font-size: 12px; font-weight: 400; letter-spacing: .32em; text-indent: .32em; text-transform: uppercase; color: var(--inv-dim); }
 .inv-kicker { margin: 6px 0 0; font-size: 16px; font-weight: 300; letter-spacing: .02em; color: var(--inv-dim); }
@@ -258,10 +260,16 @@ input[type="range"] { accent-color: var(--color-ink); }
 .inv-sticky.show { transform: none; }
 .inv-sticky .inv-btn { max-width: 448px; margin: 0 auto; box-shadow: 0 14px 30px -18px var(--inv-button); }
 
-.inv-light { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgb(12 12 12 / .94); animation: inv-fade .25s ease both; }
-.inv-light img { max-width: 100vw; max-height: 82dvh; object-fit: contain; }
+.inv-light { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; background: rgb(8 8 8 / .98); animation: inv-fade .18s ease both; touch-action: pan-y pinch-zoom; overscroll-behavior: contain; cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+.inv-light img { width: 100vw; max-height: 80dvh; object-fit: contain; -webkit-touch-callout: none; }
+/* a page turning: the new photo comes in from the side it was called from */
+.inv-light-img.from-next { animation: light-next .2s ease-out both; }
+.inv-light-img.from-prev { animation: light-prev .2s ease-out both; }
+@keyframes light-next { from { transform: translateX(-28px); opacity: .2; } }
+@keyframes light-prev { from { transform: translateX(28px); opacity: .2; } }
+@media (prefers-reduced-motion: reduce) { .inv-light-img { animation: none !important; } }
 .inv-light-nav { position: absolute; bottom: calc(18px + env(safe-area-inset-bottom)); inset-inline: 0; display: flex; justify-content: center; align-items: center; gap: 22px; color: #fff; font: 400 14px/1 var(--inv-font); letter-spacing: .1em; }
-.inv-light-nav button, .inv-light-x { width: 46px; height: 46px; border-radius: 50%; border: 1px solid rgb(255 255 255 / .35); background: none; color: #fff; font-size: 24px; line-height: 1; }
+.inv-light-nav button, .inv-light-x { width: 46px; height: 46px; border-radius: 50%; border: 1px solid rgb(255 255 255 / .35); background: rgb(0 0 0 / .35); cursor: pointer; color: #fff; font-size: 24px; line-height: 1; }
 .inv-light-x { position: absolute; top: calc(14px + env(safe-area-inset-top)); inset-inline-end: 14px; }
 
 /* Motion: entrances ease out and end within 600ms; anything a finger triggers answers in 150-300ms; only ambient motion runs longer. */

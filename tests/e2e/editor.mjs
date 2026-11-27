@@ -111,11 +111,78 @@ try {
         check('finger: the arrow buttons move a photo one place', stepped.join() === [after[0], after[1], after[3], after[2]].join(), `${after} -> ${stepped}`);
         await p.screenshot({ path: path.join(out, 'media-grid-phone.png') });
         const inv = await ctx.newPage(); await inv.goto(`${APP}/kidar-brit`, { waitUntil: 'networkidle' });
-        const shown = await inv.$$eval('section.inv-band [data-testid=stack-gallery] img', (i) => i.map((x) => x.src.slice(-12, -4)));
+        const shown = await inv.$$eval('section.inv-band [data-testid=stack-gallery] img', (i) => i.map((x) => (new URL(x.src).searchParams.get('url') ?? x.src).slice(-12, -4)));
         check('finger: the invitation shows the photos in the new order', shown.join() === stepped.slice(0, 3).join(), `${shown}`);
       }
       await ctx.close();
     }
+  }
+
+  // the clock, the countdown, the photo viewer and an answer without a phone number
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, locale: 'he-IL' });
+    const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message));
+    await p.goto(`${APP}/kidar-brit`, { waitUntil: 'networkidle' }); await sleep(500);
+    const clock = await p.evaluate(() => { const d = document.querySelector('.inv-times > div'); const b = d.querySelector('b').getBoundingClientRect(), s = d.querySelector('svg').getBoundingClientRect(); return s.right <= b.left + 1; });
+    check('clock: the icon sits to the left of the hour', clock);
+    const cd = async () => p.evaluate(() => [...document.querySelectorAll('[data-testid=countdown] > div')].map((c) => ({ l: c.querySelector('span').textContent, n: c.querySelector('b').textContent, x: Math.round(c.getBoundingClientRect().left) })));
+    const c1 = await cd(); await sleep(2100); const c2 = await cd();
+    const labels = c1.map((c) => c.l).join();
+    check('countdown: days on the left, then hours, minutes and seconds on the right', (labels === 'ימים,שעות,דקות,שניות' || labels === 'שעות,דקות,שניות') && c1.every((c, i) => !i || c.x > c1[i - 1].x), JSON.stringify(c1));
+    check('countdown: the seconds tick', c1[c1.length - 1].n !== c2[c2.length - 1].n, `${c1[c1.length - 1].n} -> ${c2[c2.length - 1].n}`);
+    check('countdown: fits the screen', await p.evaluate(() => { const r = document.querySelector('[data-testid=countdown]').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && document.documentElement.scrollWidth <= innerWidth; }));
+    for (const w of [320, 360]) { await p.setViewportSize({ width: w, height: 700 }); await sleep(300); check(`countdown: fits at ${w}`, await p.evaluate(() => { const c = [...document.querySelectorAll('[data-testid=countdown] > div')]; return c.every((x) => x.getBoundingClientRect().left >= 0 && x.getBoundingClientRect().right <= innerWidth && x.querySelector('b').scrollWidth <= x.clientWidth) && document.documentElement.scrollWidth <= innerWidth; })); }
+    await p.setViewportSize({ width: 390, height: 844 });
+    // small versions for the cards, the full one only in the viewer
+    const g = p.locator('section.inv-band [data-testid=stack-gallery]');
+    await g.evaluate((e) => e.scrollIntoView({ block: 'center' })); await sleep(900);
+    const srcs = await g.locator('img').evaluateAll((im) => im.map((i) => i.currentSrc));
+    check('gallery: cards load a resized picture, not the original', srcs.length === 3 && srcs.every((s) => s.includes('/_next/image?') && /w=(384|640)/.test(s)), srcs[0]);
+    check('gallery: the resized pictures arrive', await g.locator('img').evaluateAll((im) => im.every((i) => i.complete && i.naturalWidth > 0 && i.naturalWidth <= 640)));
+    await g.locator('.sgal__card').nth(2).tap(); await sleep(900);
+    const n = await g.locator('.sgal__card.is-grid').count();
+    await g.locator('.sgal__card').nth(0).tap(); const lb = p.locator('[data-testid=lightbox]'); await lb.waitFor();
+    const idx = async () => (await lb.locator('.inv-light-nav span').innerText()).replace(/\s/g, '');
+    check('viewer: opens on the tapped photo', (await idx()) === `1/${n}`, await idx());
+    await p.waitForFunction(() => /w=1080/.test(document.querySelector('.inv-light-img').src), null, { timeout: 15000 }).catch(() => {});
+    check('viewer: the full-size picture replaces the small one', /w=1080/.test(await lb.locator('img').getAttribute('src')));
+    await p.touchscreen.tap(195, 420); await sleep(350);
+    check('viewer: a tap on the screen shows the next photo', (await idx()) === `2/${n}`, await idx());
+    await p.touchscreen.tap(60, 300); await sleep(350);
+    check('viewer: and another tap the one after', (await idx()) === `3/${n}`, await idx());
+    const cdp = await ctx.newCDPSession(p);
+    const swipe = async (x0, x1, y0 = 420, y1 = 420) => { await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y: y0 }] }); for (let i = 1; i <= 6; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x0 + (x1 - x0) * i / 6, y: y0 + (y1 - y0) * i / 6 }] }); await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await sleep(450); };
+    await swipe(90, 300); check('viewer: a swipe to the right goes forward, once', (await idx()) === `4/${n}`, await idx());
+    await swipe(300, 90); check('viewer: a swipe to the left goes back, once', (await idx()) === `3/${n}`, await idx());
+    await swipe(300, 90); await swipe(300, 90); await swipe(300, 90); check('viewer: going back past the first photo wraps to the last', (await idx()) === `${n}/${n}`, await idx());
+    await swipe(90, 300); check('viewer: and forward past the last wraps to the first', (await idx()) === `1/${n}`, await idx());
+    await swipe(195, 215, 400, 430); check('viewer: a small drag is not a swipe', ['1', '2'].includes((await idx())[0]));
+    const at = await idx();
+    await lb.getByRole('button', { name: 'התמונה הקודמת' }).tap(); await sleep(350);
+    check('viewer: the arrow buttons move one photo and do not also count as a tap', (await idx()) !== at && Math.abs((parseInt(await idx()) - parseInt(at) + n) % n) === n - 1, `${at} -> ${await idx()}`);
+    check('viewer: the photo fills the width and stays on screen', await lb.locator('img').evaluate((i) => { const r = i.getBoundingClientRect(); return r.left >= -1 && r.right <= innerWidth + 1 && r.height > 100 && r.bottom <= innerHeight; }));
+    await swipe(195, 200, 250, 560); check('viewer: a swipe down closes it', await lb.count() === 0);
+    await g.locator('.sgal__card').nth(1).tap(); await lb.waitFor(); await lb.locator('.inv-light-x').tap(); await sleep(300);
+    check('viewer: the × closes it', await lb.count() === 0);
+    check('viewer and countdown: no script errors', errs.length === 0, errs.join(' ; '));
+
+    // an answer without a phone number
+    const before = (await mock.sql(`select count(*)::int n from guests where event_id = $1`, [id]))[0].n;
+    await p.locator('[data-testid=rsvp-open]').evaluate((e) => e.scrollIntoView({ block: 'center' })); await sleep(400); await p.locator('[data-testid=rsvp-open]').tap();
+    await p.locator('.sheet input[name=name]').fill('משפחת בלי טלפון');
+    check('answer: the phone field says it is optional', (await p.locator('.sheet label', { hasText: 'טלפון נייד' }).innerText()).includes('לא חובה'));
+    await p.locator('.sheet button[type=submit]').tap(); await p.locator('[data-testid=rsvp-success]').waitFor({ timeout: 10000 });
+    let rows = await mock.sql(`select id, phone, status, adults, link_code from guests where event_id = $1 and family_name = 'משפחת בלי טלפון'`, [id]);
+    check('answer: saved without a phone number', rows.length === 1 && rows[0].phone === null && rows[0].status === 'attending', JSON.stringify(rows));
+    check('answer: the phone remembers the family\'s own code', (await p.evaluate(() => Object.entries(localStorage).find(([k]) => k.endsWith(':own'))?.[1])) === rows[0].link_code);
+    await p.reload({ waitUntil: 'networkidle' }); await p.locator('[data-testid=rsvp-open]').evaluate((e) => e.scrollIntoView({ block: 'center' })); await sleep(400); await p.locator('[data-testid=rsvp-open]').tap();
+    await p.locator('.sheet button', { hasText: 'לא מגיעים' }).first().tap().catch(() => {});
+    await p.locator('.sheet input[name=name]').fill('משפחת בלי טלפון'); await p.locator('.sheet button[type=submit]').tap(); await p.locator('[data-testid=rsvp-success]').waitFor({ timeout: 10000 });
+    rows = await mock.sql(`select id, status from guests where event_id = $1 and family_name = 'משפחת בלי טלפון'`, [id]);
+    check('answer: changing it later updates the same family instead of adding another', rows.length === 1 && (await mock.sql(`select count(*)::int n from guests where event_id = $1`, [id]))[0].n === before + 1, JSON.stringify(rows));
+    const bad = await fetch(`${APP}/api/rsvp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug: 'kidar-brit', name: 'משפחת טעות', phone: '123', status: 'attending', adults: 1, children: 0, babies: 0 }) });
+    check('answer: a number that was typed must still be a real one', bad.status === 400);
+    await ctx.close();
   }
 
   // the editor's guide, and the guest's last moments on the invitation
