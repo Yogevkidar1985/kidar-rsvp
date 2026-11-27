@@ -30,7 +30,7 @@ type Props = {
 };
 
 const css = (s: TextStyle): React.CSSProperties => ({
-  fontFamily: fontStack(s.font), fontSize: s.size, fontWeight: s.weight, letterSpacing: `${s.spacing}em`,
+  fontFamily: fontStack(s.font), fontSize: `calc(${s.size}px * var(--inv-scale, 1))`, fontWeight: s.weight, letterSpacing: `${s.spacing}em`,
   lineHeight: s.lineHeight, textAlign: s.align, color: s.color, margin: 0,
 });
 
@@ -257,7 +257,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
   const fonts = fontsHref([d.font]);
   const vars = {
     '--inv-bg': d.colors.bg, '--inv-surface': d.colors.surface, '--inv-soft': d.colors.soft, '--inv-ink': d.colors.ink, '--inv-muted': d.colors.muted,
-    '--inv-accent': d.colors.accent, '--inv-button': d.colors.button, '--inv-button-text': d.colors.buttonText,
+    '--inv-scale': String(Math.min(1.5, Math.max(0.8, d.textScale || 1))), '--inv-accent': d.colors.accent, '--inv-button': d.colors.button, '--inv-button-text': d.colors.buttonText,
     '--inv-line': d.colors.line, '--inv-font': fontStack(d.font), '--inv-gap': `${Math.round(64 * d.spacing)}px`,
     '--inv-radius': d.corners === 'sharp' ? '2px' : d.corners === 'pill' ? '999px' : '10px',
   } as React.CSSProperties;
@@ -444,7 +444,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
           <section ref={rsvpRef} className="inv-sec inv-rsvp" id="rsvp">
             <Reveal on={anim}>
               <Ornament />
-              <h2 style={{ ...css(d.styles.headline), fontSize: d.styles.headline.size * 0.74 }}>{d.labels.rsvpTitle}</h2>
+              <h2 style={{ ...css(d.styles.headline), fontSize: `calc(${d.styles.headline.size * 0.74}px * var(--inv-scale, 1))` }}>{d.labels.rsvpTitle}</h2>
               {!rsvpOpen ? <p style={{ ...body, marginTop: 14 }}>אישורי ההגעה נסגרו</p> : status ? (
                 <>
                   <p style={{ ...body, marginTop: 14 }}>{ANSWERED[status]}{status !== 'declined' && mine ? ` · ${mine.adults + mine.children + mine.babies} משתתפים` : ''}</p>
@@ -452,7 +452,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
                 </>
               ) : (
                 <>
-                  <p style={{ ...body, marginTop: 10, color: 'var(--inv-dim)', fontSize: Math.round(d.styles.body.size * 0.9) }}>נשמח לדעת אם תגיעו</p>
+                  <p style={{ ...body, marginTop: 10, color: 'var(--inv-dim)', fontSize: `calc(${Math.round(d.styles.body.size * 0.9)}px * var(--inv-scale, 1))` }}>נשמח לדעת אם תגיעו</p>
                   <div className="inv-options">
                     {OPTIONS.map((o, i) => (
                       <button key={o.key} type="button" className={`inv-btn inv-pick${i ? ' ghost' : ''}`} data-testid={i ? undefined : 'rsvp-open'} onClick={() => openRsvp(o.key)}>{o.label}</button>

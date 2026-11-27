@@ -46,12 +46,13 @@ export const DEFAULT_DESIGN: Design = {
   labels: { rsvp: 'אישור הגעה', rsvpTitle: 'נשמח לראותכם!', navigate: 'ניווט', calendar: 'הוספה ליומן', call: 'חיוג' },
   buttons: { navigate: true, calendar: true, call: true },
   entrance: true,
-  fall: { enabled: true, kind: 'confetti', speed: 0.7, intensity: 0.7, count: 22, duration: 0, colors: P0.fall, size: 1, thick: 1 },
+  fall: { enabled: true, kind: 'confetti', speed: 0.7, intensity: 0.7, count: 22, duration: 0, colors: P0.fall, size: 1.6, thick: 1.7 },
   celebrate: { enabled: true, kind: 'confetti', count: 140, duration: 4, size: 1, thick: 1, speed: 1 },
   extras: { sparkle: true, countdown: true },
   geo: null,
   share: { title: '', description: '' },
   venueLogo: null,
+  textScale: 1.15,
 };
 
 /** Colours, text colours and falling-piece colours of a palette, as one design patch. */

@@ -35,6 +35,8 @@ export type Design = {
   share: { title: string; description: string };
   /** the venue's own logo, shown in the "how to get there" card */
   venueLogo: string | null;
+  /** every text on the invitation is multiplied by this: one knob for "bigger" */
+  textScale: number;
 };
 export type HeroPos = { x: number; y: number; zoom: number; ratio: string; brightness?: number; contrast?: number; overlay?: number };
 export type Media = { id: string; kind: 'gallery' | 'venue'; url: string; caption: string | null; path?: string | null; sort?: number };

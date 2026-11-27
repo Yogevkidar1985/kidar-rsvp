@@ -416,6 +416,7 @@ export default function EditorPage() {
                   {HEBREW_FONTS.map((f, i) => <option key={f} value={f}>{f}{i ? '' : ' (מומלץ)'}</option>)}</select></Field>
               <Field label="פינות הכפתורים והשדות"><select className="field" value={design.corners} onChange={(e) => setDesign({ corners: e.target.value as Design['corners'] })}>
                 <option value="soft">מעוגלות בעדינות</option><option value="sharp">חדות</option><option value="pill">עגולות לגמרי</option></select></Field>
+              <Range label="גודל הטקסט בכל ההזמנה" value={design.textScale} min={0.85} max={1.4} step={0.05} onChange={(n) => setDesign({ textScale: n })} suffix="×" />
               <Range label="מרווח בין חלקי ההזמנה" value={design.spacing} min={0.6} max={1.6} step={0.05} onChange={(n) => setDesign({ spacing: n })} suffix="×" />
               <p className="border-t border-line pt-3 text-xs text-muted">כוונון עדין לכל סוג טקסט בנפרד:</p>
               <div className="tabs">{STYLE_KEYS.map((s) => <button key={s.key} type="button" aria-pressed={styleKey === s.key} onClick={() => setStyleKey(s.key)}>{s.label}</button>)}</div>
