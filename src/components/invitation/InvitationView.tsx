@@ -49,12 +49,31 @@ function Reveal({ on, children, delay = 0 }: { on: boolean; children: React.Reac
 }
 
 /** Another site shown inside the invitation. It can take a few seconds to arrive, so the wait is said out loud. */
-function SiteFrame({ src, title }: { src: string; title: string }) {
+/**
+ * The venue's own site, shown over the invitation. It is kept in the page once it has started loading, hidden until asked for:
+ * a site that takes seconds to answer can be fetched ahead of the tap, and opening it a second time costs nothing.
+ * The frame is shown from the first moment, so the site appears as it arrives instead of after its last picture.
+ */
+function SitePanel({ src, title, open, onClose }: { src: string; title: string; open: boolean; onClose: () => void }) {
+  const box = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
+  useDialogFocus(box, open);
+  useEffect(() => {
+    if (!open) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [open, onClose]);
   return (
-    <div className="inv-site" data-ready={ready}>
-      {!ready && <p className="inv-site-wait" role="status"><span className="inv-site-spin" aria-hidden="true" />טוענים את האתר…</p>}
-      <iframe title={title} src={src} referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-popups allow-forms" onLoad={() => setReady(true)} />
+    <div className={`sheet-back site-panel${open ? '' : ' is-away'}`} aria-hidden={!open} data-testid="site-panel" data-open={open} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div ref={box} tabIndex={-1} className="sheet" role="dialog" aria-modal="true" aria-label={title} dir="rtl">
+        <div className="site-head"><h2 className="sheet-title">{title}</h2><button type="button" className="sheet-x" aria-label="סגירה" tabIndex={open ? 0 : -1} onClick={onClose}>×</button></div>
+        <div className="inv-site" data-ready={ready}>
+          {!ready && <p className="inv-site-wait" role="status"><span className="inv-site-spin" aria-hidden="true" />טוענים את האתר…</p>}
+          <iframe title={title} src={src} tabIndex={open ? 0 : -1} referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-popups allow-forms" onLoad={() => setReady(true)} />
+        </div>
+        <a className="inv-btn ghost" style={{ marginTop: 10 }} tabIndex={open ? 0 : -1} href={src} target="_blank" rel="noopener noreferrer">פתיחת האתר בלשונית חדשה</a>
+      </div>
     </div>
   );
 }
@@ -267,6 +286,22 @@ export default function InvitationView({ data, token = null, preview = false, ce
   const place = [data.venue_name, data.address].filter(Boolean).join(', ');
   const logo = safeHttpUrl(d.venueLogo);
   const site = safeHttpUrl(d.venueUrl);
+  // the venue's site starts loading before it is asked for: when a finger lands on its name, or (if the owner chose so) once the name is on screen
+  const [siteWarm, setSiteWarm] = useState(false);
+  const siteLink = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!site || preview) return;
+    // the handshake with the venue's server is done while the guest is still reading
+    const link = document.createElement('link'); link.rel = 'preconnect'; link.href = new URL(site).origin; document.head.appendChild(link);
+    const el = siteLink.current;
+    const conn = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+    const frugal = !!conn?.saveData || /2g/.test(conn?.effectiveType ?? '');
+    if (!d.venuePreload || frugal || !el || typeof IntersectionObserver === 'undefined') return () => link.remove();
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); setSiteWarm(true); } }, { rootMargin: '200px' });
+    io.observe(el);
+    return () => { io.disconnect(); link.remove(); };
+  }, [site, preview, d.venuePreload]);
+  useEffect(() => { if (sheet === 'site') setSiteWarm(true); }, [sheet]);
   const waze = safeHttpUrl(data.waze_url) ?? (place ? `https://waze.com/ul?q=${encodeURIComponent(place)}&navigate=yes` : null);
   const gmaps = safeHttpUrl(data.gmaps_url) ?? (place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}` : null);
   const gcal = googleCalendarUrl(data);
@@ -422,7 +457,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   {logo ? <img className="inv-venue-logo" src={img(logo, 384)} alt="" decoding="async" /> : <span className="inv-pin"><Icon name="pin" size={24} /></span>}
                   {data.venue_name && (site
-                    ? <p style={css(d.styles.hosts)}><button type="button" className="inv-venue-link" data-testid="venue-site" onClick={() => !preview && setSheet('site')} aria-label={`האתר של ${data.venue_name}`}>
+                    ? <p style={css(d.styles.hosts)}><button ref={siteLink} type="button" className="inv-venue-link" data-testid="venue-site" onPointerDown={() => !preview && setSiteWarm(true)} onClick={() => !preview && setSheet('site')} aria-label={`האתר של ${data.venue_name}`}>
                         <span>{data.venue_name}</span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m12 6-6 6 6 6" /><path d="m19 6-6 6 6 6" /></svg></button></p>
                     : <p style={css(d.styles.hosts)}>{data.venue_name}</p>)}
                   {data.address && !mapSrc && <p style={{ ...body, marginTop: 2 }}>{data.address}</p>}
@@ -557,12 +592,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
           <p className="sheet-note">אם היומן לא נפתח מתוך WhatsApp או אפליקציה אחרת, פתחו את ההזמנה ב-Safari באייפון או ב-Chrome באנדרואיד ונסו שוב. אחרי שהאירוע נפתח צריך לאשר את השמירה ביומן.</p>
         </Sheet>
       )}
-      {sheet === 'site' && site && (
-        <Sheet title={data.venue_name || 'האתר של המקום'} onClose={closeSheet}>
-          <SiteFrame src={site} title={`האתר של ${data.venue_name ?? 'המקום'}`} />
-          <a className="inv-btn ghost" style={{ marginTop: 12 }} href={site} target="_blank" rel="noopener noreferrer">פתיחת האתר בלשונית חדשה</a>
-        </Sheet>
-      )}
+      {site && siteWarm && <SitePanel src={site} title={data.venue_name || 'האתר של המקום'} open={sheet === 'site'} onClose={closeSheet} />}
       {sheet === 'share' && (
         <Sheet title="שתפו את האירוע" onClose={closeSheet}>
           <div className="inv-choices">

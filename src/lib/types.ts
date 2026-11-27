@@ -39,6 +39,8 @@ export type Design = {
   textScale: number;
   /** the venue's own website, opened from the arrows beside its name */
   venueUrl: string;
+  /** start loading the venue's site as soon as its name is on screen, so a tap opens it at once (uses the guest's data) */
+  venuePreload: boolean;
   /** the small moving picture between the photo and the names */
   emblem: 'pacifier' | 'stroller' | 'heart' | 'star' | 'none';
   /** how large each part is drawn, as a multiple of its designed size */

@@ -54,6 +54,7 @@ export const DEFAULT_DESIGN: Design = {
   venueLogo: null,
   textScale: 1.15,
   venueUrl: '',
+  venuePreload: false,
   emblem: 'pacifier',
   sizes: { date: 1, countdown: 1, emblem: 1, logo: 1, arrow: 1, buttons: 1, gallery: 1 },
   contrast: 0.25,

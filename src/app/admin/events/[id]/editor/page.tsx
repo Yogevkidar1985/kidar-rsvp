@@ -359,6 +359,7 @@ export default function EditorPage() {
               {text('address', 'כתובת מלאה')}
               <Field label="האתר של המקום" hint="מוסיף חיצים ליד שם המקום. לחיצה פותחת את האתר בתוך ההזמנה.">
                 <input className="field" dir="ltr" inputMode="url" maxLength={200} placeholder="https://" value={design.venueUrl} onChange={(e) => setDesign({ venueUrl: e.target.value.trim() })} /></Field>
+              {design.venueUrl && <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" data-testid="venue-preload" checked={design.venuePreload} onChange={(e) => setDesign({ venuePreload: e.target.checked })} /><span><b className="font-semibold">טעינה מוקדמת של אתר המקום</b><span className="block text-xs text-muted">האתר מתחיל להיטען ברקע כשהאורח מגיע לשם המקום, ונפתח מיד בלחיצה. משתמש בגלישה של האורח גם אם לא ילחץ.</span></span></label>}
               <div>
                 <span className="label">לוגו המקום (מוצג בכרטיס "איך מגיעים", מעל השם)</span>
                 <div className="flex flex-wrap items-center gap-3">

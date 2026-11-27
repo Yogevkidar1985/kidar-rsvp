@@ -497,7 +497,6 @@ input[type="range"] { accent-color: var(--color-ink); }
 @media (prefers-reduced-motion: reduce) { .pm-pin.pm-drop * { animation: none !important; } }
 
 .inv-site { position: relative; }
-.inv-site[data-ready='false'] iframe { opacity: 0; }
 .inv-site iframe { transition: opacity .25s; }
 .inv-site-wait { position: absolute; inset: 0; margin: 0; display: grid; place-content: center; justify-items: center; gap: 12px; font: 500 16px/1.4 var(--inv-font); color: var(--inv-dim); }
 .inv-site-spin { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--inv-line); border-top-color: var(--inv-ink); animation: inv-spin .8s linear infinite; }
@@ -516,3 +515,10 @@ input[type="range"] { accent-color: var(--color-ink); }
 @keyframes em-swing { 0%, 100% { transform: rotate(16deg); } 50% { transform: rotate(-16deg); } }
 @keyframes em-roll { 0%, 100% { transform: translateX(-7px); } 50% { transform: translateX(7px); } }
 @media (prefers-reduced-motion: reduce) { .inv-emblem, .em-ring, .em-wheel, .inv-scroll, .inv-scroll i { animation: none; } .inv-scroll i { display: none; } }
+
+/* the venue's site waits off stage once it has started loading, and comes forward at a tap */
+.site-panel.is-away { visibility: hidden; pointer-events: none; opacity: 0; animation: none; }
+.site-panel.is-away .sheet { animation: none; }
+.site-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.site-panel .inv-site iframe { position: relative; height: min(70dvh, 660px); background: transparent; }
+.site-panel .sheet { padding-top: 18px; }
