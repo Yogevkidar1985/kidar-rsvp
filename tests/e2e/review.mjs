@@ -81,16 +81,38 @@ try {
     await ap.locator('.sheet button', { hasText: 'סגירה' }).click(); await sleep(300);
   }
   console.log('actions:', JSON.stringify(sheets, null, 1));
-  // venue photographs and the map
-  const car = await ap.$eval('[data-testid=venue-gallery]', (c) => ({ slides: c.children.length, scrolls: c.scrollWidth > c.clientWidth, pageWider: document.documentElement.scrollWidth - 390 }));
-  await ap.locator('[data-testid=venue-gallery]').scrollIntoViewIfNeeded(); await sleep(400);
-  await ap.screenshot({ path: path.join(out, 'venue-gallery.png') });
-  await ap.click('[data-testid=venue-gallery] > button'); await ap.waitForSelector('.inv-light'); const lightOk = await ap.locator('.inv-light img').count(); await ap.click('.inv-light-x'); await sleep(250);
-  await ap.click('[data-testid=map-open]'); await ap.waitForSelector('.sheet .inv-map iframe'); await sleep(2500);
-  const mapSrc = await ap.$eval('.sheet .inv-map iframe', (f) => decodeURIComponent(f.src));
-  await ap.screenshot({ path: path.join(out, 'map-sheet.png') });
-  console.log('venue:', JSON.stringify({ ...car, lightboxOpens: !!lightOk, map: mapSrc.slice(0, 90), navBelowMap: await ap.$$eval('.sheet .inv-choices > *', (e) => e.length) }));
+  // venue photographs: a fan of cards that opens into a grid, then the full-screen viewer
+  await ap.$eval('[data-testid=stack-gallery]', (e) => e.scrollIntoView({ block: 'center' })); await sleep(1100);
+  const fan = await ap.$$eval('[data-testid=stack-gallery] .sgal__card', (c) => ({ cards: c.length, fanned: c.every((x) => x.classList.contains('is-fan')) }));
+  await ap.screenshot({ path: path.join(out, 'gallery-fan.png') });
+  await ap.click('[data-testid=stack-gallery] .sgal__card >> nth=2'); await sleep(1100); // the top card of the fan
+  await ap.$eval('[data-testid=stack-gallery]', (e) => e.scrollIntoView({ block: 'center' })); await sleep(500);
+  const grid = await ap.$$eval('[data-testid=stack-gallery] .sgal__card', (c) => ({ cards: c.length, grid: c.every((x) => x.classList.contains('is-grid')) }));
+  await ap.screenshot({ path: path.join(out, 'gallery-open.png') });
+  await ap.click('[data-testid=stack-gallery] .sgal__card >> nth=0'); await ap.waitForSelector('.inv-light'); const lightOk = await ap.locator('.inv-light img').count(); await ap.click('.inv-light-x'); await sleep(250);
+  await ap.locator('.sgal__btn', { hasText: 'חזרה' }).click(); await sleep(900);
+  const backTo = await ap.$$eval('[data-testid=stack-gallery] .sgal__card', (c) => c.length);
+  console.log('gallery:', JSON.stringify({ fan, grid, lightboxOpens: !!lightOk, cardsAfterBack: backTo, pageWider: await ap.evaluate(() => document.documentElement.scrollWidth - 390) }));
+  // the map without a saved point: Google's own map of the address
+  await ap.click('[data-testid=map-open]'); await ap.waitForSelector('.sheet .inv-map iframe'); await sleep(600);
+  console.log('map without a saved point:', decodeURIComponent(await ap.$eval('.sheet .inv-map iframe', (f) => f.src)).slice(0, 80));
   await ap.locator('.sheet button', { hasText: 'סגירה' }).click(); await sleep(300);
+  // with a saved point: the styled layer, pin and plate
+  await mock.sql(`update events set design = design || '{"geo":{"lat":32.1746114,"lng":34.9111476,"place":"x"}}'::jsonb where slug = 'kidar-brit'`);
+  await ap.reload({ waitUntil: 'networkidle' }); await sleep(600);
+  await ap.click('[data-testid=map-open]'); await ap.waitForSelector('[data-testid=venue-map] .leaflet-tile-loaded', { timeout: 20000 }); await sleep(1800);
+  await ap.screenshot({ path: path.join(out, 'map-sheet.png') });
+  console.log('styled map:', JSON.stringify(await ap.evaluate(() => ({ tiles: document.querySelectorAll('.venue-map .leaflet-tile-loaded').length, plate: document.querySelector('.pm-pin__name')?.textContent, sub: document.querySelector('.pm-pin__sub')?.textContent, pinInView: (() => { const r = document.querySelector('.pm-pin__head').getBoundingClientRect(), m = document.querySelector('.venue-map').getBoundingClientRect(); return r.top > m.top && r.bottom < m.bottom && r.left > m.left && r.right < m.right; })(), navBelow: document.querySelectorAll('.sheet .inv-choices > *').length }))));
+  await ap.locator('.sheet button', { hasText: 'סגירה' }).click(); await sleep(300);
+  // wide screen: the strips
+  const wide = await (await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'he-IL' })).newPage();
+  await wide.goto(`${APP}/kidar-brit`, { waitUntil: 'networkidle' }); await wide.locator('[data-testid=expandable-gallery]').scrollIntoViewIfNeeded(); await sleep(700);
+  const w0 = await wide.$$eval('.xgal__item', (e) => e.map((x) => Math.round(x.getBoundingClientRect().width)));
+  await wide.hover('.xgal__item >> nth=1'); await sleep(900);
+  const w1 = await wide.$$eval('.xgal__item', (e) => e.map((x) => Math.round(x.getBoundingClientRect().width)));
+  await wide.locator('[data-testid=expandable-gallery]').screenshot({ path: path.join(out, 'gallery-strips.png') });
+  console.log('strips:', JSON.stringify({ rest: w0, hovered: w1, widens: w1[1] > w0[1] * 1.5 }));
+  await wide.context().close();
   const ics = await fetch(`${APP}/api/ics/kidar-brit`);
   const icsText = await ics.text();
   console.log('ics:', ics.status, ics.headers.get('content-type'), ics.headers.get('content-disposition'), '|', icsText.includes('BEGIN:VEVENT') && icsText.includes('DTSTART;TZID=Asia/Jerusalem:20261202T150000'), '| download:', (await fetch(`${APP}/api/ics/kidar-brit?download=1`)).headers.get('content-disposition'));
@@ -142,6 +164,15 @@ try {
       if (pgName === 'editor') {
         await ad.getByRole('tab', { name: 'מועד' }).click({ timeout: 8000 }).catch(async (e) => console.log('editor tab not clickable:', aerr.join(' ; '), '|', String(e.message).split('\n').slice(0, 12).join(' / ')));
         await sleep(300);
+        if (tag === 'desktop') { // finding the address on the map, from the editor
+          await ad.getByRole('tab', { name: 'מקום' }).click(); await sleep(300);
+          await ad.getByRole('button', { name: /איתור/ }).click();
+          const found = await ad.waitForFunction(() => document.body.innerText.includes('הכתובת נמצאה') || document.body.innerText.includes('לא מצאנו') || document.body.innerText.includes('החיפוש נכשל'), { timeout: 20000 }).then(() => ad.evaluate(() => document.body.innerText.includes('הכתובת נמצאה'))).catch(() => false);
+          await sleep(1500);
+          console.log('editor locate:', JSON.stringify({ found, mapInEditor: await ad.locator('fieldset [data-testid=venue-map] .leaflet-tile-loaded').count() > 0, dirty: (await ad.locator('main').first().innerText()).includes('יש שינויים שלא נשמרו') }));
+          await ad.screenshot({ path: path.join(out, 'editor-map.png') });
+          await ad.getByRole('tab', { name: 'מועד' }).click();
+        }
       }
       await ad.screenshot({ path: path.join(out, `admin-${pgName}-${tag}.png`), fullPage: true });
       console.log(`admin ${pgName} ${tag}: overflow ${await ad.evaluate((W) => document.documentElement.scrollWidth - W, ctxOpts.viewport.width)}`);

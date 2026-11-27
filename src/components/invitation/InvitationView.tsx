@@ -13,8 +13,10 @@ import RsvpSheet, { type Answer, type RsvpResult } from './RsvpSheet';
 import { useDialogFocus } from '@/lib/dialog';
 import { eventStart } from '@/lib/when';
 import { ornamentLottie, sparkleLottie } from './lotties';
+import { PlaceGallery } from './Galleries';
 
 const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
+const VenueMap = dynamic(() => import('./VenueMap'), { ssr: false });
 
 type Props = {
   data: PublicInvitation; token?: string | null;
@@ -346,17 +348,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
                 <button type="button" onClick={() => !preview && setSheet('share')}><Icon name="share" /><span>שיתוף</span></button>
               </div>
               {(venue.length > 0 || mapSrc || data.directions || data.parking || data.extra_info) && <h2 className="inv-more">מידע נוסף</h2>}
-              {venue.length > 0 && (
-                <div className="inv-carousel" data-testid="venue-gallery" aria-label="תמונות מהמקום">
-                  {venue.map((m, i) => (
-                    <button key={m.id} type="button" onClick={() => !preview && setLightbox(shots.findIndex((x) => x.id === m.id))} aria-label={m.caption || `תמונה ${i + 1} מתוך ${venue.length}, להגדלה`}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={m.url} alt={m.caption ?? ''} loading="lazy" decoding="async" />
-                      {venue.length > 1 && <span dir="ltr">{i + 1} / {venue.length}</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
+              {venue.length > 0 && <PlaceGallery images={venue} allLabel="כל התמונות מהמקום" onOpen={(i) => !preview && setLightbox(shots.findIndex((x) => x.id === venue[i].id))} />}
               {mapSrc && <button type="button" className="inv-btn ghost inv-mapbtn" data-testid="map-open" onClick={() => !preview && setSheet('map')}><Icon name="map" size={20} />למפת הגעה</button>}
               {(data.directions || data.parking || data.extra_info) && (
                 <dl className="inv-notes">
@@ -418,7 +410,11 @@ export default function InvitationView({ data, token = null, preview = false, ce
       {sheet === 'map' && mapSrc && (
         <Sheet title="מפת הגעה" onClose={closeSheet}>
           {place && <p className="sheet-sub">{place}</p>}
-          <div className="inv-map"><iframe title={`מפה: ${place}`} src={mapSrc} loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen /></div>
+          <div className="inv-map">
+            {d.geo
+              ? <VenueMap lat={d.geo.lat} lng={d.geo.lng} label={data.venue_name || data.name} sublabel={data.address ?? ''} />
+              : <iframe title={`מפה: ${place}`} src={mapSrc} loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen />}
+          </div>
           <div className="inv-choices">
             {waze && <a href={waze} target="_blank" rel="noopener noreferrer"><Icon name="navigation" /><span>Waze</span></a>}
             {gmaps && <a href={gmaps} target="_blank" rel="noopener noreferrer"><Icon name="pin" /><span>Google Maps</span></a>}

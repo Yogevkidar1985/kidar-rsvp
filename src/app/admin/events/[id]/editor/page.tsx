@@ -6,6 +6,9 @@ import { PageHead } from '@/components/admin/Shell';
 import { Field, dbError, useToast } from '@/components/admin/ui';
 import { DateField, TimeField } from '@/components/admin/fields';
 import { Icon } from '@/components/admin/icons';
+import dynamic from 'next/dynamic';
+
+const VenueMap = dynamic(() => import('@/components/invitation/VenueMap'), { ssr: false });
 import InvitationView from '@/components/invitation/InvitationView';
 import { HEBREW_FONTS, PALETTES, applyFont, applyPalette, resolveDesign } from '@/lib/defaults';
 import { hebrewDate, weekdayLabel } from '@/lib/hebrew-date';
@@ -85,6 +88,22 @@ export default function EditorPage() {
   const [celebrate, setCelebrate] = useState(0);
   const [styleKey, setStyleKey] = useState<keyof Design['styles']>('headline');
   const pane = useRef<HTMLDivElement>(null);
+  const [locating, setLocating] = useState(false);
+  /** Finds the written address on the map, once, from the editor. Guests never trigger a lookup: they get the saved point. */
+  async function locate() {
+    const place = [draft.venue_name, draft.address].filter(Boolean).join(', ');
+    const tries = [draft.address, place].filter((x): x is string => !!x && x.trim().length > 3);
+    if (!tries.length) return toast('כתבו קודם את הכתובת המלאה, כולל עיר.', true);
+    setLocating(true);
+    try {
+      for (const q of tries) {
+        const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=he&countrycodes=il&q=${encodeURIComponent(q)}`);
+        const hit = ((await r.json()) as { lat: string; lon: string }[])[0];
+        if (hit) { setDesign({ geo: { lat: +hit.lat, lng: +hit.lon, place } }); toast('הכתובת נמצאה. אם הסיכה לא מדויקת, לחצו על המפה כדי להזיז אותה.'); return; }
+      }
+      toast('לא מצאנו את הכתובת. נסו לכתוב רחוב, מספר ועיר.', true);
+    } catch { toast('החיפוש נכשל. בדקו את החיבור ונסו שוב.', true); } finally { setLocating(false); }
+  }
   const [paneW, setPaneW] = useState(390);
   const design = useMemo(() => resolveDesign(draft.design), [draft.design]);
   const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(event), [draft, event]);
@@ -239,7 +258,21 @@ export default function EditorPage() {
               {text('parking', 'חניה', { area: true })}
               {text('extra_info', 'מידע נוסף על האירוע', { area: true })}
               <div className="border-t border-line pt-3"><span className="label">תמונות של המקום (מוצגות בהזמנה תחת "מידע נוסף")</span>{drop('venue', 'הוספת תמונות של המקום')}{thumbs('venue')}</div>
-              <p className="text-xs text-muted">מפת ההגעה בהזמנה נבנית לבד משם המקום ומהכתובת.</p>
+              <div className="grid gap-2 border-t border-line pt-3">
+                <span className="label">מיקום על מפת ההגעה</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" className="btn btn-ghost" disabled={locating} onClick={locate}>{locating ? 'מחפשים…' : design.geo ? 'איתור מחדש לפי הכתובת' : 'איתור הכתובת על המפה'}</button>
+                  {design.geo && <button type="button" className="btn btn-danger btn-sm" onClick={() => setDesign({ geo: null })}>הסרת הסיכה</button>}
+                </div>
+                {design.geo ? (
+                  <>
+                    <div className="inv-map" style={{ ['--inv-line' as string]: 'var(--color-line)', ['--inv-radius-box' as string]: '12px', ['--inv-soft' as string]: '#f2f4f6', ['--inv-ink' as string]: design.colors.ink, ['--inv-dim' as string]: design.colors.muted, ['--inv-font' as string]: 'inherit' }}>
+                      <VenueMap lat={design.geo.lat} lng={design.geo.lng} label={draft.venue_name || draft.name} sublabel={draft.address ?? ''} onPick={(lat, lng) => setDesign({ geo: { lat, lng, place: design.geo?.place ?? '' } })} />
+                    </div>
+                    <p className="text-xs text-muted">לחיצה על המפה מזיזה את הסיכה. {design.geo.place !== [draft.venue_name, draft.address].filter(Boolean).join(', ') && <b className="text-warn">הכתובת השתנתה מאז האיתור: כדאי לאתר מחדש.</b>}</p>
+                  </>
+                ) : <p className="text-xs text-muted">אחרי האיתור, ההזמנה מציגה מפה מעוצבת עם סיכה ושלט. בלי איתור מוצגת מפת Google רגילה לפי הכתובת.</p>}
+              </div>
               <div className="grid gap-2 border-t border-line pt-3">
                 <span className="label">כפתורים בהזמנה</span>
                 {(['navigate', 'calendar', 'call'] as const).map((k) => (

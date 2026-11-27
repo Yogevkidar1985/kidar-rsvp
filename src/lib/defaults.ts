@@ -49,6 +49,7 @@ export const DEFAULT_DESIGN: Design = {
   fall: { enabled: true, kind: 'confetti', speed: 0.7, intensity: 0.7, count: 22, duration: 0, colors: P0.fall },
   celebrate: { enabled: true, kind: 'confetti', count: 140, duration: 4 },
   extras: { sparkle: true, countdown: true },
+  geo: null,
 };
 
 /** Colours, text colours and falling-piece colours of a palette, as one design patch. */
