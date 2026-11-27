@@ -5,7 +5,7 @@ import { useEvent } from '@/components/admin/EventContext';
 import { PageHead } from '@/components/admin/Shell';
 import { Field, dbError, useToast } from '@/components/admin/ui';
 import InvitationView from '@/components/invitation/InvitationView';
-import { resolveDesign } from '@/lib/defaults';
+import { HEBREW_FONTS, PALETTES, applyFont, applyPalette, resolveDesign } from '@/lib/defaults';
 import { FONTS } from '@/lib/fonts';
 import { hebrewDate, weekdayLabel } from '@/lib/hebrew-date';
 import type { Design, EventRow, Media, ParticleKind, TextStyle } from '@/lib/types';
@@ -20,7 +20,7 @@ const STYLE_KEYS: { key: keyof Design['styles']; label: string }[] = [
   { key: 'headline', label: 'כותרת ראשית' }, { key: 'hosts', label: 'שמות ומקום' }, { key: 'date', label: 'תאריך ושעות' }, { key: 'body', label: 'טקסט רץ' },
 ];
 const COLOR_KEYS: { key: keyof Design['colors']; label: string }[] = [
-  { key: 'bg', label: 'רקע העמוד' }, { key: 'surface', label: 'רקע ההזמנה' }, { key: 'ink', label: 'צבע ראשי' }, { key: 'muted', label: 'טקסט משני' },
+  { key: 'bg', label: 'רקע העמוד' }, { key: 'surface', label: 'רקע ההזמנה' }, { key: 'soft', label: 'רקע משני' }, { key: 'ink', label: 'צבע ראשי' }, { key: 'muted', label: 'טקסט משני' },
   { key: 'accent', label: 'צבע הדגשה' }, { key: 'button', label: 'כפתור אישור' }, { key: 'buttonText', label: 'טקסט הכפתור' },
 ];
 
@@ -49,7 +49,32 @@ export default function EditorPage() {
   const { event, setEvent, canEdit } = useEvent();
   const toast = useToast();
   const db = supabaseBrowser();
-  const [draft, setDraft] = useState<EventRow>(event);
+  const [draft, setDraftRaw] = useState<EventRow>(event);
+  // undo / redo: a snapshot is kept when an edit starts more than half a second after the previous one
+  const hist = useRef<{ past: EventRow[]; future: EventRow[]; at: number }>({ past: [], future: [], at: 0 });
+  const [, bump] = useState(0);
+  const setDraft: typeof setDraftRaw = useCallback((next) => {
+    setDraftRaw((cur) => {
+      const val = typeof next === 'function' ? (next as (d: EventRow) => EventRow)(cur) : next;
+      const h = hist.current, now = Date.now();
+      if (val !== cur && now - h.at > 500) { h.past = [...h.past.slice(-49), cur]; h.future = []; }
+      h.at = now;
+      return val;
+    });
+    bump((n) => n + 1);
+  }, []);
+  const step = (dir: 'undo' | 'redo') => {
+    const h = hist.current;
+    const from = dir === 'undo' ? h.past : h.future;
+    if (!from.length) return;
+    setDraftRaw((cur) => {
+      const target = from[from.length - 1];
+      if (dir === 'undo') { h.past = h.past.slice(0, -1); h.future = [...h.future, cur]; } else { h.future = h.future.slice(0, -1); h.past = [...h.past, cur]; }
+      h.at = 0;
+      return target;
+    });
+    bump((n) => n + 1);
+  };
   const [media, setMedia] = useState<Media[]>([]);
   const [tab, setTab] = useState<Tab>('תוכן');
   const [device, setDevice] = useState<(typeof DEVICES)[number]>(DEVICES[0]);
@@ -104,7 +129,7 @@ export default function EditorPage() {
     const { data, error } = await db.from('events').update(row).eq('id', id).select('*').single();
     setSaving(false);
     if (error || !data) return toast(error?.code === '23505' ? 'כתובת ההזמנה כבר תפוסה.' : dbError(error), true);
-    setEvent(data as EventRow); setDraft(data as EventRow);
+    setEvent(data as EventRow); setDraftRaw(data as EventRow);
     toast(publish === true ? 'ההזמנה פורסמה' : publish === false ? 'הפרסום בוטל' : 'השינויים נשמרו');
   }
 
@@ -120,10 +145,10 @@ export default function EditorPage() {
         if (up.error) { toast('ההעלאה נכשלה. נסו קובץ JPG או PNG.', true); continue; }
         const url = db.storage.from('event-media').getPublicUrl(path).data.publicUrl;
         if (kind === 'hero') {
-          const pos = { x: 50, y: 50, zoom: 1, ratio: draft.hero_pos?.ratio ?? '4/5' };
+          const pos = { ...draft.hero_pos, x: 50, y: 50, zoom: 1, ratio: draft.hero_pos?.ratio ?? '4/5' };
           const { data, error } = await db.from('events').update({ hero_url: url, hero_pos: pos }).eq('id', event.id).select('*').single();
           if (error || !data) { toast(dbError(error), true); continue; }
-          setEvent(data as EventRow); setDraft((d) => ({ ...d, hero_url: url, hero_pos: pos, updated_at: (data as EventRow).updated_at }));
+          setEvent(data as EventRow); setDraftRaw((d) => ({ ...d, hero_url: url, hero_pos: pos, updated_at: (data as EventRow).updated_at }));
         } else {
           const { error } = await db.from('media_assets').insert({ event_id: event.id, kind, url, path, sort: media.length });
           if (error) toast(dbError(error), true);
@@ -139,7 +164,7 @@ export default function EditorPage() {
     await loadMedia();
   }
 
-  const pos = Object.assign({ x: 50, y: 50, zoom: 1, ratio: '4/5' }, draft.hero_pos);
+  const pos = Object.assign({ x: 50, y: 50, zoom: 1, ratio: '4/5', brightness: 1, contrast: 1, overlay: 0 }, draft.hero_pos);
   const previewData = useMemo(() => ({ ...draft, design, media }), [draft, design, media]);
   const scale = Math.min(1, paneW / device.w);
   const st = design.styles[styleKey];
@@ -164,9 +189,11 @@ export default function EditorPage() {
   return (
     <>
       <PageHead title="עיצוב ההזמנה" sub={dirty ? 'יש שינויים שלא נשמרו' : 'כל השינויים שמורים'}>
+        <button className="btn btn-ghost" aria-label="ביטול הפעולה האחרונה" title="ביטול" disabled={!hist.current.past.length} onClick={() => step('undo')}>↶</button>
+        <button className="btn btn-ghost" aria-label="ביצוע מחדש" title="ביצוע מחדש" disabled={!hist.current.future.length} onClick={() => step('redo')}>↷</button>
         <button className="btn btn-ghost lg:hidden" onClick={() => setView(view === 'edit' ? 'preview' : 'edit')}>{view === 'edit' ? 'תצוגה מקדימה' : 'חזרה לעריכה'}</button>
         <button className="btn btn-ghost" disabled={!canEdit || saving} onClick={() => save(!draft.published)}>{draft.published ? 'ביטול פרסום' : 'שמירה ופרסום'}</button>
-        <button className="btn" disabled={!canEdit || saving || !dirty} onClick={() => save()}>{saving ? 'שומרים…' : 'שמירת השינויים'}</button>
+        <button className="btn" disabled={!canEdit || saving || !dirty} onClick={() => save()}>{saving ? 'שומרים…' : draft.published ? 'שמירת השינויים' : 'שמירת טיוטה'}</button>
       </PageHead>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(320px,420px)_1fr]">
@@ -177,6 +204,8 @@ export default function EditorPage() {
           <fieldset disabled={!canEdit} className="grid gap-3">
             {tab === 'תוכן' && <>
               {text('name', 'שם האירוע', { hint: 'מופיע בכותרת הדפדפן, בשיתוף וביומן.' })}
+              <Field label="שורה באנגלית בראש ההזמנה" hint="למשל שמות המארחים. אפשר להשאיר ריק.">
+                <input className="field" dir="ltr" maxLength={60} value={design.latin} onChange={(e) => setDesign({ latin: e.target.value })} /></Field>
               {text('headline', 'כותרת ראשית')}
               {text('intro_text', 'טקסט פתיחה', { area: true })}
               {text('hosts', 'בעלי האירוע')}
@@ -225,6 +254,9 @@ export default function EditorPage() {
                 <Range label="זום" value={pos.zoom} min={1} max={2.5} step={0.05} onChange={(n) => set('hero_pos', { ...pos, zoom: n })} suffix="×" />
                 <Range label="מיקום אופקי" value={pos.x} min={0} max={100} step={1} onChange={(n) => set('hero_pos', { ...pos, x: n })} suffix="%" />
                 <Range label="מיקום אנכי" value={pos.y} min={0} max={100} step={1} onChange={(n) => set('hero_pos', { ...pos, y: n })} suffix="%" />
+                <Range label="בהירות" value={pos.brightness} min={0.6} max={1.4} step={0.02} onChange={(n) => set('hero_pos', { ...pos, brightness: n })} />
+                <Range label="ניגודיות" value={pos.contrast} min={0.7} max={1.3} step={0.02} onChange={(n) => set('hero_pos', { ...pos, contrast: n })} />
+                <Range label="שכבת כהות מעל התמונה" value={pos.overlay} min={0} max={0.5} step={0.02} onChange={(n) => set('hero_pos', { ...pos, overlay: n })} />
                 <button type="button" className="btn btn-danger btn-sm justify-self-start" onClick={() => set('hero_url', null)}>הסרת התמונה</button>
               </>}
               <div className="grid grid-cols-2 gap-2">
@@ -238,6 +270,14 @@ export default function EditorPage() {
               {text('video_url', 'סרטון (קישור YouTube או קובץ MP4)', { ltr: true, placeholder: 'https://' })}
             </>}
             {tab === 'טיפוגרפיה' && <>
+              <Field label="פונט אחיד לכל ההזמנה" hint="מחליף את הפונט בכל הטקסטים, הכפתורים והטופס בבת אחת.">
+                <select className="field" value={HEBREW_FONTS.includes(design.font) ? design.font : ''} onChange={(e) => e.target.value && setDesign(applyFont(design, e.target.value))}>
+                  {!HEBREW_FONTS.includes(design.font) && <option value="">{design.font}</option>}
+                  {HEBREW_FONTS.map((f) => <option key={f}>{f}</option>)}</select></Field>
+              <Field label="פונט השורה באנגלית"><select className="field" value={design.latinFont} onChange={(e) => setDesign({ latinFont: e.target.value })}>
+                {['Cormorant Garamond', 'Playfair Display', 'Montserrat', 'Josefin Sans'].map((f) => <option key={f}>{f}</option>)}</select></Field>
+              <Range label="מרווח בין חלקי ההזמנה" value={design.spacing} min={0.6} max={1.6} step={0.05} onChange={(n) => setDesign({ spacing: n })} suffix="×" />
+              <p className="border-t border-line pt-3 text-xs text-muted">כוונון עדין לכל סוג טקסט בנפרד:</p>
               <div className="flex flex-wrap gap-1">{STYLE_KEYS.map((s) => <button key={s.key} type="button" onClick={() => setStyleKey(s.key)} className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${styleKey === s.key ? 'bg-ink text-white' : 'bg-paper'}`}>{s.label}</button>)}</div>
               <Field label="פונט"><select className="field" value={st.font} onChange={(e) => setStyle({ font: e.target.value })}>
                 {[...new Set(FONTS.map((f) => f.group))].map((g) => <optgroup key={g} label={g}>{FONTS.filter((f) => f.group === g).map((f) => <option key={f.name}>{f.name}</option>)}</optgroup>)}</select></Field>
@@ -250,9 +290,24 @@ export default function EditorPage() {
                 <Field label="צבע"><input className="field !p-1" type="color" value={st.color} onChange={(e) => setStyle({ color: e.target.value })} /></Field>
               </div>
             </>}
-            {tab === 'צבעים' && <div className="grid grid-cols-2 gap-3">
-              {COLOR_KEYS.map((c) => <Field key={c.key} label={c.label}><input className="field !p-1" type="color" value={design.colors[c.key]} onChange={(e) => setDesign({ colors: { ...design.colors, [c.key]: e.target.value } })} /></Field>)}
-            </div>}
+            {tab === 'צבעים' && <>
+              <span className="label">פלטות מוכנות</span>
+              <div className="grid gap-2" data-testid="palettes">
+                {PALETTES.map((p) => (
+                  <button key={p.id} type="button" aria-pressed={design.palette === p.id} onClick={() => setDesign(applyPalette(design, p))}
+                    className={`flex items-center gap-3 rounded-xl border p-2 text-start ${design.palette === p.id ? 'border-ink ring-2 ring-ink/15' : 'border-line hover:bg-paper'}`}>
+                    <span className="flex h-10 w-28 flex-none overflow-hidden rounded-lg border border-line" aria-hidden="true">
+                      {[p.colors.surface, p.colors.soft, p.colors.bg, p.colors.accent, p.colors.ink].map((c, i) => <span key={i} className="flex-1" style={{ background: c }} />)}
+                    </span>
+                    <span><b className="block text-sm">{p.name}</b><small className="text-muted">{p.mood}</small></span>
+                  </button>
+                ))}
+              </div>
+              <p className="border-t border-line pt-3 text-xs text-muted">התאמה אישית של צבע בודד. לחיצה על פלטה מחזירה את צבעי המקור שלה.</p>
+              <div className="grid grid-cols-2 gap-3">
+                {COLOR_KEYS.map((c) => <Field key={c.key} label={c.label}><input className="field !p-1" type="color" value={design.colors[c.key]} onChange={(e) => setDesign({ palette: 'custom', colors: { ...design.colors, [c.key]: e.target.value } })} /></Field>)}
+              </div>
+            </>}
             {tab === 'אנימציות' && <>
               <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={design.entrance} onChange={(e) => setDesign({ entrance: e.target.checked })} />כניסה הדרגתית של התמונה והטקסטים</label>
               <div className="grid gap-3 border-t border-line pt-3">
@@ -274,7 +329,8 @@ export default function EditorPage() {
               </div>
             </>}
             {tab === 'אישורי הגעה' && <>
-              <Field label="טקסט כפתור האישור"><input className="field" maxLength={60} value={design.labels.rsvp} onChange={(e) => setDesign({ labels: { ...design.labels, rsvp: e.target.value } })} /></Field>
+              <Field label="כותרת אזור אישור ההגעה"><input className="field" maxLength={60} value={design.labels.rsvpTitle} onChange={(e) => setDesign({ labels: { ...design.labels, rsvpTitle: e.target.value } })} /></Field>
+              <Field label="טקסט הכפתור הצף"><input className="field" maxLength={60} value={design.labels.rsvp} onChange={(e) => setDesign({ labels: { ...design.labels, rsvp: e.target.value } })} /></Field>
               <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={draft.rsvp_settings?.open !== false} onChange={(e) => set('rsvp_settings', { ...draft.rsvp_settings, open: e.target.checked })} />אישורי ההגעה פתוחים</label>
               <Field label="מקסימום משתתפים באישור ללא קישור אישי" hint="למשפחות עם קישור אישי קובע מספר המקומות שהוקצה להן.">
                 <input className="field" type="number" min={1} max={50} value={draft.rsvp_settings?.max_party ?? 15} onChange={(e) => set('rsvp_settings', { ...draft.rsvp_settings, max_party: Math.max(1, Math.min(50, Number(e.target.value) || 1)) })} /></Field>
@@ -287,7 +343,7 @@ export default function EditorPage() {
             <span className="text-sm font-semibold text-muted">תצוגה מקדימה חיה</span>
             <div className="flex gap-1">{DEVICES.map((d) => <button key={d.key} onClick={() => setDevice(d)} aria-pressed={device.key === d.key} className={`rounded-lg px-3 py-1 text-sm font-semibold ${device.key === d.key ? 'bg-ink text-white' : 'hover:bg-paper'}`}>{d.label}</button>)}</div>
           </div>
-          <div ref={pane} className="h-[78dvh] overflow-hidden bg-[#dfe3ea]">
+          <div ref={pane} className="h-[78dvh] overflow-hidden bg-[#dfe3ea]" data-testid="preview-pane">
             <div data-testid="preview-frame" style={{ width: device.w, height: `calc(78dvh / ${scale})`, transform: `scale(${scale})`, transformOrigin: 'top right', marginInlineStart: Math.max(0, (paneW - device.w * scale) / 2), overflowY: 'auto', position: 'relative' }}>
               <InvitationView data={previewData} preview celebrateKey={celebrate} />
             </div>

@@ -7,16 +7,24 @@ export type TextStyle = {
 };
 export type ParticleKind = 'petals' | 'feathers' | 'confetti' | 'hearts' | 'stars';
 export type Design = {
-  colors: { bg: string; surface: string; ink: string; muted: string; accent: string; button: string; buttonText: string };
+  /** id of the palette the colours came from; 'custom' after a manual colour change */
+  palette: string;
+  colors: { bg: string; surface: string; soft: string; ink: string; muted: string; accent: string; button: string; buttonText: string };
+  /** the one family used for buttons, labels and forms */
+  font: string;
+  /** optional Latin line above the invitation, e.g. the hosts' names */
+  latin: string; latinFont: string;
+  /** vertical rhythm between sections, 1 = default */
+  spacing: number;
   styles: { headline: TextStyle; hosts: TextStyle; body: TextStyle; date: TextStyle };
   heroShape: 'arch' | 'rounded' | 'full';
-  labels: { rsvp: string; navigate: string; calendar: string; call: string };
+  labels: { rsvp: string; rsvpTitle: string; navigate: string; calendar: string; call: string };
   buttons: { navigate: boolean; calendar: boolean; call: boolean };
   entrance: boolean;
   fall: { enabled: boolean; kind: ParticleKind; speed: number; intensity: number; count: number; duration: number; colors: string[] };
   celebrate: { enabled: boolean; kind: ParticleKind; count: number; duration: number };
 };
-export type HeroPos = { x: number; y: number; zoom: number; ratio: string };
+export type HeroPos = { x: number; y: number; zoom: number; ratio: string; brightness?: number; contrast?: number; overlay?: number };
 export type Media = { id: string; kind: 'gallery' | 'venue'; url: string; caption: string | null; path?: string | null; sort?: number };
 
 export type EventContent = {

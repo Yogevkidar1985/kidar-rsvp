@@ -6,27 +6,29 @@ import { normPhone } from '@/lib/phone';
 import { successLottie } from './successLottie';
 
 const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
-type Answer = Exclude<GuestStatus, 'pending'>;
+export type Answer = Exclude<GuestStatus, 'pending'>;
 export type RsvpResult = { status: Answer; adults: number; children: number; babies: number };
 type Props = {
   slug: string; token: string | null; guest?: PublicGuest; maxParty: number; accent: string;
+  /** the answer picked on the invitation itself */
+  initial?: Answer | null;
   onClose: () => void; onSaved: (r: RsvpResult) => void;
 };
 type Saved = { name: string; phone: string };
 
 const STATUSES: { key: Answer; label: string }[] = [
-  { key: 'attending', label: 'מגיעים' }, { key: 'maybe', label: 'אולי' }, { key: 'declined', label: 'לא מגיעים' },
+  { key: 'attending', label: 'מגיעים' }, { key: 'maybe', label: 'עדיין לא בטוחים' }, { key: 'declined', label: 'לא מגיעים' },
 ];
 const THANKS: Record<Answer, [string, string]> = {
   attending: ['תודה, נתראה בשמחה', 'התשובה נשמרה. אפשר לעדכן אותה בכל רגע מאותו קישור.'],
-  maybe: ['תודה, רשמנו שאולי תגיעו', 'נשמח לתשובה סופית כשתדעו. אפשר לעדכן מאותו קישור.'],
+  maybe: ['תודה, רשמנו שאתם עדיין לא בטוחים', 'נשמח לתשובה סופית כשתדעו. אפשר לעדכן מאותו קישור.'],
   declined: ['תודה שעדכנתם', 'חבל שלא תוכלו להגיע. אם משהו ישתנה, אפשר לעדכן מאותו קישור.'],
 };
 
 function Stepper({ label, hint, value, set, max }: { label: string; hint?: string; value: number; set: (n: number) => void; max: number }) {
   return (
     <div className="stepper">
-      <span><b style={{ fontWeight: 600 }}>{label}</b>{hint && <small style={{ display: 'block', color: '#6a778e' }}>{hint}</small>}</span>
+      <span><b style={{ fontWeight: 600 }}>{label}</b>{hint && <small style={{ display: 'block', color: 'var(--inv-muted)' }}>{hint}</small>}</span>
       <div>
         <button type="button" aria-label={`פחות ${label}`} disabled={value <= 0} onClick={() => set(value - 1)}>−</button>
         <output aria-live="polite">{value}</output>
@@ -36,11 +38,11 @@ function Stepper({ label, hint, value, set, max }: { label: string; hint?: strin
   );
 }
 
-export default function RsvpSheet({ slug, token, guest, maxParty, accent, onClose, onSaved }: Props) {
+export default function RsvpSheet({ slug, token, guest, maxParty, accent, initial = null, onClose, onSaved }: Props) {
   const answered = guest && guest.status !== 'pending';
   const [name, setName] = useState(guest?.contact_name || guest?.family_name || '');
   const [phone, setPhone] = useState('');
-  const [status, setStatus] = useState<Answer | null>(answered ? (guest!.status as Answer) : null);
+  const [status, setStatus] = useState<Answer | null>(initial ?? (answered ? (guest!.status as Answer) : null));
   const [adults, setAdults] = useState(answered ? guest!.adults : 2);
   const [children, setChildren] = useState(answered ? guest!.children : 0);
   const [babies, setBabies] = useState(answered ? guest!.babies : 0);
@@ -59,7 +61,6 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, onClos
     } catch { /* storage unavailable */ }
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    first.current?.focus({ preventScroll: true });
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', esc);
     return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', esc); };
@@ -99,35 +100,28 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, onClos
         {done ? (
           <div style={{ textAlign: 'center', padding: '8px 0 6px' }} data-testid="rsvp-success">
             <div style={{ width: 150, height: 150, margin: '0 auto' }}>
-              <Lottie animationData={successLottie(done === 'declined' ? '#6A778E' : accent)} loop={false} />
+              <Lottie animationData={successLottie(accent)} loop={false} />
             </div>
-            <h2 style={{ font: '500 28px/1.2 "Frank Ruhl Libre", serif', margin: '4px 0 8px' }}>{THANKS[done][0]}</h2>
-            {done !== 'declined' && total > 0 && <p style={{ margin: '0 0 6px', fontWeight: 700 }}>נרשמו {total} משתתפים</p>}
-            <p style={{ margin: 0, color: '#6a778e', lineHeight: 1.6 }}>{THANKS[done][1]}</p>
+            <h2 className="sheet-title" style={{ margin: '4px 0 8px' }}>{THANKS[done][0]}</h2>
+            {done !== 'declined' && total > 0 && <p style={{ margin: '0 0 6px', fontWeight: 600 }}>נרשמו {total} משתתפים</p>}
+            <p style={{ margin: 0, color: 'var(--inv-muted)', lineHeight: 1.6 }}>{THANKS[done][1]}</p>
             <div style={{ display: 'grid', gap: 8, marginTop: 22 }}>
-              <button type="button" className="inv-cta" style={{ marginTop: 0, background: '#1e2a44', color: '#fff', boxShadow: 'none' }} onClick={onClose}>חזרה להזמנה</button>
-              <button type="button" className="inv-chip" style={{ justifyContent: 'center', color: '#1e2a44' }} onClick={() => setDone(null)}>עדכון התשובה</button>
+              <button type="button" className="inv-btn" onClick={onClose}>חזרה להזמנה</button>
+              <button type="button" className="inv-btn ghost" onClick={() => setDone(null)}>עדכון התשובה</button>
             </div>
           </div>
         ) : (
           <form onSubmit={submit} noValidate>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 12 }}>
               <div>
-                <h2 style={{ font: '500 26px/1.2 "Frank Ruhl Libre", serif', margin: 0 }}>{answered ? 'עדכון אישור ההגעה' : 'אישור הגעה'}</h2>
-                {guest && <p style={{ margin: '4px 0 0', color: '#6a778e' }}>{guest.family_name}{seatCap !== null ? ` · שמורים לכם ${seatCap} מקומות` : ''}</p>}
+                <h2 className="sheet-title">{answered ? 'עדכון אישור ההגעה' : 'אישור הגעה'}</h2>
+                {guest && <p style={{ margin: '4px 0 0', color: 'var(--inv-muted)' }}>{guest.family_name}{seatCap !== null ? ` · שמורים לכם ${seatCap} מקומות` : ''}</p>}
               </div>
-              <button type="button" aria-label="סגירה" onClick={onClose} style={{ width: 40, height: 40, borderRadius: '50%', border: 0, background: '#eef1f5', fontSize: 20, color: '#1e2a44' }}>×</button>
-            </div>
-
-            <div style={{ display: 'grid', gap: 12, marginTop: 18 }}>
-              <label><span className="label">שם מלא</span>
-                <input ref={first} className="field" name="name" autoComplete="name" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} required /></label>
-              <label><span className="label">טלפון נייד</span>
-                <input className="field" name="phone" type="tel" inputMode="tel" autoComplete="tel" dir="ltr" style={{ textAlign: 'right' }} maxLength={20} value={phone} onChange={(e) => setPhone(e.target.value)} required /></label>
+              <button type="button" aria-label="סגירה" onClick={onClose} className="sheet-x">×</button>
             </div>
 
             <fieldset style={{ border: 0, padding: 0, margin: '18px 0 0' }}>
-              <legend className="label">מגיעים?</legend>
+              <legend className="sr-only">מגיעים?</legend>
               <div className="seg">
                 {STATUSES.map((s) => (
                   <button key={s.key} type="button" aria-pressed={status === s.key} onClick={() => setStatus(s.key)}>{s.label}</button>
@@ -140,18 +134,25 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, onClos
                 <Stepper label="מבוגרים" value={adults} set={setAdults} max={adults + Math.max(0, roomSeats)} />
                 <Stepper label="ילדים" value={children} set={setChildren} max={children + Math.max(0, roomSeats)} />
                 <Stepper label="תינוקות" hint="ללא כיסא" value={babies} set={setBabies} max={seatCap !== null ? 10 : babies + Math.max(0, roomSeats)} />
-                <p style={{ display: 'flex', justifyContent: 'space-between', margin: '12px 0 0', fontWeight: 700 }}>
+                <p style={{ display: 'flex', justifyContent: 'space-between', margin: '14px 0 0', fontWeight: 600 }}>
                   <span>סה״כ משתתפים</span><span data-testid="rsvp-total">{total}</span>
                 </p>
-                <label style={{ display: 'block', marginTop: 14 }}><span className="label">העדפות מיוחדות (צמחוני, כיסא תינוק, נגישות)</span>
-                  <input className="field" maxLength={500} value={preferences} onChange={(e) => setPreferences(e.target.value)} /></label>
+                <label style={{ display: 'block', marginTop: 14 }}><span className="sheet-label">העדפות מיוחדות (צמחוני, כיסא תינוק, נגישות)</span>
+                  <input className="sheet-field" maxLength={500} value={preferences} onChange={(e) => setPreferences(e.target.value)} /></label>
               </div>
             )}
-            <label style={{ display: 'block', marginTop: 12 }}><span className="label">הערות לבעלי האירוע</span>
-              <textarea className="field" rows={2} maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
+            <div style={{ display: 'grid', gap: 12, marginTop: 18 }}>
+              <label><span className="sheet-label">שם מלא</span>
+                <input ref={first} className="sheet-field" name="name" autoComplete="name" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} required /></label>
+              <label><span className="sheet-label">טלפון נייד</span>
+                <input className="sheet-field" name="phone" type="tel" inputMode="tel" autoComplete="tel" dir="ltr" style={{ textAlign: 'right' }} maxLength={20} value={phone} onChange={(e) => setPhone(e.target.value)} required /></label>
+            </div>
 
-            {error && <p role="alert" style={{ margin: '12px 0 0', padding: '10px 12px', borderRadius: 10, background: '#f8e4e2', color: '#9a3a32', fontWeight: 600 }}>{error}</p>}
-            <button type="submit" className="inv-cta" style={{ marginTop: 16, background: '#1e2a44', color: '#fff', boxShadow: 'none' }} disabled={busy}>
+            <label style={{ display: 'block', marginTop: 12 }}><span className="sheet-label">הערות לבעלי האירוע</span>
+              <textarea className="sheet-field" rows={2} maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
+
+            {error && <p role="alert" className="sheet-error">{error}</p>}
+            <button type="submit" className="inv-btn" style={{ marginTop: 18 }} disabled={busy}>
               {busy ? 'שומרים…' : answered ? 'עדכון התשובה' : 'שליחת התשובה'}
             </button>
           </form>

@@ -7,7 +7,7 @@ import { dateParts } from '@/lib/hebrew-date';
 import { googleCalendarUrl, icsFile } from '@/lib/calendar';
 import { safeHttpUrl } from '@/lib/validation';
 import Particles from './Particles';
-import RsvpSheet, { type RsvpResult } from './RsvpSheet';
+import RsvpSheet, { type Answer, type RsvpResult } from './RsvpSheet';
 
 type Props = {
   data: PublicInvitation; token?: string | null;
@@ -49,25 +49,35 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
   return (
     <div className="sheet-back" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="sheet" role="dialog" aria-modal="true" aria-label={title} dir="rtl">
-        <h2 style={{ font: '500 24px/1.2 "Frank Ruhl Libre", serif', margin: '0 0 14px' }}>{title}</h2>
-        <div style={{ display: 'grid', gap: 10 }}>{children}</div>
-        <button type="button" className="inv-chip" style={{ width: '100%', justifyContent: 'center', marginTop: 14, color: '#1e2a44' }} onClick={onClose}>סגירה</button>
+        <h2 className="sheet-title">{title}</h2>
+        <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>{children}</div>
+        <button type="button" className="inv-btn ghost" style={{ marginTop: 10 }} onClick={onClose}>סגירה</button>
       </div>
     </div>
   );
 }
-const sheetLink: React.CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 52, borderRadius: 14, background: '#1e2a44', color: '#fff', fontWeight: 700, textDecoration: 'none', border: 0, width: '100%', fontSize: 16, fontFamily: 'inherit' };
+
+const Ornament = () => (
+  <div className="inv-orn" aria-hidden="true"><i /><svg width="9" height="9" viewBox="0 0 9 9"><path d="M4.5 0 9 4.5 4.5 9 0 4.5z" fill="currentColor" /></svg><i /></div>
+);
+const OPTIONS: { key: Answer; label: string }[] = [
+  { key: 'attending', label: 'מגיעים' }, { key: 'maybe', label: 'עדיין לא בטוחים' }, { key: 'declined', label: 'לא מגיעים' },
+];
+const ANSWERED: Record<Answer, string> = { attending: 'אישרתם הגעה', maybe: 'רשמנו שאתם עדיין לא בטוחים', declined: 'עדכנתם שלא תגיעו' };
 
 export default function InvitationView({ data, token = null, preview = false, celebrateKey = 0 }: Props) {
   const d = useMemo(() => resolveDesign(data.design), [data.design]);
   const [guest, setGuest] = useState(data.guest);
-  const [sheet, setSheet] = useState<null | 'rsvp' | 'nav' | 'cal'>(null);
+  const [sheet, setSheet] = useState<null | 'rsvp' | 'cal'>(null);
+  const [pick, setPick] = useState<Answer | null>(null);
+  const [mine, setMine] = useState<RsvpResult | null>(null);
   const [burst, setBurst] = useState(0);
-  const [lightbox, setLightbox] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<number | null>(null);
   const [sticky, setSticky] = useState(false);
   const [origin, setOrigin] = useState({ top: 0, height: 0 });
   const heroRef = useRef<HTMLDivElement>(null);
-  const ctaRef = useRef<HTMLButtonElement>(null);
+  const driftRef = useRef<HTMLDivElement>(null);
+  const rsvpRef = useRef<HTMLElement>(null);
 
   useEffect(() => { setGuest(data.guest); }, [data.guest]);
   useEffect(() => { if (celebrateKey) setBurst((n) => n + 1); }, [celebrateKey]);
@@ -80,18 +90,38 @@ export default function InvitationView({ data, token = null, preview = false, ce
     ro.observe(el);
     return () => ro.disconnect();
   }, [data.hero_pos?.ratio, d.heroShape]);
+  // the floating button shows once the hero is behind the reader, and steps aside at the RSVP section
   useEffect(() => {
-    if (preview || !ctaRef.current) return;
-    const io = new IntersectionObserver(([e]) => setSticky(!e.isIntersecting && e.boundingClientRect.top < 0));
-    io.observe(ctaRef.current);
+    if (preview || !rsvpRef.current || !heroRef.current) return;
+    let pastHero = false, atRsvp = false;
+    const io = new IntersectionObserver((list) => {
+      for (const e of list) {
+        if (e.target === heroRef.current) pastHero = !e.isIntersecting && e.boundingClientRect.top < 0;
+        else atRsvp = e.isIntersecting;
+      }
+      setSticky(pastHero && !atRsvp);
+    }, { threshold: 0.05 });
+    io.observe(heroRef.current); io.observe(rsvpRef.current);
     return () => io.disconnect();
   }, [preview]);
+  // a slow drift of the photograph while it scrolls past
+  useEffect(() => {
+    if (preview || !d.entrance || !data.hero_url) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let raf = 0;
+    const move = () => { raf = 0; const el = driftRef.current; if (el) el.style.transform = `translate3d(0, ${Math.min(window.scrollY, 900) * 0.06}px, 0)`; };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(move); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => { window.removeEventListener('scroll', onScroll); if (raf) cancelAnimationFrame(raf); };
+  }, [preview, d.entrance, data.hero_url]);
 
   const closeSheet = useCallback(() => setSheet(null), []);
   const onSaved = useCallback((r: RsvpResult) => {
+    setMine(r);
     setGuest((g) => (g ? { ...g, ...r } : g));
     if (r.status === 'attending' && d.celebrate.enabled) setBurst((n) => n + 1);
   }, [d.celebrate.enabled]);
+  const openRsvp = (a: Answer | null) => { if (preview) return; setPick(a); setSheet('rsvp'); };
 
   const date = dateParts(data.event_date);
   const place = [data.venue_name, data.address].filter(Boolean).join(', ');
@@ -100,21 +130,28 @@ export default function InvitationView({ data, token = null, preview = false, ce
   const gcal = googleCalendarUrl(data);
   const tel = data.contact_phone?.replace(/[^\d+]/g, '');
   const hero = safeHttpUrl(data.hero_url);
-  const pos = Object.assign({ x: 50, y: 50, zoom: 1, ratio: '4/5' }, data.hero_pos);
+  const pos = Object.assign({ x: 50, y: 50, zoom: 1, ratio: '4/5', brightness: 1, contrast: 1, overlay: 0 }, data.hero_pos);
   const gallery = data.media.filter((m) => m.kind === 'gallery');
   const venue = data.media.filter((m) => m.kind === 'venue');
   const video = safeHttpUrl(data.video_url);
   const yt = video ? youtubeId(video) : null;
   const rsvpOpen = data.rsvp_settings?.open !== false;
-  const answered = guest && guest.status !== 'pending';
-  const fonts = fontsHref([d.styles.headline.font, d.styles.hosts.font, d.styles.body.font, d.styles.date.font]);
+  const status: Answer | null = mine?.status ?? (guest && guest.status !== 'pending' ? (guest.status as Answer) : null);
+  const fonts = fontsHref([d.font, d.latinFont, d.styles.headline.font, d.styles.hosts.font, d.styles.body.font, d.styles.date.font]);
   const vars = {
-    '--inv-bg': d.colors.bg, '--inv-surface': d.colors.surface, '--inv-ink': d.colors.ink, '--inv-muted': d.colors.muted,
+    '--inv-bg': d.colors.bg, '--inv-surface': d.colors.surface, '--inv-soft': d.colors.soft, '--inv-ink': d.colors.ink, '--inv-muted': d.colors.muted,
     '--inv-accent': d.colors.accent, '--inv-button': d.colors.button, '--inv-button-text': d.colors.buttonText,
+    '--inv-font': fontStack(d.font), '--inv-latin': fontStack(d.latinFont), '--inv-gap': `${Math.round(64 * d.spacing)}px`,
   } as React.CSSProperties;
-  const burstColors = useMemo(() => [...d.fall.colors.filter((c) => c.toUpperCase() !== '#FFFFFF'), d.colors.accent, d.colors.button, '#F2C94C'], [d.fall.colors, d.colors.accent, d.colors.button]);
+  const burstColors = useMemo(() => [...d.fall.colors.filter((c) => c.toUpperCase() !== '#FFFFFF'), d.colors.accent, d.colors.button], [d.fall.colors, d.colors.accent, d.colors.button]);
   const body = css(d.styles.body);
+  const dateStyle = css(d.styles.date);
   const anim = d.entrance;
+  const times = [
+    data.reception_time && { t: data.reception_time, l: 'קבלת פנים' },
+    data.ceremony_time && { t: data.ceremony_time, l: 'טקס' },
+  ].filter(Boolean) as { t: string; l: string }[];
+  const shots = [...gallery, ...venue];
 
   function downloadIcs() {
     const ics = icsFile(data);
@@ -123,12 +160,12 @@ export default function InvitationView({ data, token = null, preview = false, ce
     a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
     a.download = 'event.ics'; document.body.appendChild(a); a.click(); a.remove();
   }
-  const photos = (list: typeof gallery) => (
-    <div className="inv-gallery">
+  const photos = (list: typeof gallery, cls: string) => (
+    <div className={cls}>
       {list.map((m) => (
-        <button key={m.id} type="button" onClick={() => !preview && setLightbox(m.url)} aria-label={m.caption || 'הגדלת התמונה'}>
+        <button key={m.id} type="button" onClick={() => !preview && setLightbox(shots.findIndex((x) => x.id === m.id))} aria-label={m.caption || 'הגדלת התמונה'}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={m.url} alt={m.caption ?? ''} loading="lazy" />
+          <img src={m.url} alt={m.caption ?? ''} loading="lazy" decoding="async" />
         </button>
       ))}
     </div>
@@ -144,12 +181,21 @@ export default function InvitationView({ data, token = null, preview = false, ce
             style={{ position: 'absolute', top: 0, insetInline: 0, width: '100%', height: origin.top + origin.height + 300, zIndex: 5 }} />
         )}
 
+        <header className="inv-open">
+          <Ornament />
+          {d.latin && <p className="inv-latin" dir="ltr">{d.latin}</p>}
+          {data.name && <p className="inv-kicker">{data.name}</p>}
+        </header>
+
         <div ref={heroRef} className={`inv-hero ${d.heroShape}`} style={{ aspectRatio: pos.ratio }}>
           {hero ? (
             <div className={anim ? 'inv-kenburns' : ''} style={{ position: 'absolute', inset: 0 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={hero} alt={data.name} fetchPriority="high"
-                style={{ objectPosition: `${pos.x}% ${pos.y}%`, transform: `scale(${pos.zoom})`, transformOrigin: `${pos.x}% ${pos.y}%` }} />
+              <div ref={driftRef} className="inv-drift">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={hero} alt={data.name} fetchPriority="high" decoding="async"
+                  style={{ objectPosition: `${pos.x}% ${pos.y}%`, transform: `scale(${pos.zoom})`, transformOrigin: `${pos.x}% ${pos.y}%`, filter: `brightness(${pos.brightness}) contrast(${pos.contrast})` }} />
+              </div>
+              {pos.overlay > 0 && <div className="inv-veil" style={{ opacity: pos.overlay }} />}
             </div>
           ) : (
             <div className="inv-hero-empty">{preview ? 'כאן תופיע התמונה הראשית. מעלים אותה בלשונית "תמונות".' : ''}</div>
@@ -157,108 +203,131 @@ export default function InvitationView({ data, token = null, preview = false, ce
         </div>
 
         <main className="inv-body">
-          {guest && <Reveal on={anim}><p style={{ ...body, color: d.colors.accent, fontWeight: 600, marginBottom: 14 }}>{guest.family_name} היקרים</p></Reveal>}
-          {data.headline && <Reveal on={anim}><h1 style={css(d.styles.headline)}>{data.headline}</h1></Reveal>}
-          {data.intro_text && <Reveal on={anim} delay={80}><p style={{ ...body, marginTop: 16, whiteSpace: 'pre-line' }}>{data.intro_text}</p></Reveal>}
+          <section className="inv-sec">
+            {guest && <Reveal on={anim}><p className="inv-dear">{guest.family_name} היקרים</p></Reveal>}
+            {data.headline && <Reveal on={anim}><h1 style={css(d.styles.headline)}>{data.headline}</h1></Reveal>}
+            {data.intro_text && <Reveal on={anim} delay={80}><p style={{ ...body, marginTop: 22, whiteSpace: 'pre-line' }}>{data.intro_text}</p></Reveal>}
+            {(data.closing_text || data.hosts) && (
+              <Reveal on={anim} delay={140}>
+                {data.closing_text && <p style={{ ...body, marginTop: 26, whiteSpace: 'pre-line' }}>{data.closing_text}</p>}
+                {data.hosts && <p style={{ ...css(d.styles.hosts), marginTop: 6 }}>{data.hosts}</p>}
+              </Reveal>
+            )}
+          </section>
 
-          {(date || data.hebrew_date) && (
-            <Reveal on={anim}>
-              <hr className="inv-rule" />
-              <div style={css(d.styles.date)}>
-                {date ? (
-                  <div className="inv-date">
-                    <span>{data.weekday_label}</span>
-                    <div><div className="inv-daynum">{date.day}</div><div>{date.month} {date.year}</div></div>
-                    <span>{data.reception_time || data.ceremony_time}</span>
-                  </div>
-                ) : <div>{data.weekday_label}</div>}
-                {data.hebrew_date && <div style={{ marginTop: 14, fontSize: '0.92em' }}>{data.hebrew_date}</div>}
-                {data.reception_time && data.ceremony_time && (
-                  <div className="inv-times">
-                    <div><b>{data.reception_time}</b><span style={{ fontSize: '0.75em' }}>קבלת פנים</span></div>
-                    <div><b>{data.ceremony_time}</b><span style={{ fontSize: '0.75em' }}>טקס</span></div>
+          {(date || data.hebrew_date || times.length > 0) && (
+            <section className="inv-sec">
+              <Reveal on={anim}>
+                <Ornament />
+                <div className="inv-when" style={dateStyle}>
+                  {date && <div className="inv-datenum" dir="ltr">{date.numeric}</div>}
+                  {(data.weekday_label || data.hebrew_date) && (
+                    <div className="inv-dateline">
+                      {data.weekday_label && <span>{data.weekday_label}</span>}
+                      {data.hebrew_date && <span>{data.hebrew_date}</span>}
+                    </div>
+                  )}
+                  {times.length > 0 && (
+                    <div className="inv-times">
+                      {times.map((x) => <div key={x.l}><b dir="ltr">{x.t}</b>{times.length > 1 && <small>{x.l}</small>}</div>)}
+                    </div>
+                  )}
+                </div>
+                {d.buttons.calendar && gcal && <button type="button" className="inv-link" onClick={() => setSheet('cal')}>{d.labels.calendar}</button>}
+              </Reveal>
+            </section>
+          )}
+
+          {(place || tel || venue.length > 0 || data.directions || data.parking || data.extra_info) && (
+            <section className="inv-sec inv-band">
+              <Reveal on={anim}>
+                <p className="inv-eyebrow">המקום</p>
+                {data.venue_name && <p style={css(d.styles.hosts)}>{data.venue_name}</p>}
+                {data.address && <p style={{ ...body, marginTop: 4 }}>{data.address}</p>}
+                {venue.length > 0 && photos(venue, 'inv-venue')}
+                {d.buttons.navigate && (waze || gmaps) && (
+                  <div className="inv-nav" aria-label={d.labels.navigate}>
+                    {waze && <a className="inv-btn" href={waze} target="_blank" rel="noopener noreferrer">Waze</a>}
+                    {gmaps && <a className="inv-btn ghost" href={gmaps} target="_blank" rel="noopener noreferrer">Google Maps</a>}
                   </div>
                 )}
-              </div>
-            </Reveal>
+                {d.buttons.call && tel && <a className="inv-link" href={`tel:${tel}`}>{d.labels.call}</a>}
+                {(data.directions || data.parking || data.extra_info) && (
+                  <dl className="inv-notes">
+                    {data.directions && <div><dt>הוראות הגעה</dt><dd>{data.directions}</dd></div>}
+                    {data.parking && <div><dt>חניה</dt><dd>{data.parking}</dd></div>}
+                    {data.extra_info && <div><dt>כדאי לדעת</dt><dd>{data.extra_info}</dd></div>}
+                  </dl>
+                )}
+              </Reveal>
+            </section>
           )}
 
-          {(place || tel) && (
-            <Reveal on={anim}>
-              <hr className="inv-rule" />
-              {data.venue_name && <p style={{ ...css(d.styles.hosts), fontSize: d.styles.hosts.size * 0.86 }}>{data.venue_name}</p>}
-              {data.address && <p style={{ ...body, marginTop: 4 }}>{data.address}</p>}
-              <div className="inv-actions">
-                {d.buttons.navigate && (waze || gmaps) && <button type="button" className="inv-chip" onClick={() => setSheet('nav')}>{d.labels.navigate}</button>}
-                {d.buttons.calendar && gcal && <button type="button" className="inv-chip" onClick={() => setSheet('cal')}>{d.labels.calendar}</button>}
-                {d.buttons.call && tel && <a className="inv-chip" href={`tel:${tel}`}>{d.labels.call}</a>}
-              </div>
-            </Reveal>
+          {(gallery.length > 0 || video) && (
+            <section className="inv-sec">
+              {gallery.length > 0 && <Reveal on={anim}>{photos(gallery, 'inv-gallery')}</Reveal>}
+              {video && (
+                <Reveal on={anim}>
+                  <div className="inv-video">
+                    {yt ? <iframe title="סרטון" src={`https://www.youtube-nocookie.com/embed/${yt}`} loading="lazy" allowFullScreen />
+                      : <video src={video} controls playsInline preload="metadata" />}
+                  </div>
+                </Reveal>
+              )}
+            </section>
           )}
 
-          <Reveal on={anim}>
-            {rsvpOpen ? (
-              <button ref={ctaRef} type="button" className="inv-cta" data-testid="rsvp-open" onClick={() => !preview && setSheet('rsvp')}>
-                {answered ? 'עדכון אישור ההגעה' : d.labels.rsvp}
-              </button>
-            ) : <p style={{ ...body, marginTop: 28, fontWeight: 600 }}>אישורי ההגעה נסגרו</p>}
-            {answered && <p style={{ ...body, fontSize: 15, marginTop: 10 }}>התשובה שלכם נשמרה. אפשר לעדכן אותה כאן.</p>}
-          </Reveal>
-
-          {gallery.length > 0 && <Reveal on={anim}><hr className="inv-rule" />{photos(gallery)}</Reveal>}
-          {video && (
+          <section ref={rsvpRef} className="inv-sec inv-rsvp" id="rsvp">
             <Reveal on={anim}>
-              <div style={{ marginTop: 16, borderRadius: 14, overflow: 'hidden', aspectRatio: '16/9', background: '#000' }}>
-                {yt ? <iframe title="סרטון" src={`https://www.youtube-nocookie.com/embed/${yt}`} loading="lazy" allowFullScreen style={{ width: '100%', height: '100%', border: 0 }} />
-                  : <video src={video} controls playsInline preload="metadata" style={{ width: '100%', height: '100%' }} />}
-              </div>
+              <Ornament />
+              <h2 style={{ ...css(d.styles.headline), fontSize: d.styles.headline.size * 0.74 }}>{d.labels.rsvpTitle}</h2>
+              {!rsvpOpen ? <p style={{ ...body, marginTop: 14 }}>אישורי ההגעה נסגרו</p> : status ? (
+                <>
+                  <p style={{ ...body, marginTop: 14 }}>{ANSWERED[status]}{status !== 'declined' && mine ? ` · ${mine.adults + mine.children + mine.babies} משתתפים` : ''}</p>
+                  <button type="button" className="inv-btn ghost" style={{ marginTop: 20 }} data-testid="rsvp-open" onClick={() => openRsvp(status)}>עדכון התשובה</button>
+                </>
+              ) : (
+                <>
+                  <p style={{ ...body, marginTop: 10, color: d.colors.muted, fontSize: Math.round(d.styles.body.size * 0.9) }}>נשמח לדעת אם תגיעו</p>
+                  <div className="inv-options">
+                    {OPTIONS.map((o, i) => (
+                      <button key={o.key} type="button" className={`inv-btn${i ? ' ghost' : ''}`} data-testid={i ? undefined : 'rsvp-open'} onClick={() => openRsvp(o.key)}>{o.label}</button>
+                    ))}
+                  </div>
+                </>
+              )}
             </Reveal>
-          )}
-          {(venue.length > 0 || data.directions || data.parking || data.extra_info) && (
-            <Reveal on={anim}>
-              <hr className="inv-rule" />
-              {venue.length > 0 && photos(venue)}
-              {data.directions && <div className="inv-info"><h3>הוראות הגעה</h3><p>{data.directions}</p></div>}
-              {data.parking && <div className="inv-info"><h3>חניה</h3><p>{data.parking}</p></div>}
-              {data.extra_info && <div className="inv-info"><h3>כדאי לדעת</h3><p>{data.extra_info}</p></div>}
-            </Reveal>
-          )}
-
-          {(data.closing_text || data.hosts) && (
-            <Reveal on={anim}>
-              <hr className="inv-rule" />
-              {data.closing_text && <p style={{ ...body, whiteSpace: 'pre-line' }}>{data.closing_text}</p>}
-              {data.hosts && <p style={{ ...css(d.styles.hosts), marginTop: 10 }}>{data.hosts}</p>}
-            </Reveal>
-          )}
+          </section>
         </main>
       </div>
 
       {!preview && rsvpOpen && (
         <div className={`inv-sticky${sticky && !sheet ? ' show' : ''}`}>
-          <button type="button" className="inv-cta" tabIndex={sticky ? 0 : -1} onClick={() => setSheet('rsvp')}>{answered ? 'עדכון אישור ההגעה' : d.labels.rsvp}</button>
+          <button type="button" className="inv-btn" tabIndex={sticky ? 0 : -1} onClick={() => rsvpRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>{status ? 'עדכון אישור ההגעה' : d.labels.rsvp}</button>
         </div>
       )}
       {sheet === 'rsvp' && (
-        <RsvpSheet slug={data.slug} token={token} guest={guest} maxParty={data.rsvp_settings?.max_party ?? 15}
-          accent="#2F7D5B" onClose={closeSheet} onSaved={onSaved} />
-      )}
-      {sheet === 'nav' && (
-        <Sheet title="ניווט לאירוע" onClose={closeSheet}>
-          {waze && <a style={sheetLink} href={waze} target="_blank" rel="noopener noreferrer">Waze</a>}
-          {gmaps && <a style={sheetLink} href={gmaps} target="_blank" rel="noopener noreferrer">Google Maps</a>}
-        </Sheet>
+        <RsvpSheet slug={data.slug} token={token} guest={guest} initial={pick} maxParty={data.rsvp_settings?.max_party ?? 15}
+          accent={d.colors.accent} onClose={closeSheet} onSaved={onSaved} />
       )}
       {sheet === 'cal' && (
         <Sheet title="הוספה ליומן" onClose={closeSheet}>
-          {gcal && <a style={sheetLink} href={gcal} target="_blank" rel="noopener noreferrer">Google Calendar</a>}
-          <button type="button" style={sheetLink} onClick={downloadIcs}>Apple Calendar / Outlook</button>
+          {gcal && <a className="inv-btn" href={gcal} target="_blank" rel="noopener noreferrer">Google Calendar</a>}
+          <button type="button" className="inv-btn" onClick={downloadIcs}>Apple Calendar / Outlook</button>
         </Sheet>
       )}
-      {lightbox && (
-        <div className="sheet-back" style={{ alignItems: 'center', background: 'rgb(10 14 26 / .92)' }} onClick={() => setLightbox(null)} role="dialog" aria-label="תמונה מוגדלת">
+      {lightbox !== null && shots[lightbox] && (
+        <div className="inv-light" onClick={() => setLightbox(null)} role="dialog" aria-modal="true" aria-label="תמונה מוגדלת">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={lightbox} alt="" style={{ maxWidth: '94vw', maxHeight: '88dvh', borderRadius: 12 }} />
+          <img src={shots[lightbox].url} alt={shots[lightbox].caption ?? ''} />
+          {shots.length > 1 && (
+            <div className="inv-light-nav" onClick={(e) => e.stopPropagation()}>
+              <button type="button" aria-label="התמונה הקודמת" onClick={() => setLightbox((lightbox + shots.length - 1) % shots.length)}>‹</button>
+              <span dir="ltr">{lightbox + 1} / {shots.length}</span>
+              <button type="button" aria-label="התמונה הבאה" onClick={() => setLightbox((lightbox + 1) % shots.length)}>›</button>
+            </div>
+          )}
+          <button type="button" className="inv-light-x" aria-label="סגירה" onClick={() => setLightbox(null)}>×</button>
         </div>
       )}
       {burst > 0 && (
