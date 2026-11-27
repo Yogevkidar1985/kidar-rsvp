@@ -358,7 +358,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
                 <button type="button" onClick={() => !preview && setSheet('share')}><Icon name="share" /><span>שיתוף</span></button>
               </div>
               {(venue.length > 0 || mapSrc || data.directions || data.parking || data.extra_info) && <h2 className="inv-more">מידע נוסף</h2>}
-              {venue.length > 0 && <PlaceGallery images={venue} allLabel="כל התמונות מהמקום" onOpen={(i) => !preview && setLightbox(shots.findIndex((x) => x.id === venue[i].id))} />}
+              {venue.length > 0 && <PlaceGallery images={venue} onOpen={(i) => !preview && setLightbox(shots.findIndex((x) => x.id === venue[i].id))} />}
               {mapSrc && (
                 <div className="way" data-testid="way-card">
                   <div className="way__map" ref={wayRef}>
@@ -395,7 +395,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
 
           {(gallery.length > 0 || video) && (
             <section className="inv-sec">
-              {gallery.length > 0 && <Reveal on={anim}><h2 className="inv-more inv-more--first">רגעים שלנו</h2><PlaceGallery images={gallery} allLabel="כל התמונות" onOpen={(i) => !preview && setLightbox(shots.findIndex((x) => x.id === gallery[i].id))} /></Reveal>}
+              {gallery.length > 0 && <Reveal on={anim}><h2 className="inv-more inv-more--first">רגעים שלנו</h2><PlaceGallery images={gallery} onOpen={(i) => !preview && setLightbox(shots.findIndex((x) => x.id === gallery[i].id))} /></Reveal>}
               {video && (
                 <Reveal on={anim}>
                   <div className="inv-video">

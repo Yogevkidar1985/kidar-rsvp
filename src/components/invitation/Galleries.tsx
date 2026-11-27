@@ -4,11 +4,11 @@ import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 
 /**
  * The photo gallery, in the two forms it takes on the Kurkoos Group site's execution page:
- * on a phone a fan of three cards that opens into a grid; on a wide screen strips that widen under the pointer.
+ * on a phone a fan of three cards that a tap opens into a grid; on a wide screen strips that widen under the pointer.
  * A tap on an opened picture hands its index to `onOpen` (the full-screen viewer).
  */
 export type Shot = { id: string; url: string; caption: string | null };
-type Props = { images: Shot[]; onOpen: (index: number) => void; allLabel?: string };
+type Props = { images: Shot[]; onOpen: (index: number) => void };
 
 // the fan of the first three cards
 const FAN = [
@@ -29,7 +29,7 @@ function useNarrow(query = '(max-width: 768px)') {
   return narrow;
 }
 
-export function StackGallery({ images, onOpen, allLabel = 'כל התמונות' }: Props) {
+export function StackGallery({ images, onOpen }: Props) {
   const [open, setOpen] = useState(false);
   const group = useId();
   // the fan is sized from the room it has: on a narrow phone the cards shrink and close up, so no corner is cut off
@@ -72,10 +72,6 @@ export function StackGallery({ images, onOpen, allLabel = 'כל התמונות' 
             {open ? (
               <motion.button key="back" type="button" className="sgal__btn" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} onClick={() => setOpen(false)}>
                 <span>חזרה</span>
-              </motion.button>
-            ) : images.length > 1 ? (
-              <motion.button key="all" type="button" className="sgal__btn" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} onClick={() => setOpen(true)}>
-                <span>{allLabel}</span><span className="sgal__count" dir="ltr">{images.length}</span>
               </motion.button>
             ) : null}
           </AnimatePresence>
