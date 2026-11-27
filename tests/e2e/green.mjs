@@ -60,6 +60,10 @@ try {
   check('an address outside green-api.com is refused, and nothing is called', r.status === 400 && seen.length === 0, JSON.stringify(r.json));
   r = await call('POST', '/api/admin/green', { eventId, instance: '1101000001', token: TOKEN, url: 'https://green-api.com.evil.example' });
   check('a look-alike host is refused', r.status === 400 && seen.length === 0);
+  r = await call('POST', '/api/admin/green', { eventId, instance: '1101000001', token: TOKEN, url: 'https://evilgreenapi.com' });
+  check('a host that only ends like Green API is refused', r.status === 400 && /למשל/.test(r.json?.message ?? ''), JSON.stringify(r.json));
+  r = await call('POST', '/api/admin/green', { eventId, instance: '1101000001', token: TOKEN, url: 'https://7107.api.greenapi.com/' });
+  check('an instance address on greenapi.com passes the address check', !/למשל/.test(r.json?.message ?? ''), JSON.stringify(r.json));
   check('nothing was stored by the refused attempts', (await sql(`select count(*)::int n from event_secrets`))[0].n === 0);
 
   // a queued message waits while nothing is connected

@@ -121,7 +121,7 @@ export default function ConnectionsPage() {
                 <Field label="מזהה המופע (idInstance)"><input className="field" dir="ltr" inputMode="numeric" autoComplete="off" required pattern="[0-9]{6,20}" value={creds.instance} onChange={(e) => setCreds({ ...creds, instance: e.target.value })} /></Field>
                 <Field label="טוקן (apiTokenInstance)"><input className="field" dir="ltr" type="password" autoComplete="off" required minLength={20} value={creds.token} onChange={(e) => setCreds({ ...creds, token: e.target.value })} /></Field>
               </div>
-              <Field label="כתובת ה-API (apiUrl), אם מופיעה במסוף"><input className="field" dir="ltr" inputMode="url" autoComplete="off" placeholder="https://api.green-api.com" value={creds.url} onChange={(e) => setCreds({ ...creds, url: e.target.value })} /></Field>
+              <Field label="כתובת ה-API (apiUrl)"><input className="field" dir="ltr" inputMode="url" autoComplete="off" placeholder="https://7107.api.greenapi.com" value={creds.url} onChange={(e) => setCreds({ ...creds, url: e.target.value })} /></Field>
               <div><button className="btn" disabled={busy === 'connect'}>{busy === 'connect' ? 'בודקים מול Green API…' : 'בדיקה וחיבור'}</button></div>
             </form>
           )}

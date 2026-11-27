@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   if (!me) return NextResponse.json({ ok: false }, { status: 401 });
   if (me.role !== 'owner') return NextResponse.json({ ok: false, message: 'רק בעלי האירוע יכולים לחבר את WhatsApp.' }, { status: 403 });
   const url = greenUrl(v.url);
-  if (!url) return NextResponse.json({ ok: false, message: 'כתובת ה-API צריכה להיות כתובת https של green-api.com.' }, { status: 400 });
+  if (!url) return NextResponse.json({ ok: false, message: 'כתובת ה-API צריכה להיות הכתובת שמופיעה במסוף של Green API, למשל https://7107.api.greenapi.com' }, { status: 400 });
   const st = await greenState({ instance: v.instance, token: v.token, url });
   if (!st.ok) return NextResponse.json({ ok: false, message: st.state === 'unreachable' ? 'לא הצלחנו להגיע ל-Green API. נסו שוב.' : 'Green API לא מזהה את הפרטים האלה. בדקו את מזהה המופע, הטוקן וכתובת ה-API.' }, { status: 400 });
   const { error } = await supabaseAdmin().from('event_secrets').upsert({ event_id: v.eventId, green_instance: v.instance, green_token: v.token, green_url: url, updated_at: new Date().toISOString() });

@@ -14,12 +14,12 @@ export async function greenCreds(eventId: string): Promise<GreenCreds | null> {
   return { instance: data.green_instance, token: data.green_token, url: (data.green_url || DEFAULT_URL).replace(/\/$/, ''), source: 'db' };
 }
 
-/** Only Green API's own hosts: a pasted address must not point the server somewhere else. */
+/** Only Green API's own hosts (green-api.com, and greenapi.com where each instance has its own address): a pasted address must not point the server somewhere else. */
 export function greenUrl(raw: string | undefined | null): string | null {
   if (!raw?.trim()) return DEFAULT_URL;
   try {
     const u = new URL(raw.trim());
-    return u.protocol === 'https:' && /(^|\.)green-api\.com$/i.test(u.hostname) ? u.origin : null;
+    return u.protocol === 'https:' && /(^|\.)(green-api|greenapi)\.com$/i.test(u.hostname) ? u.origin : null;
   } catch { return null; }
 }
 
