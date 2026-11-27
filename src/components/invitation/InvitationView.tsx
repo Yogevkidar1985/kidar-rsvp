@@ -47,6 +47,17 @@ function Reveal({ on, children, delay = 0 }: { on: boolean; children: React.Reac
   return <div ref={ref} className={`reveal${seen ? ' in' : ''}`} style={{ transitionDelay: `${delay}ms` }}>{children}</div>;
 }
 
+/** Another site shown inside the invitation. It can take a few seconds to arrive, so the wait is said out loud. */
+function SiteFrame({ src, title }: { src: string; title: string }) {
+  const [ready, setReady] = useState(false);
+  return (
+    <div className="inv-site" data-ready={ready}>
+      {!ready && <p className="inv-site-wait" role="status"><span className="inv-site-spin" aria-hidden="true" />טוענים את האתר…</p>}
+      <iframe title={title} src={src} referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-popups allow-forms" onLoad={() => setReady(true)} />
+    </div>
+  );
+}
+
 function youtubeId(u: string): string | null {
   const m = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/.exec(u);
   return m ? m[1] : null;
@@ -518,7 +529,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
       )}
       {sheet === 'site' && site && (
         <Sheet title={data.venue_name || 'האתר של המקום'} onClose={closeSheet}>
-          <div className="inv-site"><iframe title={`האתר של ${data.venue_name ?? 'המקום'}`} src={site} loading="lazy" referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-popups allow-forms" /></div>
+          <SiteFrame src={site} title={`האתר של ${data.venue_name ?? 'המקום'}`} />
           <a className="inv-btn ghost" style={{ marginTop: 12 }} href={site} target="_blank" rel="noopener noreferrer">פתיחת האתר בלשונית חדשה</a>
         </Sheet>
       )}

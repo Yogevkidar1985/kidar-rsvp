@@ -480,3 +480,11 @@ input[type="range"] { accent-color: var(--color-ink); }
 @keyframes pin-shadow { 0%, 30% { opacity: 0; transform: translate(-50%, -50%) scale(.2); } 62% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); } 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 @keyframes pin-label { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @media (prefers-reduced-motion: reduce) { .pm-pin.pm-drop * { animation: none !important; } }
+
+.inv-site { position: relative; }
+.inv-site[data-ready='false'] iframe { opacity: 0; }
+.inv-site iframe { transition: opacity .25s; }
+.inv-site-wait { position: absolute; inset: 0; margin: 0; display: grid; place-content: center; justify-items: center; gap: 12px; font: 500 16px/1.4 var(--inv-font); color: var(--inv-dim); }
+.inv-site-spin { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--inv-line); border-top-color: var(--inv-ink); animation: inv-spin .8s linear infinite; }
+@keyframes inv-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .inv-site-spin { animation: none; } }
