@@ -88,9 +88,9 @@ export default function Overview() {
   const maxSeats = Math.max(s.allocatedSeats, s.confirmedSeats, seatsTotal, 1);
   const ready: { ok: boolean; label: string; fix: string; href?: string }[] = [
     { ok: event.published, label: 'ההזמנה מפורסמת', fix: 'אורחים לא יכולים לפתוח אותה', href: `${base}/editor` },
-    { ok: !!(event.venue_name || event.address), label: 'מקום האירוע וכתובת', fix: 'אורחים לא יודעים לאן להגיע', href: `${base}/editor` },
-    { ok: !!start, label: 'תאריך ושעה', fix: 'חסרים תאריך או שעה', href: `${base}/editor` },
-    { ok: !!event.hero_url, label: 'תמונה משלכם', fix: 'מוצגת תמונת ברירת המחדל', href: `${base}/editor` },
+    { ok: !!(event.venue_name || event.address), label: 'מקום האירוע וכתובת', fix: 'אורחים לא יודעים לאן להגיע', href: `${base}/editor?tab=מקום` },
+    { ok: !!start, label: 'תאריך ושעה', fix: 'חסרים תאריך או שעה', href: `${base}/editor?tab=מועד` },
+    { ok: !!event.hero_url, label: 'תמונה משלכם', fix: 'מוצגת תמונת ברירת המחדל', href: `${base}/editor?tab=תמונות` },
     { ok: green === true, label: 'התראות WhatsApp למארחים', fix: green === null ? 'לא הצלחנו לבדוק' : 'לא מחובר: לא תקבלו הודעה כשאורח משיב', href: `${base}/connections` },
     { ok: !!wa, label: 'הזמנות ותזכורות ב-WhatsApp', fix: 'נדרש עדכון חד-פעמי למסד הנתונים', href: `${base}/whatsapp` },
     { ok: guests.length > 0, label: 'רשימת מוזמנים', fix: 'הרשימה ריקה', href: `${base}/guests` },

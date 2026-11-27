@@ -92,7 +92,7 @@ try {
         await p.mouse.move(a.x + a.width / 2, a.y + a.height / 2); await p.mouse.down();
         await p.mouse.move(b.x + b.width / 2 + 20, b.y + b.height / 2, { steps: 12 }); await p.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 4 }); await p.mouse.up();
       } else {
-        await tiles.first().scrollIntoViewIfNeeded();
+        await tiles.first().evaluate((e) => e.scrollIntoView({ block: 'center' })); await sleep(400);
         const grip = await tiles.nth(0).locator('.media-grip').boundingBox(), b = await box(2);
         const cdp = await ctx.newCDPSession(p);
         const pt = (x, y) => [{ x: Math.round(x), y: Math.round(y) }];
@@ -116,6 +116,49 @@ try {
       }
       await ctx.close();
     }
+  }
+
+  // the editor's guide, and the guest's last moments on the invitation
+  {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'he-IL' });
+    const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message));
+    await p.goto(APP + '/admin/login'); await p.fill('input', '1007'); await p.click('button[aria-label="כניסה"]'); await p.waitForURL(/admin\/events/);
+    await p.goto(`${APP}/admin/events/${id}/editor`, { waitUntil: 'networkidle' });
+    const steps = p.locator('[data-testid=ed-steps]');
+    check('guide: six steps, the filled ones marked', await steps.locator('li').count() === 6 && await steps.locator('.is-ok').count() >= 3, await steps.innerText());
+    await steps.getByRole('button', { name: /מקום וכתובת/ }).click(); await sleep(500);
+    check('guide: a step opens its tab', await p.getByRole('tab', { name: 'מקום' }).getAttribute('aria-selected') === 'true' && p.url().includes('tab='));
+    await p.getByRole('button', { name: /הבא: תמונות/ }).click(); await sleep(400);
+    check('guide: "next" moves to the following tab', await p.getByRole('tab', { name: 'תמונות' }).getAttribute('aria-selected') === 'true');
+    await p.goto(`${APP}/admin/events/${id}/editor?tab=${encodeURIComponent('מועד')}`, { waitUntil: 'networkidle' });
+    check('guide: a link can name the tab to open', await p.getByRole('tab', { name: 'מועד' }).getAttribute('aria-selected') === 'true');
+    await p.getByRole('tab', { name: 'תוכן' }).click();
+    const closing = p.locator('label', { hasText: 'טקסט סיום' }).locator('textarea'); const was = await closing.inputValue();
+    await closing.fill(was + ' '); await closing.fill(was + '!'); await p.keyboard.press('Control+s'); await sleep(1200);
+    check('guide: Ctrl+S saves', (await mock.sql(`select closing_text c from events where id = $1`, [id]))[0].c === was + '!');
+    await mock.sql(`update events set closing_text = $2 where id = $1`, [id, was]);
+    check('guide: the editor fits a phone', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await p.screenshot({ path: path.join(out, 'editor-guide-phone.png') });
+
+    const inv = await ctx.newPage(); inv.on('pageerror', (e) => errs.push(e.message));
+    await inv.goto(`${APP}/kidar-brit?test=1`, { waitUntil: 'networkidle' });
+    check('invitation: the credit line closes the page', (await inv.locator('[data-testid=credit]').innerText()).replace(/\s+/g, ' ').trim() === 'נוצר ב ❤️ על ידי יוגב קידר', await inv.locator('[data-testid=credit]').innerText());
+    const clear = await inv.evaluate(() => { const c = document.querySelector('[data-testid=credit]'); window.scrollTo(0, document.documentElement.scrollHeight); const r = c.getBoundingClientRect(), s = document.querySelector('.inv-sticky')?.getBoundingClientRect(); const line = r.top + parseFloat(getComputedStyle(c).paddingTop) + 24; return !s || line <= s.top; });
+    check('invitation: the floating button does not cover the credit line', clear);
+    await inv.locator('[data-testid=rsvp-open]').scrollIntoViewIfNeeded(); await inv.locator('[data-testid=rsvp-open]').click();
+    await inv.locator('.sheet input[name=name]').fill('משפחת בדיקה'); await inv.locator('.sheet input[name=phone]').fill('0509998877');
+    await inv.locator('.sheet button[type=submit]').click();
+    await inv.locator('[data-testid=rsvp-success]').waitFor({ timeout: 10000 }); await sleep(450); await inv.screenshot({ path: path.join(out, 'rsvp-party-early.png') }); await sleep(600);
+    check('invitation: saving an answer throws the party behind the check mark', await inv.locator('[data-testid=rsvp-party] svg g').count() > 20 && await inv.locator('.sheet-check svg').count() === 1);
+    await inv.screenshot({ path: path.join(out, 'rsvp-party.png') });
+    check('guide and invitation: no script errors', errs.length === 0, errs.join(' ; '));
+    await ctx.close();
+    const wide = await (await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'he-IL' })).newPage();
+    await wide.goto(`${APP}/kidar-brit`, { waitUntil: 'networkidle' }); await wide.locator('.inv-pick').first().scrollIntoViewIfNeeded(); await sleep(600);
+    await wide.locator('.inv-pick').nth(1).hover(); await sleep(600);
+    const hov = await wide.locator('.inv-pick').nth(1).evaluate((b) => ({ shadow: getComputedStyle(b).boxShadow !== 'none', lift: new DOMMatrix(getComputedStyle(b).transform).m42 }));
+    check('invitation: an answer button rises under the pointer', hov.shadow && hov.lift < -2, JSON.stringify(hov));
+    await wide.context().close();
   }
 
   // links: a family's own code, the WhatsApp card texts, and the invitation's address

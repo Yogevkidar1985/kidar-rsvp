@@ -374,3 +374,53 @@ input[type="range"] { accent-color: var(--color-ink); }
 .wa-card b { font-size: 15px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .wa-card span { font-size: 13px; line-height: 1.45; color: #54656f; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .wa-card small { font-size: 12px; color: #8696a0; text-align: start; }
+
+/* ---- the answer buttons: they rise to the pointer, a light crosses them, and they press in under a finger ---- */
+.inv-pick, .inv-sticky .inv-btn { position: relative; overflow: hidden; isolation: isolate; transition: background .2s, color .2s, border-color .2s, transform .22s cubic-bezier(.2, .8, .2, 1), box-shadow .22s; }
+.inv-pick::after, .inv-sticky .inv-btn::after { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / .28) 50%, transparent 65%); transform: translateX(-120%); pointer-events: none; }
+.inv-pick.ghost::after { background: linear-gradient(105deg, transparent 35%, color-mix(in srgb, var(--inv-accent) 22%, transparent) 50%, transparent 65%); }
+@media (hover: hover) {
+  .inv-pick:hover:not(:disabled), .inv-sticky .inv-btn:hover { transform: translateY(-3px); box-shadow: 0 16px 28px -16px color-mix(in srgb, var(--inv-button) 75%, transparent); }
+  .inv-pick.ghost:hover:not(:disabled) { border-color: var(--inv-accent); background: color-mix(in srgb, var(--inv-accent) 9%, var(--inv-surface)); box-shadow: 0 14px 26px -18px color-mix(in srgb, var(--inv-ink) 60%, transparent); }
+  .inv-pick:hover::after, .inv-sticky .inv-btn:hover::after { transform: translateX(120%); transition: transform .7s ease; }
+}
+.inv-pick:active:not(:disabled), .inv-sticky .inv-btn:active { transform: translateY(0) scale(.97); box-shadow: none; transition-duration: .08s; }
+.inv-pick:focus-visible { outline: 3px solid var(--inv-ink); outline-offset: 3px; }
+/* the saved answer: the check mark, with the party thrown out behind it */
+.sheet-done { position: relative; width: 150px; height: 150px; margin: 0 auto; }
+/* the pieces fly behind the words, never over them */
+.sheet-thanks > * { position: relative; z-index: 1; }
+.sheet-thanks > .sheet-done { z-index: 0; }
+.sheet-check { position: relative; width: 150px; height: 150px; }
+.sheet-party { position: absolute; left: 50%; top: 50%; width: 330px; height: 330px; transform: translate(-50%, -50%); pointer-events: none; }
+/* the line at the very bottom of the page */
+.inv-credit { padding: 26px 20px calc(104px + env(safe-area-inset-bottom)); text-align: center; font: 400 14px/1.6 var(--inv-font); color: var(--inv-dim); letter-spacing: .01em; }
+.inv-heart { display: inline-block; margin-inline: 2px; animation: inv-beat 1.6s ease-in-out infinite; }
+@keyframes inv-beat { 0%, 100% { transform: scale(1); } 12% { transform: scale(1.28); } 24% { transform: scale(1); } 36% { transform: scale(1.18); } 48% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .inv-heart { animation: none; } .inv-pick, .inv-sticky .inv-btn { transition: none; } .inv-pick::after, .inv-sticky .inv-btn::after { display: none; } }
+
+/* ---- editor: what is left, a way forward, and a preview that stays put ---- */
+.ed-steps { margin-bottom: 16px; padding: 14px 16px; min-width: 0; max-width: 100%; overflow: hidden; }
+.ed-steps__head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.ed-steps__head b { font-size: 15px; }
+.ed-steps__bar { flex: 1 1 120px; height: 6px; border-radius: 3px; background: #e8ecf2; overflow: hidden; }
+.ed-steps__bar i { display: block; height: 100%; border-radius: 3px; background: var(--color-ok); transition: width .3s; }
+.ed-steps ul { display: flex; min-width: 0; max-width: 100%; gap: 8px; margin: 12px 0 0; padding: 0 0 2px; list-style: none; overflow-x: auto; scrollbar-width: none; }
+.ed-steps ul::-webkit-scrollbar { display: none; }
+.ed-steps li { flex: none; }
+.ed-steps button { position: relative; display: inline-flex; align-items: center; gap: 7px; min-height: 40px; padding: 0 14px 0 12px; border-radius: 999px; border: 1px solid var(--color-line); background: #fff; font-size: 14px; font-weight: 500; color: var(--color-ink); white-space: nowrap; cursor: pointer; transition: border-color .15s, background-color .15s; }
+.ed-steps button > span:first-child { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 12px; font-weight: 700; line-height: 1; }
+.ed-steps .is-ok { color: #3b4a5e; background: #f6f8fa; }
+.ed-steps .is-ok > span:first-child { background: var(--color-ok); color: #fff; }
+.ed-steps .is-todo { border-color: color-mix(in srgb, var(--color-warn) 55%, var(--color-line)); background: #fffaf0; }
+.ed-steps .is-todo > span:first-child { background: var(--color-warn); color: #fff; }
+.ed-steps .is-opt > span:first-child { background: #e8ecf2; color: #566074; }
+@media (hover: hover) { .ed-steps button:hover { border-color: var(--color-ink); } }
+.ed-next { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--color-line); }
+.ed-form { scroll-margin-top: 76px; }
+/* the tabs stay within reach while a long tab scrolls */
+.ed-tabs { position: sticky; top: 60px; z-index: 5; box-shadow: 0 0 0 8px #fff; }
+@media (min-width: 1024px) {
+  .ed-tabs { top: 12px; }
+  .ed-preview { position: sticky; top: 12px; }
+}

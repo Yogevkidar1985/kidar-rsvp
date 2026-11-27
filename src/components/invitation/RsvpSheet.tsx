@@ -1,16 +1,16 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import type { GuestStatus, PublicGuest } from '@/lib/types';
 import { normPhone } from '@/lib/phone';
-import { successLottie } from './lotties';
+import { partyLottie, successLottie } from './lotties';
 import { useDialogFocus } from '@/lib/dialog';
 
 const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
 export type Answer = Exclude<GuestStatus, 'pending'>;
 export type RsvpResult = { status: Answer; adults: number; children: number; babies: number };
 type Props = {
-  slug: string; token: string | null; guest?: PublicGuest; maxParty: number; accent: string;
+  slug: string; token: string | null; guest?: PublicGuest; maxParty: number; accent: string; /** colours of the pieces thrown when an answer is saved */ colors?: string[];
   /** the answer picked on the invitation itself */
   initial?: Answer | null;
   /** test mode: validate and show the thank-you screen without sending anything to the server */
@@ -41,7 +41,7 @@ function Stepper({ label, hint, value, set, max }: { label: string; hint?: strin
   );
 }
 
-export default function RsvpSheet({ slug, token, guest, maxParty, accent, initial = null, test = false, onClose: close, onSaved }: Props) {
+export default function RsvpSheet({ slug, token, guest, maxParty, accent, colors, initial = null, test = false, onClose: close, onSaved }: Props) {
   const [closing, setClosing] = useState(false);
   // plays the exit, then hands control back; a second request while it plays is ignored
   const leaving = useRef(false);
@@ -65,6 +65,8 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, initia
   const phoneRef = useRef<HTMLInputElement>(null);
   const back = useRef<HTMLDivElement>(null);
   const [done, setDone] = useState<Answer | null>(null);
+  const check = useMemo(() => successLottie(accent), [accent]);
+  const party = useMemo(() => partyLottie(colors?.length ? colors : [accent]), [colors, accent]);
   const first = useRef<HTMLInputElement>(null);
   const box = useRef<HTMLDivElement>(null);
   useDialogFocus(box);
@@ -143,9 +145,10 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, initia
     <div ref={back} className={`sheet-back${closing ? ' closing' : ''}`} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div ref={box} tabIndex={-1} className="sheet" role="dialog" aria-modal="true" aria-label="אישור הגעה" dir="rtl">
         {done ? (
-          <div style={{ textAlign: 'center', padding: '8px 0 6px' }} data-testid="rsvp-success">
-            <div style={{ width: 150, height: 150, margin: '0 auto' }}>
-              <Lottie animationData={successLottie(accent)} loop={false} />
+          <div className="sheet-thanks" style={{ textAlign: 'center', padding: '8px 0 6px' }} data-testid="rsvp-success">
+            <div className="sheet-done">
+              {done !== 'declined' && <div className="sheet-party" aria-hidden="true" data-testid="rsvp-party"><Lottie animationData={party} loop={false} /></div>}
+              <div className="sheet-check"><Lottie animationData={check} loop={false} /></div>
             </div>
             <h2 className="sheet-title" style={{ margin: '4px 0 8px' }}>{THANKS[done][0]}</h2>
             {done !== 'declined' && total > 0 && <p style={{ margin: '0 0 6px', fontWeight: 600 }}>נרשמו {total} משתתפים</p>}

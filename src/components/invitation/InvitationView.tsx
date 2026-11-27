@@ -421,7 +421,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
                   <p style={{ ...body, marginTop: 10, color: 'var(--inv-dim)', fontSize: Math.round(d.styles.body.size * 0.9) }}>נשמח לדעת אם תגיעו</p>
                   <div className="inv-options">
                     {OPTIONS.map((o, i) => (
-                      <button key={o.key} type="button" className={`inv-btn${i ? ' ghost' : ''}`} data-testid={i ? undefined : 'rsvp-open'} onClick={() => openRsvp(o.key)}>{o.label}</button>
+                      <button key={o.key} type="button" className={`inv-btn inv-pick${i ? ' ghost' : ''}`} data-testid={i ? undefined : 'rsvp-open'} onClick={() => openRsvp(o.key)}>{o.label}</button>
                     ))}
                   </div>
                 </>
@@ -429,6 +429,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
             </Reveal>
           </section>
         </main>
+        <footer className="inv-credit" data-testid="credit">נוצר ב <span className="inv-heart" role="img" aria-label="אהבה">❤️</span> על ידי יוגב קידר</footer>
       </div>
 
       {!preview && rsvpOpen && (
@@ -438,7 +439,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
       )}
       {sheet === 'rsvp' && (
         <RsvpSheet slug={data.slug} token={token} guest={guest} initial={pick} maxParty={data.rsvp_settings?.max_party ?? 15}
-          accent={d.colors.accent} test={test} onClose={closeSheet} onSaved={onSaved} />
+          accent={d.colors.accent} colors={burstColors} test={test} onClose={closeSheet} onSaved={onSaved} />
       )}
       {sheet === 'map' && mapSrc && (
         <Sheet title="מפת הגעה" onClose={closeSheet}>

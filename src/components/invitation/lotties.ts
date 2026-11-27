@@ -8,6 +8,8 @@ const rgb = (c: string) => {
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255, 1];
 };
 const still = (k: unknown) => ({ a: 0, k });
+/** The player rewrites the document it is given, and these builders share small parts: each caller gets a copy of its own. */
+const own = <T,>(doc: T): T => JSON.parse(JSON.stringify(doc)) as T;
 const tr = { ty: 'tr', p: still([0, 0]), a: still([0, 0]), s: still([100, 100]), r: still(0), o: still(100) };
 const e1 = { i: { x: [0.2], y: [1] }, o: { x: [0.4], y: [0] } };
 const e3 = { i: { x: [0.3, 0.3, 0.3], y: [1, 1, 1] }, o: { x: [0.4, 0.4, 0.4], y: [0, 0, 0] } };
@@ -24,14 +26,14 @@ export function sparkleLottie(color: string, soft: string) {
   const spots: [number, number, number, number, string][] = [ // x, y, size, first frame, colour
     [16, 30, 12, 0, color], [306, 26, 9, 26, soft], [22, 100, 8, 48, soft], [300, 104, 11, 14, color], [164, 8, 6, 62, color],
   ];
-  return {
+  return own({
     v: '5.7.4', fr: 60, ip: 0, op: OP, w: 320, h: 120, nm: 'sparkles', ddd: 0, assets: [],
     layers: spots.map(([x, y, r, t, c], i) => layer(i + 1, `star-${i}`, OP, {
       p: still([x, y, 0]),
       s: { a: 1, k: [{ t, s: [0, 0, 100], ...e3 }, { t: t + 24, s: [100, 100, 100], ...e3 }, { t: t + 52, s: [0, 0, 100] }] },
       r: { a: 1, k: [{ t, s: [-20], ...e1 }, { t: t + 52, s: [25] }] },
     }, [{ ty: 'gr', nm: 'star', it: [star(r), { ty: 'fl', c: still(rgb(c)), o: still(100), r: 1 }, tr] }])),
-  };
+  });
 }
 
 /** The divider under the names draws itself: a diamond pops, then a line runs out to each side. Plays once. */
@@ -41,7 +43,7 @@ export function ornamentLottie(color: string) {
     { ty: 'gr', nm: 'line', it: [path([[from, 0], [to, 0]], false), { ty: 'st', c: still(c), o: still(80), w: still(1.2), lc: 2, lj: 2 }, tr] },
     { ty: 'tm', nm: 'draw', s: still(0), o: still(0), m: 1, e: { a: 1, k: [{ t: 14, s: [0], ...e1 }, { t: 56, s: [100] }] } },
   ]);
-  return {
+  return own({
     v: '5.7.4', fr: 60, ip: 0, op: OP, w: 220, h: 24, nm: 'ornament', ddd: 0, assets: [],
     layers: [
       layer(1, 'diamond', OP, {
@@ -50,7 +52,7 @@ export function ornamentLottie(color: string) {
       }, [{ ty: 'gr', nm: 'diamond', it: [{ ty: 'rc', p: still([0, 0]), s: still([7, 7]), r: still(0) }, { ty: 'fl', c: still(c), o: still(100), r: 1 }, tr] }]),
       line(2, 14, 62), line(3, -14, -62),
     ],
-  };
+  });
 }
 
 /** After a confirmed RSVP: a disc pops in, a ring ripples out, rays burst, and the check mark draws itself. */
@@ -61,7 +63,7 @@ export function successLottie(color = '#2F7D5B') {
     const a = (i / 10) * Math.PI * 2, x = Math.cos(a), y = Math.sin(a);
     return { ty: 'gr', nm: `ray-${i}`, it: [path([[x * 74, y * 74], [x * 94, y * 94]], false), { ty: 'st', c: still(c), o: still(100), w: still(4), lc: 2, lj: 2 }, tr] };
   });
-  return {
+  return own({
     v: '5.7.4', fr: 60, ip: 0, op: OP, w: 200, h: 200, nm: 'rsvp-success', ddd: 0, assets: [],
     layers: [
       layer(1, 'check', OP, at({}), [
@@ -81,5 +83,32 @@ export function successLottie(color = '#2F7D5B') {
         o: { a: 1, k: [{ t: 14, s: [55], ...e1 }, { t: 70, s: [0] }] },
       }), [{ ty: 'gr', nm: 'ring', it: [{ ty: 'el', p: still([0, 0]), s: still([124, 124]) }, { ty: 'st', c: still(c), o: still(100), w: still(5), lc: 2, lj: 2 }, tr] }]),
     ],
+  });
+}
+
+/**
+ * The moment an answer is saved: pieces of paper, dots and hearts are thrown out from the middle, turn, and drift down as they fade.
+ * Plays once, behind the check mark. Drawn in the invitation's own colours.
+ */
+export function partyLottie(colors: string[]) {
+  const OP = 130, C = 160, n = 22;
+  const cs = (colors.length ? colors : ['#B7A08C']).map(rgb);
+  // a heart from plain parts: two round lobes over a point
+  const heart = (c: number[]) => [[{ ty: 'el', p: still([-3.6, -2.4]), s: still([8.4, 8.4]) }], [{ ty: 'el', p: still([3.6, -2.4]), s: still([8.4, 8.4]) }],
+    [path([[-7.4, -0.6], [0, 8], [7.4, -0.6], [0, -3.4]], true)]].map((part, k) => ({ ty: 'gr', nm: `heart-${k}`, it: [...part, { ty: 'fl', c: still(c), o: still(100), r: 1 }, tr] }));
+  const piece = (i: number) => {
+    // a fixed spread, so the burst looks the same every time and nothing lands on the check mark
+    const a = (i / n) * Math.PI * 2 + (i % 2 ? 0.14 : -0.1), far = 96 + ((i * 37) % 46), t0 = 8 + (i % 5) * 2;
+    const x = C + Math.cos(a) * far, y = C + Math.sin(a) * far * 0.92;
+    const kind = i % 4, col = cs[i % cs.length], turn = (i % 2 ? 1 : -1) * (160 + (i * 53) % 200);
+    const body = kind === 0 ? [] : kind === 1 ? [{ ty: 'el', p: still([0, 0]), s: still([9, 9]) }]
+      : kind === 2 ? [{ ty: 'rc', p: still([0, 0]), s: still([13, 6]), r: still(1.5) }] : [star(8)];
+    return layer(i + 1, `piece-${i}`, OP, {
+      p: { a: 1, k: [{ t: t0, s: [C, C, 0], i: { x: 0.12, y: 1 }, o: { x: 0.2, y: 0.6 } }, { t: t0 + 34, s: [x, y, 0], i: { x: 0.6, y: 1 }, o: { x: 0.4, y: 0 } }, { t: OP, s: [x + Math.cos(a) * 8, y + 46, 0] }] },
+      s: { a: 1, k: [{ t: t0, s: [0, 0, 100], ...e3 }, { t: t0 + 14, s: [kind === 0 ? 150 : 120, kind === 0 ? 150 : 120, 100], ...e3 }, { t: OP, s: [80, 80, 100] }] },
+      r: { a: 1, k: [{ t: t0, s: [0], ...e1 }, { t: OP, s: [kind === 0 ? turn * 0.12 : turn] }] },
+      o: { a: 1, k: [{ t: t0, s: [0], ...e1 }, { t: t0 + 6, s: [100], ...e1 }, { t: OP - 46, s: [100], ...e1 }, { t: OP - 4, s: [0] }] },
+    }, kind === 0 ? heart(col) : [{ ty: 'gr', nm: 'piece', it: [...body, { ty: 'fl', c: still(col), o: still(100), r: 1 }, tr] }]);
   };
+  return own({ v: '5.7.4', fr: 60, ip: 0, op: OP, w: C * 2, h: C * 2, nm: 'rsvp-party', ddd: 0, assets: [], layers: Array.from({ length: n }, (_, i) => piece(i)) });
 }

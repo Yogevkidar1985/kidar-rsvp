@@ -116,7 +116,14 @@ export default function EditorPage() {
     bump((n) => n + 1);
   };
   const [media, setMedia] = useState<Media[]>([]);
-  const [tab, setTab] = useState<Tab>('תוכן');
+  const [tab, setTabRaw] = useState<Tab>('תוכן');
+  const formTop = useRef<HTMLElement>(null);
+  useEffect(() => { const want = new URLSearchParams(window.location.search).get('tab') as Tab | null; if (want && TABS.includes(want)) setTabRaw(want); }, []);
+  const setTab = (next: Tab, scroll = false) => {
+    setTabRaw(next);
+    const u = new URL(window.location.href); u.searchParams.set('tab', next); window.history.replaceState(null, '', u);
+    if (scroll) formTop.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
   const [device, setDevice] = useState<(typeof DEVICES)[number]>(DEVICES[0]);
   const [view, setView] = useState<'edit' | 'preview'>('edit');
   const [saving, setSaving] = useState(false);
@@ -160,6 +167,13 @@ export default function EditorPage() {
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
+
+  const saveRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveRef.current(); } };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, []);
 
   const set = <K extends keyof EventRow>(k: K, v: EventRow[K]) => setDraft((d) => ({ ...d, [k]: v }));
   const setDesign = (patch: Partial<Design>) => setDraft((d) => ({ ...d, design: { ...resolveDesign(d.design), ...patch } }));
@@ -243,6 +257,19 @@ export default function EditorPage() {
     <MediaGrid name={kind} items={media.filter((m) => m.kind === kind)} disabled={!canEdit} onReorder={(ids) => reorder(kind, ids)} onRemove={removeMedia} />
   );
 
+  saveRef.current = () => { if (canEdit && dirty && !saving) void save(); };
+  // what an invitation needs before it goes out, each step pointing at the tab that fills it
+  const venuePhotos = media.filter((m) => m.kind === 'venue').length;
+  const steps: { label: string; ok: boolean; tab: Tab; optional?: boolean }[] = [
+    { label: 'שמות וכותרת', ok: !!(draft.name?.trim() && draft.headline?.trim() && draft.hosts?.trim()), tab: 'תוכן' },
+    { label: 'תאריך ושעה', ok: !!(draft.event_date && (draft.reception_time || draft.ceremony_time)), tab: 'מועד' },
+    { label: 'מקום וכתובת', ok: !!(draft.venue_name?.trim() && draft.address?.trim()), tab: 'מקום' },
+    { label: 'סיכה על המפה', ok: !!design.geo, tab: 'מקום', optional: true },
+    { label: 'תמונה ראשית', ok: !!draft.hero_url, tab: 'תמונות', optional: true },
+    { label: 'תמונות מהמקום', ok: venuePhotos > 0, tab: 'תמונות', optional: true },
+  ];
+  const must = steps.filter((s) => !s.optional), mustDone = must.filter((s) => s.ok).length;
+  const tabAt = TABS.indexOf(tab);
   const tileColors = design.fall.colors.map((c) => (/^#f{3}(f{3})?$/i.test(c) ? design.colors.line : c));
   return (
     <>
@@ -255,9 +282,22 @@ export default function EditorPage() {
         <button className={`${draft.published ? 'btn' : 'btn btn-ghost'} hidden lg:inline-flex`} disabled={!canEdit || saving || !dirty} onClick={() => save()}>{saving ? 'שומרים…' : draft.published ? 'שמירת השינויים' : 'שמירת טיוטה'}</button>
       </PageHead>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(320px,420px)_1fr]">
-        <section className={`card p-4 ${view === 'preview' ? 'hidden lg:block' : ''}`}>
-          <div className="tabs mb-4" role="tablist">
+      <section className={`card ed-steps ${view === 'preview' ? 'hidden lg:block' : ''}`} data-testid="ed-steps" aria-label="מה נשאר להזמנה">
+        <div className="ed-steps__head">
+          <b>{mustDone === must.length ? (draft.published ? 'ההזמנה מוכנה ומפורסמת' : 'הכול מלא. נשאר רק לפרסם') : `נשארו ${must.length - mustDone} שלבים להשלמה`}</b>
+          <span className="ed-steps__bar" aria-hidden="true"><i style={{ width: `${(steps.filter((s) => s.ok).length / steps.length) * 100}%` }} /></span>
+        </div>
+        <ul>
+          {steps.map((s) => (
+            <li key={s.label}><button type="button" className={s.ok ? 'is-ok' : s.optional ? 'is-opt' : 'is-todo'} onClick={() => { setView('edit'); setTab(s.tab, true); }}>
+              <span aria-hidden="true">{s.ok ? '✓' : s.optional ? '+' : '!'}</span>{s.label}<span className="sr-only">{s.ok ? ' (מלא)' : s.optional ? ' (רשות, עוד לא מולא)' : ' (חסר)'}</span></button></li>
+          ))}
+        </ul>
+      </section>
+
+      <div className="grid gap-4 lg:grid-cols-[minmax(320px,420px)_1fr] lg:items-start">
+        <section ref={formTop} className={`card ed-form p-4 ${view === 'preview' ? 'hidden lg:block' : ''}`}>
+          <div className="tabs ed-tabs mb-4" role="tablist">
             {TABS.map((t) => <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}>{t}</button>)}
           </div>
           <fieldset disabled={!canEdit} className="grid gap-3">
@@ -458,11 +498,17 @@ export default function EditorPage() {
                 <input className="field" type="number" min={1} max={50} value={draft.rsvp_settings?.max_party ?? 15} onChange={(e) => set('rsvp_settings', { ...draft.rsvp_settings, max_party: Math.max(1, Math.min(50, Number(e.target.value) || 1)) })} /></Field>
             </>}
           </fieldset>
+          <div className="ed-next">
+            {tabAt > 0 ? <button type="button" className="btn btn-ghost btn-sm" onClick={() => setTab(TABS[tabAt - 1], true)}>→ {TABS[tabAt - 1]}</button> : <span />}
+            {tabAt < TABS.length - 1
+              ? <button type="button" className="btn btn-sm" onClick={() => setTab(TABS[tabAt + 1], true)}>הבא: {TABS[tabAt + 1]} ←</button>
+              : <button type="button" className="btn btn-sm" disabled={!canEdit || saving || (!dirty && draft.published)} onClick={() => save(draft.published ? undefined : true)}>{draft.published ? 'שמירת השינויים' : 'שמירה ופרסום'}</button>}
+          </div>
         </section>
 
-        <section className={`card overflow-hidden ${view === 'edit' ? 'hidden lg:block' : ''}`}>
+        <section className={`card ed-preview overflow-hidden ${view === 'edit' ? 'hidden lg:block' : ''}`}>
           <div className="flex items-center justify-between border-b border-line px-3 py-2">
-            <span className="text-sm font-medium text-muted">תצוגה מקדימה</span>
+            <span className="text-sm font-medium text-muted">תצוגה מקדימה <a className="ms-2 underline" href={`/${event.slug}?test=1`} target="_blank" rel="noreferrer">פתיחה בחלון</a></span>
             <div className="tabs">{DEVICES.map((d) => <button key={d.key} onClick={() => setDevice(d)} aria-pressed={device.key === d.key}>{d.label}</button>)}</div>
           </div>
           <div ref={pane} className="h-[78dvh] overflow-hidden bg-[#eef1f5]" data-testid="preview-pane">
