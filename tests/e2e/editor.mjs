@@ -133,6 +133,24 @@ try {
     check('countdown: fits the screen', await p.evaluate(() => { const r = document.querySelector('[data-testid=countdown]').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && document.documentElement.scrollWidth <= innerWidth; }));
     for (const w of [320, 360]) { await p.setViewportSize({ width: w, height: 700 }); await sleep(300); check(`countdown: fits at ${w}`, await p.evaluate(() => { const c = [...document.querySelectorAll('[data-testid=countdown] > div')]; return c.every((x) => x.getBoundingClientRect().left >= 0 && x.getBoundingClientRect().right <= innerWidth && x.querySelector('b').scrollWidth <= x.clientWidth) && document.documentElement.scrollWidth <= innerWidth; })); }
     await p.setViewportSize({ width: 390, height: 844 });
+    // the venue: one address, a way to its site, a share button
+    await mock.sql(`update events set design = coalesce(design, '{}'::jsonb) || '{"venueUrl":"https://example.org/"}'::jsonb where id = $1`, [id]);
+    await p.reload({ waitUntil: 'networkidle' }); await sleep(500);
+    const addr = await p.evaluate(() => { let n = 0; const tw = document.createTreeWalker(document.querySelector('.inv'), NodeFilter.SHOW_TEXT); for (let x = tw.nextNode(); x; x = tw.nextNode()) if (x.textContent.includes('הרצל 1, כפר סבא') && x.parentElement.getBoundingClientRect().width > 0) n++; return n; });
+    check('venue: the address is written once', addr === 1, String(addr));
+    const dn = await p.evaluate(() => { const e = document.querySelector('.inv-datenum'), s = getComputedStyle(e), r = e.getBoundingClientRect(); return { weight: +s.fontWeight, size: parseFloat(s.fontSize), left: Math.round(r.left), right: Math.round(r.right), sw: e.scrollWidth, cw: e.clientWidth }; });
+    check('date: large and bold', dn.weight >= 700 && dn.size >= 44 && dn.left >= 0 && dn.right <= 390 && dn.sw <= dn.cw + 1, JSON.stringify(dn));
+    await p.locator('[data-testid=venue-site]').evaluate((e) => e.scrollIntoView({ block: 'center' })); await sleep(300);
+    check('venue: two arrows sit to the left of the name', await p.evaluate(() => { const b = document.querySelector('[data-testid=venue-site]'); return b.querySelector('svg').getBoundingClientRect().right <= b.querySelector('span').getBoundingClientRect().left + 1 && b.querySelectorAll('svg path').length === 2; }));
+    await p.locator('[data-testid=venue-site]').tap(); await p.locator('.sheet .inv-site iframe').waitFor();
+    check('venue: its site opens inside the invitation', (await p.locator('.sheet .inv-site iframe').getAttribute('src')) === 'https://example.org/' && p.url().includes('/kidar-brit'));
+    await p.locator('.sheet button', { hasText: 'סגירה' }).tap(); await sleep(400);
+    await p.locator('[data-testid=share-event]').evaluate((e) => e.scrollIntoView({ block: 'center' })); await sleep(300); await p.locator('[data-testid=share-event]').tap(); await p.locator('.sheet').waitFor();
+    const sh = await p.locator('.sheet .inv-choices > *').allInnerTexts();
+    check('share: WhatsApp, Facebook and copy', ['WhatsApp', 'Facebook', 'העתקה'].every((x) => sh.some((s) => s.includes(x))), sh.join());
+    await p.locator('.sheet button', { hasText: 'סגירה' }).tap(); await sleep(400);
+    for (const w of [320, 390]) { await p.setViewportSize({ width: w, height: 700 }); await sleep(300); check(`layout: nothing wider than the screen at ${w}`, await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.querySelector('.inv-datenum').getBoundingClientRect().right <= innerWidth)); }
+    await p.setViewportSize({ width: 390, height: 844 });
     // small versions for the cards, the full one only in the viewer
     const g = p.locator('section.inv-band [data-testid=stack-gallery]');
     await g.evaluate((e) => e.scrollIntoView({ block: 'center' })); await sleep(900);

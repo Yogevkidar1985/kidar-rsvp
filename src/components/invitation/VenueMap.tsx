@@ -35,12 +35,18 @@ export default function VenueMap({ lat, lng, label, sublabel = '', zoom = 16, on
         html: `<div class="pm-pin__label" dir="rtl"><span class="pm-pin__name">${esc(label)}</span>${sublabel ? `<span class="pm-pin__sub">${esc(sublabel)}</span>` : ''}</div><div class="pm-pin__head"></div><div class="pm-pin__stem"></div><div class="pm-pin__shadow"></div>`,
       });
       const marker = L.marker([lat, lng], { icon, keyboard: false, interactive: false }).addTo(map);
+      // the pin is held above the map until the map is really on screen, then dropped: a guest sees it land
+      const pin = marker.getElement();
+      pin?.classList.add('pm-wait');
+      const drop = () => { pin?.classList.remove('pm-wait'); pin?.classList.add('pm-drop'); };
+      const seen = typeof IntersectionObserver === 'undefined' ? null : new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { seen?.disconnect(); window.setTimeout(drop, 350); } }, { threshold: 0.45 });
+      if (seen) seen.observe(box.current); else drop();
       map.on('click', (e) => { if (pick.current) { marker.setLatLng(e.latlng); pick.current(e.latlng.lat, e.latlng.lng); } });
       // an in-app browser resizes its window in the first seconds, and a sheet slides in: measure again once things settle
       const timers = [0, 350, 1200].map((ms) => window.setTimeout(() => { if (!dead) map.invalidateSize(); }, ms));
       const ro = new ResizeObserver(() => map.invalidateSize());
       ro.observe(box.current);
-      cleanup = () => { timers.forEach(clearTimeout); ro.disconnect(); map.remove(); };
+      cleanup = () => { timers.forEach(clearTimeout); ro.disconnect(); seen?.disconnect(); map.remove(); };
     })();
     return () => { dead = true; cleanup(); };
   }, [lat, lng, label, sublabel, zoom, interactive]);

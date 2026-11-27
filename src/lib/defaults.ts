@@ -53,6 +53,7 @@ export const DEFAULT_DESIGN: Design = {
   share: { title: '', description: '' },
   venueLogo: null,
   textScale: 1.15,
+  venueUrl: '',
 };
 
 /** Colours, text colours and falling-piece colours of a palette, as one design patch. */

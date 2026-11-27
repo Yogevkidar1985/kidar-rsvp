@@ -126,7 +126,7 @@ const ANSWERED: Record<Answer, string> = { attending: 'אישרתם הגעה', m
 export default function InvitationView({ data, token = null, preview = false, celebrateKey = 0, test = false }: Props) {
   const d = useMemo(() => resolveDesign(data.design), [data.design]);
   const [guest, setGuest] = useState(data.guest);
-  const [sheet, setSheet] = useState<null | 'rsvp' | 'cal' | 'nav' | 'share' | 'contact' | 'map'>(null);
+  const [sheet, setSheet] = useState<null | 'rsvp' | 'cal' | 'nav' | 'share' | 'contact' | 'map' | 'site'>(null);
   const [pick, setPick] = useState<Answer | null>(null);
   const [mine, setMine] = useState<RsvpResult | null>(null);
   const [burst, setBurst] = useState(0);
@@ -228,6 +228,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
   const date = dateParts(data.event_date);
   const place = [data.venue_name, data.address].filter(Boolean).join(', ');
   const logo = safeHttpUrl(d.venueLogo);
+  const site = safeHttpUrl(d.venueUrl);
   const waze = safeHttpUrl(data.waze_url) ?? (place ? `https://waze.com/ul?q=${encodeURIComponent(place)}&navigate=yes` : null);
   const gmaps = safeHttpUrl(data.gmaps_url) ?? (place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}` : null);
   const gcal = googleCalendarUrl(data);
@@ -258,7 +259,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
   const vars = {
     '--inv-bg': d.colors.bg, '--inv-surface': d.colors.surface, '--inv-soft': d.colors.soft, '--inv-ink': d.colors.ink, '--inv-muted': d.colors.muted,
     '--inv-scale': String(Math.min(1.5, Math.max(0.8, d.textScale || 1))), '--inv-accent': d.colors.accent, '--inv-button': d.colors.button, '--inv-button-text': d.colors.buttonText,
-    '--inv-line': d.colors.line, '--inv-font': fontStack(d.font), '--inv-gap': `${Math.round(64 * d.spacing)}px`,
+    '--inv-line': d.colors.line, '--inv-font': fontStack(d.font), '--inv-gap': `${Math.round(42 * d.spacing)}px`,
     '--inv-radius': d.corners === 'sharp' ? '2px' : d.corners === 'pill' ? '999px' : '10px',
   } as React.CSSProperties;
   const burstColors = useMemo(() => [...d.fall.colors.filter((c) => c.toUpperCase() !== '#FFFFFF'), d.colors.accent, d.colors.button], [d.fall.colors, d.colors.accent, d.colors.button]);
@@ -379,8 +380,11 @@ export default function InvitationView({ data, token = null, preview = false, ce
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   {logo ? <img className="inv-venue-logo" src={img(logo, 384)} alt="" decoding="async" /> : <span className="inv-pin"><Icon name="pin" size={24} /></span>}
-                  {data.venue_name && <p style={css(d.styles.hosts)}>{data.venue_name}</p>}
-                  {data.address && <p style={{ ...body, marginTop: 2 }}>{data.address}</p>}
+                  {data.venue_name && (site
+                    ? <p style={css(d.styles.hosts)}><button type="button" className="inv-venue-link" data-testid="venue-site" onClick={() => !preview && setSheet('site')} aria-label={`האתר של ${data.venue_name}`}>
+                        <span>{data.venue_name}</span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m12 6-6 6 6 6" /><path d="m19 6-6 6 6 6" /></svg></button></p>
+                    : <p style={css(d.styles.hosts)}>{data.venue_name}</p>)}
+                  {data.address && !mapSrc && <p style={{ ...body, marginTop: 2 }}>{data.address}</p>}
                 </>
               )}
               <div className="inv-quick" data-testid="actions">
@@ -396,16 +400,14 @@ export default function InvitationView({ data, token = null, preview = false, ce
                   <div className="way__map" ref={wayRef}>
                     {wayOn
                       ? d.geo
-                        ? <VenueMap interactive={false} lat={d.geo.lat} lng={d.geo.lng} label={data.venue_name || data.name} sublabel={data.address ?? ''} />
+                        ? <VenueMap interactive={false} lat={d.geo.lat} lng={d.geo.lng} label={data.venue_name || data.name} />
                         : <iframe title={`מפה: ${place}`} src={mapSrc} loading="lazy" referrerPolicy="no-referrer-when-downgrade" tabIndex={-1} />
                       : <span className="way__skeleton" aria-hidden="true" />}
                     <button type="button" className="way__open" data-testid="map-open" onClick={() => !preview && setSheet('map')} aria-label="פתיחת המפה המלאה"><span><Icon name="map" size={16} />מפה מלאה</span></button>
                   </div>
                   <div className="way__info">
                     <span className="way__eyebrow">איך מגיעים</span>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {logo && <img className="way__logo" src={img(logo, 384)} alt="" loading="lazy" decoding="async" />}
-                    <h3 className="way__title">{data.venue_name || 'מיקום האירוע'}</h3>
+                    <h3 className="sr-only">{data.venue_name || 'מיקום האירוע'}</h3>
                     <ul className="way__facts">
                       {data.address && <li><Icon name="pin" size={17} /><span>{data.address}</span></li>}
                       {(date || times.length > 0) && <li><Icon name="clock" size={17} /><span>{[data.weekday_label, date?.numeric].filter(Boolean).join(', ')}{times[0] ? <> · <b dir="ltr">{times[0].t}</b></> : null}</span></li>}
@@ -462,6 +464,9 @@ export default function InvitationView({ data, token = null, preview = false, ce
               )}
             </Reveal>
           </section>
+          <div className="inv-shareline">
+            <button type="button" className="inv-btn ghost" data-testid="share-event" onClick={() => !preview && setSheet('share')}><Icon name="share" size={18} />שתפו את האירוע</button>
+          </div>
         </main>
         <footer className="inv-credit" data-testid="credit">נוצר ב <span className="inv-heart" role="img" aria-label="אהבה">❤️</span> על ידי יוגב קידר</footer>
       </div>
@@ -511,8 +516,14 @@ export default function InvitationView({ data, token = null, preview = false, ce
           <p className="sheet-note">אם היומן לא נפתח מתוך WhatsApp או אפליקציה אחרת, פתחו את ההזמנה ב-Safari באייפון או ב-Chrome באנדרואיד ונסו שוב. אחרי שהאירוע נפתח צריך לאשר את השמירה ביומן.</p>
         </Sheet>
       )}
+      {sheet === 'site' && site && (
+        <Sheet title={data.venue_name || 'האתר של המקום'} onClose={closeSheet}>
+          <div className="inv-site"><iframe title={`האתר של ${data.venue_name ?? 'המקום'}`} src={site} loading="lazy" referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-popups allow-forms" /></div>
+          <a className="inv-btn ghost" style={{ marginTop: 12 }} href={site} target="_blank" rel="noopener noreferrer">פתיחת האתר בלשונית חדשה</a>
+        </Sheet>
+      )}
       {sheet === 'share' && (
-        <Sheet title="שיתוף ההזמנה" onClose={closeSheet}>
+        <Sheet title="שתפו את האירוע" onClose={closeSheet}>
           <div className="inv-choices">
             <a href={`https://wa.me/?text=${encodeURIComponent(`${shareText}\n${shareUrl}`)}`} target="_blank" rel="noopener noreferrer"><Icon name="chat" /><span>WhatsApp</span></a>
             <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`} target="_blank" rel="noopener noreferrer"><Icon name="facebook" /><span>Facebook</span></a>

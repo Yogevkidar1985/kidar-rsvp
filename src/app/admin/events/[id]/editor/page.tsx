@@ -345,6 +345,8 @@ export default function EditorPage() {
             {tab === 'מקום' && <>
               {text('venue_name', 'שם המקום')}
               {text('address', 'כתובת מלאה')}
+              <Field label="האתר של המקום" hint="מוסיף חיצים ליד שם המקום. לחיצה פותחת את האתר בתוך ההזמנה.">
+                <input className="field" dir="ltr" inputMode="url" maxLength={200} placeholder="https://" value={design.venueUrl} onChange={(e) => setDesign({ venueUrl: e.target.value.trim() })} /></Field>
               <div>
                 <span className="label">לוגו המקום (מוצג בכרטיס "איך מגיעים", מעל השם)</span>
                 <div className="flex flex-wrap items-center gap-3">
