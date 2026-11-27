@@ -208,6 +208,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
     data.ceremony_time && { t: data.ceremony_time, l: 'טקס' },
   ].filter(Boolean) as { t: string; l: string }[];
   const shots = [...gallery, ...venue];
+  const hasPlace = !!(data.venue_name || data.address || venue.length || data.directions || data.parking || data.extra_info);
 
   function downloadIcs() {
     const ics = icsFile(data);
@@ -238,7 +239,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
             style={{ position: 'absolute', top: 0, insetInline: 0, width: '100%', height: origin.top + origin.height + 300, zIndex: 5 }} />
         )}
 
-        <div ref={heroRef} className={`inv-hero ${d.heroShape}`} style={{ aspectRatio: pos.ratio }}>
+        <div ref={heroRef} className={hero || preview ? `inv-hero ${d.heroShape}` : 'inv-hero-none'} style={hero || preview ? { aspectRatio: pos.ratio } : undefined}>
           {hero ? (
             <div className={anim ? 'inv-kenburns' : ''} style={{ position: 'absolute', inset: 0 }}>
               <div ref={driftRef} className="inv-drift">
@@ -292,7 +293,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
             </section>
           )}
 
-          <section className="inv-sec inv-band">
+          <section className={`inv-sec ${hasPlace ? 'inv-band' : 'inv-plain'}`}>
             <Reveal on={anim}>
               {(data.venue_name || data.address) && (
                 <>

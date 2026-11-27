@@ -112,7 +112,7 @@ export default function WhatsAppPage() {
     toast('התבנית נמחקה'); await box.load();
   }
 
-  if (box.state === 'loading') return <p className="p-6 text-muted">טוענים…</p>;
+  if (box.state === 'loading') return <div className="grid gap-3" aria-busy="true" aria-label="טוענים"><div className="skeleton h-9 w-48" /><div className="grid grid-cols-2 gap-3 lg:grid-cols-4"><div className="skeleton h-24" /><div className="skeleton h-24" /><div className="skeleton h-24" /><div className="skeleton h-24" /></div><div className="skeleton h-56" /></div>;
   if (box.state === 'setup') return <><PageHead title="הזמנות WhatsApp" /><SetupNotice /></>;
   const all = box.messages.filter((m) => box.campaigns.find((c) => c.id === m.campaign_id)?.kind === 'invite');
   const stat = (s: string) => all.filter((m) => m.status === s).length;

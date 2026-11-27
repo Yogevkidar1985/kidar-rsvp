@@ -79,7 +79,7 @@ export default function TablesPage() {
                   <button key={t.id} type="button" data-testid="hall-table"
                     onPointerDown={(e) => { if (canEdit) { moved.current = false; (e.target as HTMLElement).setPointerCapture?.(e.pointerId); setDrag({ id: t.id, x: p.x, y: p.y }); } }}
                     onClick={() => { if (!moved.current) setSel(t.id); }}
-                    style={{ left: `${p.x}%`, top: `${p.y}%`, background: `conic-gradient(${l.over ? '#b4483f' : '#2f7d5b'} ${fill * 360}deg, #dfe4ec 0)` }}
+                    style={{ left: `${p.x}%`, top: `${p.y}%`, background: `conic-gradient(${l.over ? 'var(--color-no)' : 'var(--color-ok)'} ${fill * 360}deg, var(--color-line) 0)` }}
                     className={`absolute grid size-[76px] -translate-x-1/2 -translate-y-1/2 place-items-center p-1 shadow-sm ${t.shape === 'round' ? 'rounded-full' : 'rounded-xl'} ${sel === t.id ? 'ring-2 ring-brass ring-offset-2' : ''}`}>
                     <span className={`grid size-full place-items-center bg-white text-center leading-tight ${t.shape === 'round' ? 'rounded-full' : 'rounded-lg'}`}>
                       <span><span className="block max-w-16 truncate text-xs font-bold">{t.name}</span><span className="text-[11px] text-muted">{l.used}/{t.capacity}</span></span>

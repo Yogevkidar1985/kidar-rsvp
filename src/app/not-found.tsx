@@ -1,9 +1,12 @@
 export default function NotFound() {
   return (
-    <main style={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', textAlign: 'center', padding: 24 }}>
-      <div>
-        <h1 style={{ font: '500 32px/1.2 "Frank Ruhl Libre", serif', margin: 0 }}>ההזמנה לא נמצאה</h1>
-        <p style={{ color: '#66728a' }}>ייתכן שהקישור שגוי או שההזמנה עדיין לא פורסמה. בקשו מבעלי האירוע קישור מעודכן.</p>
+    <main className="grid min-h-dvh place-items-center bg-[#F8F5EF] px-6 text-center text-[#40352F]">
+      <div className="max-w-sm">
+        <div className="mx-auto mb-6 flex items-center justify-center gap-3 text-[#B7A08C]" aria-hidden="true">
+          <i className="block h-px w-11 bg-current" /><svg width="9" height="9" viewBox="0 0 9 9"><path d="M4.5 0 9 4.5 4.5 9 0 4.5z" fill="currentColor" /></svg><i className="block h-px w-11 bg-current" />
+        </div>
+        <h1 className="text-[30px] font-light leading-tight">ההזמנה לא נמצאה</h1>
+        <p className="mt-3 text-[17px] leading-relaxed text-[#6F5F55]">ייתכן שהקישור שגוי או שההזמנה עדיין לא פורסמה. בקשו מבעלי האירוע קישור מעודכן.</p>
       </div>
     </main>
   );

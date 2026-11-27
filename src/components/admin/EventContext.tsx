@@ -84,7 +84,7 @@ export function EventProvider({ id, children }: { id: string; children: React.Re
     event, setEvent, guests, tables, role, canEdit: role !== 'viewer', isOwner: role === 'owner', reload, updateGuest,
   }, [event, guests, tables, role, reload, updateGuest]);
 
-  if (state === 'loading') return <div className="p-10 text-center text-muted">טוענים את נתוני האירוע…</div>;
+  if (state === 'loading') return <div className="mx-auto max-w-[1180px] p-6"><div className="grid gap-3" aria-busy="true" aria-label="טוענים"><div className="skeleton h-9 w-48" /><div className="grid grid-cols-2 gap-3 lg:grid-cols-4"><div className="skeleton h-24" /><div className="skeleton h-24" /><div className="skeleton h-24" /><div className="skeleton h-24" /></div><div className="skeleton h-56" /></div></div>;
   if (state === 'missing' || !value) {
     return <div className="p-10 text-center"><p className="font-display text-xl">האירוע לא נמצא</p><p className="mt-2 text-muted">ייתכן שאין לך הרשאה לצפות בו. <a className="underline" href="/admin">חזרה לרשימת האירועים</a></p></div>;
   }

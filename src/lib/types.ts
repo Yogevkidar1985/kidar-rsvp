@@ -83,5 +83,5 @@ export type ResponseRow = {
 };
 
 export const STATUS_LABEL: Record<GuestStatus, string> = {
-  pending: 'טרם השיבו', attending: 'מגיעים', maybe: 'אולי', declined: 'לא מגיעים',
+  pending: 'טרם השיבו', attending: 'מגיעים', maybe: 'עדיין לא בטוחים', declined: 'לא מגיעים',
 };

@@ -23,7 +23,7 @@ export default function ResetPage() {
         <h1 className="font-display text-xl font-medium">בחירת סיסמה חדשה</h1>
         <label className="mt-4 block"><span className="label">סיסמה חדשה</span>
           <input className="field" type="password" dir="ltr" autoComplete="new-password" minLength={10} required value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-        {msg && <p role="alert" className="mt-3 rounded-lg bg-[#f8e4e2] px-3 py-2 text-sm font-semibold text-[#9a3a32]">{msg}</p>}
+        {msg && <p role="alert" className="notice notice-bad mt-3">{msg}</p>}
         <button className="btn mt-4 w-full" disabled={busy}>שמירת הסיסמה</button>
       </form>
     </main>

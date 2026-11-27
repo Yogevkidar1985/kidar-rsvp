@@ -44,7 +44,7 @@ export default function NewEvent({ sources }: { sources: { id: string; name: str
             {sources.map((s) => <option key={s.id} value={s.id}>שכפול: {s.name}</option>)}
           </select></label>
       )}
-      {err && <p role="alert" className="rounded-lg bg-[#f8e4e2] px-3 py-2 text-sm font-semibold text-[#9a3a32]">{err}</p>}
+      {err && <p role="alert" className="notice notice-bad">{err}</p>}
       <button className="btn justify-self-start" disabled={busy}>יצירת האירוע</button>
     </form>
   );

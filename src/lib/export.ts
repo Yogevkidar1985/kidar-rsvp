@@ -16,7 +16,7 @@ export const COLUMNS: { key: ColumnKey; label: string }[] = [
 ];
 export type Scope = 'all' | 'attending' | 'maybe' | 'pending' | 'declined';
 export const SCOPES: { key: Scope; label: string }[] = [
-  { key: 'all', label: 'כל המוזמנים' }, { key: 'attending', label: 'מי שאישרו' }, { key: 'maybe', label: 'אולי מגיעים' },
+  { key: 'all', label: 'כל המוזמנים' }, { key: 'attending', label: 'מי שאישרו' }, { key: 'maybe', label: 'עדיין לא בטוחים' },
   { key: 'pending', label: 'מי שטרם השיבו' }, { key: 'declined', label: 'מי שלא מגיעים' },
 ];
 
