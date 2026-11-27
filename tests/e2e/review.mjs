@@ -23,7 +23,7 @@ await mock.sql(`update events set published = true, venue_name = 'אולם הד�
   closing_text = 'מחכים לראותכם,', hosts = 'יוגב ואביה קידר' where slug = 'kidar-brit'`, [img(1), JSON.stringify(design)]);
 await mock.sql(`insert into media_assets (event_id, kind, url, sort) select id, k, u, s from events, (values ('gallery', $1, 0), ('gallery', $2, 1), ('gallery', $3, 2), ('venue', $3, 0), ('venue', $1, 1), ('venue', $2, 2)) v(k, u, s) where slug = 'kidar-brit'`, [img(2), img(3), img(4)]);
 if (palette) await mock.sql(`update events set design = $1 where slug = 'kidar-brit'`, [JSON.stringify({ ...design, ...JSON.parse(palette) })]);
-const env = { ...process.env, NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${MOCK}`, NEXT_PUBLIC_SUPABASE_ANON_KEY: ANON, SUPABASE_SERVICE_ROLE_KEY: SERVICE, RSVP_HASH_SECRET: 'test', NODE_USE_ENV_PROXY: '', HTTPS_PROXY: '', https_proxy: '', HTTP_PROXY: '', http_proxy: '' };
+const env = { ...process.env, NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${MOCK}`, NEXT_PUBLIC_SUPABASE_ANON_KEY: ANON, SUPABASE_SERVICE_ROLE_KEY: SERVICE, RSVP_HASH_SECRET: 'test', INVITATION_CACHE_SECONDS: '0', NODE_USE_ENV_PROXY: '', HTTPS_PROXY: '', https_proxy: '', HTTP_PROXY: '', http_proxy: '' };
 const app = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-p', '3112', '-H', '127.0.0.1'], { cwd: root, env, stdio: 'ignore' });
 for (let i = 0; i < 60; i++) { try { await fetch(APP + '/admin/login'); break; } catch { await sleep(500); } }
 const { chromium, devices } = createRequire(import.meta.url)('playwright');

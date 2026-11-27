@@ -17,7 +17,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const mock = await startMock(MOCK, root);
 await mock.sql(`update events set published = true, venue_name = 'אולם הדוגמה', address = 'הרצל 1, כפר סבא' where slug = 'kidar-brit'`);
 const [{ id }] = await mock.sql(`select id from events where slug = 'kidar-brit'`);
-const env = { ...process.env, NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${MOCK}`, NEXT_PUBLIC_SUPABASE_ANON_KEY: ANON, SUPABASE_SERVICE_ROLE_KEY: SERVICE, RSVP_HASH_SECRET: 'test', GREEN_API_INSTANCE_ID: '', GREEN_API_TOKEN: '' };
+const env = { ...process.env, NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${MOCK}`, NEXT_PUBLIC_SUPABASE_ANON_KEY: ANON, SUPABASE_SERVICE_ROLE_KEY: SERVICE, RSVP_HASH_SECRET: 'test', INVITATION_CACHE_SECONDS: '0', GREEN_API_INSTANCE_ID: '', GREEN_API_TOKEN: '' };
 const app = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-p', '3115', '-H', '127.0.0.1'], { cwd: root, env, stdio: 'ignore' });
 for (let i = 0; i < 60; i++) { try { await fetch(APP + '/admin/login'); break; } catch { await sleep(500); } }
 const browser = await chromium.launch();

@@ -31,7 +31,7 @@ const [{ id: eventId }] = await sql(`select id from events where slug = 'kidar-b
 const TOKEN = 'abcdef0123456789abcdef0123456789abcdef0123456789';
 
 // no connection in the environment: the screen is the only source
-const env = { ...process.env, NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${MOCK}`, NEXT_PUBLIC_SUPABASE_ANON_KEY: ANON, SUPABASE_SERVICE_ROLE_KEY: SERVICE, RSVP_HASH_SECRET: 'test',
+const env = { ...process.env, NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${MOCK}`, NEXT_PUBLIC_SUPABASE_ANON_KEY: ANON, SUPABASE_SERVICE_ROLE_KEY: SERVICE, RSVP_HASH_SECRET: 'test', INVITATION_CACHE_SECONDS: '0',
   GREEN_API_INSTANCE_ID: '', GREEN_API_TOKEN: '', GREEN_API_URL: '', NEXT_PUBLIC_SITE_URL: 'https://invite.example', NODE_USE_ENV_PROXY: '', HTTPS_PROXY: '', https_proxy: '', HTTP_PROXY: '', http_proxy: '' };
 const app = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-p', '3114', '-H', '127.0.0.1'], { cwd: root, env, stdio: 'ignore' });
 for (let i = 0; i < 60; i++) { try { await fetch(APP + '/admin/login'); break; } catch { await sleep(500); } }

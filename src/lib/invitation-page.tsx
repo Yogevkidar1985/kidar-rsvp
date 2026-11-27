@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
+import { unstable_cache } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import type { PublicInvitation } from '@/lib/types';
 import InvitationView from '@/components/invitation/InvitationView';
@@ -12,11 +13,20 @@ import { LINK_CODE } from './links';
 import { resolveDesign } from './defaults';
 const RESERVED = new Set(['admin', 'api', 'auth', 'e', 'i', 'og', 'fonts']);
 
-const load = cache(async (slug: string, token: string | null): Promise<PublicInvitation | null> => {
-  if (!/^[a-z0-9][a-z0-9-]{2,60}$/.test(slug) || RESERVED.has(slug)) return null;
+async function fetchInvitation(slug: string, token: string | null): Promise<PublicInvitation | null> {
   const { data, error } = await supabaseAdmin().rpc('get_public_invitation', { p_slug: slug, p_token: token });
   if (error) throw new Error('invitation lookup failed');
   return (data as PublicInvitation | null) ?? null;
+}
+/**
+ * The invitation as everyone sees it changes only when the owner saves, so it is kept for half a minute and dropped
+ * the moment a save happens (see /api/admin/revalidate). A personal link is always read fresh: it carries the family's answer.
+ */
+const TTL = Number(process.env.INVITATION_CACHE_SECONDS ?? 30);
+const general = (slug: string) => TTL <= 0 ? fetchInvitation(slug, null) : unstable_cache(() => fetchInvitation(slug, null), ['invitation', slug], { revalidate: TTL, tags: [`inv:${slug}`] })();
+const load = cache(async (slug: string, token: string | null): Promise<PublicInvitation | null> => {
+  if (!/^[a-z0-9][a-z0-9-]{2,60}$/.test(slug) || RESERVED.has(slug)) return null;
+  return token ? fetchInvitation(slug, token) : general(slug);
 });
 /** A guest's key: the long token of older links, the short code of new ones, or a word the owner chose. Anything else is ignored. */
 export const guestKey = (g?: string | null) => (g && (/^[a-f0-9]{18}$/.test(g) || LINK_CODE.test(g)) ? g : null);

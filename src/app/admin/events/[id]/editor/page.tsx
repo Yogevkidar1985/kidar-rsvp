@@ -13,6 +13,7 @@ import InvitationView from '@/components/invitation/InvitationView';
 import { HEBREW_FONTS, PALETTES, applyFont, applyPalette, resolveDesign } from '@/lib/defaults';
 import { hebrewDate, weekdayLabel } from '@/lib/hebrew-date';
 import MediaGrid from '@/components/admin/MediaGrid';
+import { refreshPublic } from '@/lib/refresh-public';
 import { MIX, shape } from '@/components/invitation/Particles';
 import type { Design, EventRow, Media, ParticleKind, TextStyle } from '@/lib/types';
 
@@ -199,7 +200,7 @@ export default function EditorPage() {
     const { data, error } = await db.from('events').update(row).eq('id', id).select('*').single();
     setSaving(false);
     if (error || !data) return toast(error?.code === '23505' ? 'כתובת ההזמנה כבר תפוסה.' : dbError(error), true);
-    setEvent(data as EventRow); setDraftRaw(data as EventRow);
+    setEvent(data as EventRow); setDraftRaw(data as EventRow); void refreshPublic(event.id, event.slug);
     toast(publish === true ? 'ההזמנה פורסמה' : publish === false ? 'הפרסום בוטל' : 'השינויים נשמרו');
   }
 
@@ -225,14 +226,14 @@ export default function EditorPage() {
           if (error) toast(dbError(error), true);
         }
       }
-      await loadMedia(); toast('התמונות הועלו');
+      await loadMedia(); void refreshPublic(event.id); toast('התמונות הועלו');
     } finally { setUploading(false); }
   }
   async function removeMedia(m: Media) {
     const { error } = await db.from('media_assets').delete().eq('id', m.id);
     if (error) return toast(dbError(error), true);
     if (m.path) await db.storage.from('event-media').remove([m.path]);
-    await loadMedia();
+    await loadMedia(); void refreshPublic(event.id);
   }
 
   const pos = Object.assign({ x: 50, y: 50, zoom: 1, ratio: '4/5', brightness: 1, contrast: 1, overlay: 0 }, draft.hero_pos);
@@ -252,6 +253,7 @@ export default function EditorPage() {
     const res = await Promise.all(ids.map((id, i) => (byId.get(id)?.sort === i ? null : db.from('media_assets').update({ sort: i }).eq('id', id))));
     const failed = res.find((r) => r?.error);
     if (failed?.error) { setMedia(before); toast(dbError(failed.error), true); await loadMedia(); }
+    void refreshPublic(event.id);
   }
   const thumbs = (kind: 'gallery' | 'venue') => (
     <MediaGrid name={kind} items={media.filter((m) => m.kind === kind)} disabled={!canEdit} onReorder={(ids) => reorder(kind, ids)} onRemove={removeMedia} />

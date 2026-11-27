@@ -7,6 +7,7 @@ import { Field, dbError, useToast } from '@/components/admin/ui';
 import { resolveDesign } from '@/lib/defaults';
 import { inviteUrl } from '@/lib/templates';
 import { LINK_CODE, SLUG, randomCode } from '@/lib/links';
+import { refreshPublic } from '@/lib/refresh-public';
 import type { EventRow, Guest } from '@/lib/types';
 
 /** Everything about the links that are sent: the invitation's address, how a link looks inside WhatsApp, and each family's own link. */
@@ -39,7 +40,7 @@ export default function LinksPage() {
     const { data, error } = await db.from('events').update(patch).eq('id', event.id).select('*').single();
     setBusy('');
     if (error || !data) return toast(error?.code === '23505' ? 'הכתובת הזו כבר תפוסה. בחרו אחרת.' : dbError(error), true);
-    setEvent(data as EventRow); setStamp(Date.now()); toast(done);
+    setEvent(data as EventRow); setStamp(Date.now()); await refreshPublic(event.id, event.slug); toast(done);
   }
   async function saveSlug() {
     if (!slugOk || slug === event.slug) return;
