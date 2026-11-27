@@ -64,7 +64,7 @@ input[type="range"] { accent-color: var(--color-ink); }
   /* a row of section tabs that scrolls sideways instead of wrapping */
   .tabs { display: flex; gap: 2px; min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: none; padding: 3px; border-radius: 11px; background: #eef1f5; -webkit-overflow-scrolling: touch; }
   .tabs::-webkit-scrollbar { display: none; }
-  .tabs > button { flex: none; min-height: 34px; padding: 0 .8rem; border-radius: 8px; font-size: 14px; font-weight: 500; color: var(--color-muted); white-space: nowrap; transition: background .15s, color .15s; }
+  .tabs > button { flex: none; min-height: 34px; padding: 0 .8rem; border-radius: 8px; font-size: 14px; font-weight: 500; color: #566074; white-space: nowrap; transition: background .15s, color .15s; }
   .tabs > button[aria-selected="true"], .tabs > button[aria-pressed="true"] { background: #fff; color: var(--color-text); font-weight: 600; box-shadow: 0 1px 2px rgb(16 24 40 / .1); }
   .stat { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; }
   .stat dt, .stat .stat-label { font-size: 13px; font-weight: 500; color: var(--color-muted); }
@@ -73,6 +73,9 @@ input[type="range"] { accent-color: var(--color-ink); }
   /* a phone on the desk: the invitation exactly as a guest gets it */
   .phone { width: min(100%, 340px); margin-inline: auto; padding: 10px; border-radius: 40px; background: #182230; box-shadow: 0 18px 40px -22px rgb(16 24 40 / .55); }
   .phone > iframe { display: block; width: 100%; height: min(70dvh, 640px); border: 0; border-radius: 30px; background: #fff; }
+  /* admin overlays: a short rise, so a dialog reads as arriving rather than blinking in */
+  .overlay { animation: inv-fade .15s ease-out both; }
+  .overlay > [role="dialog"] { animation: rise .2s cubic-bezier(.2,.8,.2,1) both; }
   .skeleton { border-radius: 12px; background: linear-gradient(90deg, #eef1f5 25%, #f6f7f9 37%, #eef1f5 63%); background-size: 400% 100%; animation: skeleton 1.4s ease infinite; }
   .notice { border-radius: 12px; padding: .7rem .9rem; font-size: 14px; border: 1px solid; }
   .notice-warn { background: #fdf7ea; border-color: #f0dcb4; color: #7a5413; }
@@ -166,7 +169,7 @@ input[type="range"] { accent-color: var(--color-ink); }
 .inv-gallery button:first-child:nth-last-child(odd) { grid-column: span 2; }
 .inv-gallery button:first-child:nth-last-child(odd) img { aspect-ratio: 4/3; }
 .inv-gallery button, .inv-venue button { display: block; padding: 0; border: 0; background: var(--inv-soft); overflow: hidden; border-radius: var(--inv-radius-box); }
-.inv-gallery img, .inv-venue img { display: block; width: 100%; aspect-ratio: 4/5; object-fit: cover; transition: transform .6s cubic-bezier(.2,.7,.2,1); }
+.inv-gallery img, .inv-venue img { display: block; width: 100%; aspect-ratio: 4/5; object-fit: cover; transition: transform .4s cubic-bezier(.2,.7,.2,1); }
 .inv-venue img { aspect-ratio: 1; }
 @media (hover: hover) { .inv-gallery button:hover img, .inv-venue button:hover img { transform: scale(1.04); } }
 .inv-video { margin-top: 6px; aspect-ratio: 16/9; background: #000; border-radius: var(--inv-radius-box); overflow: hidden; }
@@ -177,7 +180,7 @@ input[type="range"] { accent-color: var(--color-ink); }
 .inv-notes dd { margin: 4px 0 0; white-space: pre-line; font-size: 16px; line-height: 1.65; color: var(--inv-dim); }
 
 .inv-sticky { position: fixed; inset-inline: 0; bottom: 0; z-index: 30; padding: 22px 16px calc(12px + env(safe-area-inset-bottom));
-  background: linear-gradient(to top, var(--inv-surface) 62%, transparent); transform: translateY(110%); transition: transform .35s cubic-bezier(.2,.8,.2,1); }
+  background: linear-gradient(to top, var(--inv-surface) 62%, transparent); transform: translateY(110%); transition: transform .3s cubic-bezier(.2,.8,.2,1); }
 .inv-sticky.show { transform: none; }
 .inv-sticky .inv-btn { max-width: 448px; margin: 0 auto; box-shadow: 0 14px 30px -18px var(--inv-button); }
 
@@ -187,17 +190,21 @@ input[type="range"] { accent-color: var(--color-ink); }
 .inv-light-nav button, .inv-light-x { width: 46px; height: 46px; border-radius: 50%; border: 1px solid rgb(255 255 255 / .35); background: none; color: #fff; font-size: 24px; line-height: 1; }
 .inv-light-x { position: absolute; top: calc(14px + env(safe-area-inset-top)); inset-inline-end: 14px; }
 
-.reveal { opacity: 0; transform: translateY(16px); transition: opacity .9s ease, transform .9s cubic-bezier(.2,.7,.2,1); }
+/* Motion: entrances ease out and end within 600ms; anything a finger triggers answers in 150-300ms; only ambient motion runs longer. */
+.reveal { opacity: 0; transform: translateY(12px); transition: opacity .6s ease-out, transform .6s cubic-bezier(.2,.7,.2,1); }
 .reveal.in { opacity: 1; transform: none; }
-.inv-load { animation: inv-fade 1.2s ease both; }
+.inv-load { animation: inv-fade .5s ease-out both; }
 .inv-kenburns { animation: inv-zoom 16s ease-out both; }
 @keyframes inv-fade { from { opacity: 0; } }
 @keyframes inv-zoom { from { scale: 1.08; } to { scale: 1; } }
 
+.sheet-back.closing { animation: inv-fade .18s ease-in reverse both; }
+.sheet-back.closing .sheet { animation: sheet-down .18s ease-in both; }
+@keyframes sheet-down { to { transform: translateY(28px); opacity: 0; } }
 .sheet-back { position: fixed; inset: 0; z-index: 50; background: color-mix(in srgb, var(--inv-ink, #1e2a44) 55%, transparent); display: flex; align-items: flex-end; justify-content: center; animation: inv-fade .2s ease both; }
 .sheet:focus, .inv-light:focus { outline: none; }
 .sheet { width: 100%; max-width: 480px; max-height: 94dvh; overflow-y: auto; background: var(--inv-surface, #fff); color: var(--inv-ink, #1e2a44); border-radius: 14px 14px 0 0;
-  padding: 26px 24px calc(24px + env(safe-area-inset-bottom)); animation: sheet-up .34s cubic-bezier(.2,.8,.2,1) both; font-family: var(--inv-font, "Assistant", sans-serif); font-size: 16px; }
+  padding: 26px 24px calc(24px + env(safe-area-inset-bottom)); animation: sheet-up .3s cubic-bezier(.2,.8,.2,1) both; font-family: var(--inv-font, "Assistant", sans-serif); font-size: 16px; }
 @media (min-width: 640px) { .sheet-back { align-items: center; } .sheet { border-radius: 6px; } }
 @keyframes sheet-up { from { transform: translateY(40px); opacity: 0; } }
 .sheet-title { margin: 0; font: 300 27px/1.2 var(--inv-font); }
@@ -215,9 +222,10 @@ input[type="range"] { accent-color: var(--color-ink); }
 .stepper button { width: 44px; height: 44px; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--inv-ink) 30%, transparent); background: none; font-size: 22px; line-height: 1; color: var(--inv-ink); }
 .stepper output { min-width: 26px; text-align: center; font: 500 21px/1 var(--inv-font); font-variant-numeric: tabular-nums; }
 
+@keyframes rise { from { transform: translateY(10px); opacity: 0; } }
 @keyframes skeleton { from { background-position: 100% 50%; } to { background-position: 0 50%; } }
 @media (prefers-reduced-motion: reduce) {
-  .skeleton { animation: none; }
+  .skeleton, .overlay, .overlay > [role="dialog"], .sheet-back.closing, .sheet-back.closing .sheet { animation: none; }
   .reveal { opacity: 1; transform: none; transition: none; }
   .inv-load, .inv-kenburns, .sheet, .sheet-back { animation: none; }
   .inv-sticky, .inv-btn, .inv-gallery img, .inv-venue img { transition: none; }

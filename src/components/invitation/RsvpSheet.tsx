@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import type { GuestStatus, PublicGuest } from '@/lib/types';
 import { normPhone } from '@/lib/phone';
@@ -41,7 +41,15 @@ function Stepper({ label, hint, value, set, max }: { label: string; hint?: strin
   );
 }
 
-export default function RsvpSheet({ slug, token, guest, maxParty, accent, initial = null, test = false, onClose, onSaved }: Props) {
+export default function RsvpSheet({ slug, token, guest, maxParty, accent, initial = null, test = false, onClose: close, onSaved }: Props) {
+  const [closing, setClosing] = useState(false);
+  // plays the exit, then hands control back; a second request while it plays is ignored
+  const leaving = useRef(false);
+  const onClose = useCallback(() => {
+    if (leaving.current) return;
+    leaving.current = true; setClosing(true);
+    window.setTimeout(close, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 180);
+  }, [close]);
   const answered = guest && guest.status !== 'pending';
   const [name, setName] = useState(guest?.contact_name || guest?.family_name || '');
   const [phone, setPhone] = useState('');
@@ -101,7 +109,7 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, initia
   }
 
   return (
-    <div className="sheet-back" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className={`sheet-back${closing ? ' closing' : ''}`} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div ref={box} tabIndex={-1} className="sheet" role="dialog" aria-modal="true" aria-label="אישור הגעה" dir="rtl">
         {done ? (
           <div style={{ textAlign: 'center', padding: '8px 0 6px' }} data-testid="rsvp-success">

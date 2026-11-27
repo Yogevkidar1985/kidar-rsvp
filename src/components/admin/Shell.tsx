@@ -112,7 +112,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </button>
       </nav>
       {open && (
-        <div className="no-print fixed inset-0 z-50 flex items-end bg-text/40 lg:hidden" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
+        <div className="overlay no-print fixed inset-0 z-50 flex items-end bg-text/40 lg:hidden" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
           <div ref={drawer} tabIndex={-1} role="dialog" aria-modal="true" aria-label="תפריט" className="max-h-[86dvh] w-full overflow-y-auto rounded-t-2xl bg-white px-3 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3">
             <div className="mb-3 flex items-center justify-between px-2.5">
               <span className="text-[15px] font-semibold">תפריט</span>

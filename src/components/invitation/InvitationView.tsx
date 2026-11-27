@@ -268,9 +268,9 @@ export default function InvitationView({ data, token = null, preview = false, ce
           <section className="inv-sec inv-first">
             {guest && <Reveal on={anim}><p className="inv-dear">{guest.family_name} היקרים</p></Reveal>}
             {data.headline && <Reveal on={anim}><h1 style={css(d.styles.headline)}>{data.headline}</h1></Reveal>}
-            {data.intro_text && <Reveal on={anim} delay={80}><p style={{ ...body, marginTop: 20, whiteSpace: 'pre-line' }}>{data.intro_text}</p></Reveal>}
+            {data.intro_text && <Reveal on={anim} delay={50}><p style={{ ...body, marginTop: 20, whiteSpace: 'pre-line' }}>{data.intro_text}</p></Reveal>}
             {(data.closing_text || data.hosts) && (
-              <Reveal on={anim} delay={140}>
+              <Reveal on={anim} delay={100}>
                 {data.closing_text && <p style={{ ...body, marginTop: 24, whiteSpace: 'pre-line' }}>{data.closing_text}</p>}
                 {data.hosts && <p style={{ ...body, fontWeight: 500 }}>{data.hosts}</p>}
               </Reveal>
