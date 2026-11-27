@@ -30,6 +30,8 @@ export default function VenueMap({ lat, lng, label, sublabel = '', zoom = 16, on
         maxZoom: 19,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>',
       }).addTo(map);
+      // the credit to the map library opens beside the invitation, never instead of it
+      map.attributionControl?.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener noreferrer">Leaflet</a>');
       const icon = L.divIcon({
         className: 'pm-pin', iconSize: [0, 0], iconAnchor: [0, 0],
         html: `<div class="pm-pin__label" dir="rtl"><span class="pm-pin__name">${esc(label)}</span>${sublabel ? `<span class="pm-pin__sub">${esc(sublabel)}</span>` : ''}</div><div class="pm-pin__head"></div><div class="pm-pin__stem"></div><div class="pm-pin__shadow"></div>`,
