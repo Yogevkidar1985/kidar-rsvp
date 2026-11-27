@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { AnimatePresence, LayoutGroup, motion } from 'framer-motion';
 
 /**
@@ -32,11 +32,22 @@ function useNarrow(query = '(max-width: 768px)') {
 export function StackGallery({ images, onOpen, allLabel = 'כל התמונות' }: Props) {
   const [open, setOpen] = useState(false);
   const group = useId();
+  // the fan is sized from the room it has: on a narrow phone the cards shrink and close up, so no corner is cut off
+  const area = useRef<HTMLDivElement>(null);
+  const [room, setRoom] = useState(332);
+  useEffect(() => {
+    const el = area.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setRoom(e.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const card = Math.round(Math.min(216, room * 0.5)), k = Math.min(1, (room * 0.19) / 74);
   if (!images.length) return null;
   return (
     <div className="sgal" data-testid="stack-gallery">
       <LayoutGroup id={group}>
-        <motion.div layout className={`sgal__area ${open ? 'is-expanded' : 'is-stacked'}`} transition={spring}>
+        <motion.div ref={area} layout className={`sgal__area ${open ? 'is-expanded' : 'is-stacked'}`} style={{ ['--fan' as string]: `${card}px` }} transition={spring}>
           {images.map((m, i) => {
             if (i >= 3 && !open) return null;
             const fan = images.length === 1 ? { rotate: 0, x: 0, y: 0, zIndex: 10 } : FAN[i] ?? { rotate: 0, x: 0, y: 0, zIndex: i };
@@ -44,7 +55,7 @@ export function StackGallery({ images, onOpen, allLabel = 'כל התמונות' 
               <motion.button type="button" key={m.id} layoutId={`sgal-${group}-${m.id}`} layout
                 className={`sgal__card ${open ? 'is-grid' : 'is-fan'}`}
                 initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1, rotate: open ? 0 : fan.rotate, x: open ? 0 : fan.x, y: open ? 0 : fan.y, zIndex: open ? 10 : fan.zIndex }}
+                animate={{ opacity: 1, scale: 1, rotate: open ? 0 : fan.rotate, x: open ? 0 : fan.x * k, y: open ? 0 : fan.y * k, zIndex: open ? 10 : fan.zIndex }}
                 transition={spring}
                 onClick={() => (open ? onOpen(i) : setOpen(true))}
                 aria-label={open ? m.caption || `הגדלת תמונה ${i + 1}` : 'הצגת כל התמונות'}>
