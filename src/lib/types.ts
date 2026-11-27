@@ -9,7 +9,11 @@ export type ParticleKind = 'petals' | 'feathers' | 'confetti' | 'hearts' | 'star
 export type Design = {
   /** id of the palette the colours came from; 'custom' after a manual colour change */
   palette: string;
-  colors: { bg: string; surface: string; soft: string; ink: string; muted: string; accent: string; button: string; buttonText: string };
+  colors: { bg: string; surface: string; soft: string; ink: string; muted: string; accent: string; line: string; button: string; buttonText: string };
+  /** palettes the owner saved from their own colours */
+  saved: { name: string; colors: Design['colors'] }[];
+  /** corner style of buttons and fields */
+  corners: 'sharp' | 'soft' | 'pill';
   /** the one family used for buttons, labels and forms */
   font: string;
   /** optional Latin line above the invitation, e.g. the hosts' names */

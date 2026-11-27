@@ -17,7 +17,7 @@ http.createServer((q, s) => { try { s.writeHead(200, { 'content-type': 'image/jp
 const mock = await startMock(MOCK, root);
 const img = (n) => `http://127.0.0.1:${IMG}/${n}.jpg`;
 const design = { latin: 'AVIYA & YOGEV KIDAR' };
-await mock.sql(`update events set published = true, venue_name = 'אולם הדוגמה', address = 'הרצל 1, כפר סבא', parking = 'חניה חינם בחניון האולם.',
+await mock.sql(`update events set published = true, venue_name = 'אולם הדוגמה', address = 'הרצל 1, כפר סבא', contact_phone = '050-0000000', parking = 'חניה חינם בחניון האולם.',
   hero_url = $1, design = $2, headline = 'נולד לנו בן',
   intro_text = E'בשעה טובה, זכינו להרחיב את המשפחה.\nהנכם מוזמנים לחגוג ולהתרגש עימנו\nבמסיבת הברית של בננו.\nנוכחותכם תשמח אותנו.',
   closing_text = 'מחכים לראותכם,', hosts = 'יוגב ואביה קידר' where slug = 'kidar-brit'`, [img(1), JSON.stringify(design)]);

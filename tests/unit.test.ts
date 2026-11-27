@@ -117,7 +117,8 @@ describe('notifications and calendar', () => {
 describe('design', () => {
   it('fills gaps in a partial design and ignores unknown fonts', () => {
     const d = resolveDesign({ colors: { bg: '#000000' } as never });
-    expect(d.colors.bg).toBe('#000000'); expect(d.colors.ink).toBe(DEFAULT_DESIGN.colors.ink); expect(d.fall.kind).toBe('feathers');
+    expect(d.colors.bg).toBe('#000000'); expect(d.colors.ink).toBe(DEFAULT_DESIGN.colors.ink); expect(d.fall.kind).toBe('confetti');
+    expect(resolveDesign({ font: 'David Libre' } as never).styles.headline.font).toBe('Heebo');
     expect(fontsHref(['Bellefair', 'Evil"><script>'])).toBe('https://fonts.googleapis.com/css2?family=Bellefair&display=swap');
   });
   it('produces a well-formed Lottie document', () => {

@@ -6,7 +6,6 @@ import { PageHead } from '@/components/admin/Shell';
 import { Field, dbError, useToast } from '@/components/admin/ui';
 import InvitationView from '@/components/invitation/InvitationView';
 import { HEBREW_FONTS, PALETTES, applyFont, applyPalette, resolveDesign } from '@/lib/defaults';
-import { FONTS } from '@/lib/fonts';
 import { hebrewDate, weekdayLabel } from '@/lib/hebrew-date';
 import type { Design, EventRow, Media, ParticleKind, TextStyle } from '@/lib/types';
 
@@ -21,7 +20,7 @@ const STYLE_KEYS: { key: keyof Design['styles']; label: string }[] = [
 ];
 const COLOR_KEYS: { key: keyof Design['colors']; label: string }[] = [
   { key: 'bg', label: 'רקע העמוד' }, { key: 'surface', label: 'רקע ההזמנה' }, { key: 'soft', label: 'רקע משני' }, { key: 'ink', label: 'צבע ראשי' }, { key: 'muted', label: 'טקסט משני' },
-  { key: 'accent', label: 'צבע הדגשה' }, { key: 'button', label: 'כפתור אישור' }, { key: 'buttonText', label: 'טקסט הכפתור' },
+  { key: 'accent', label: 'צבע הדגשה' }, { key: 'line', label: 'קווים ומסגרות' }, { key: 'button', label: 'כפתור אישור' }, { key: 'buttonText', label: 'טקסט הכפתור' },
 ];
 
 async function shrink(file: File, max = 2000): Promise<Blob> {
@@ -191,6 +190,7 @@ export default function EditorPage() {
       <PageHead title="עיצוב ההזמנה" sub={dirty ? 'יש שינויים שלא נשמרו' : 'כל השינויים שמורים'}>
         <button className="btn btn-ghost" aria-label="ביטול הפעולה האחרונה" title="ביטול" disabled={!hist.current.past.length} onClick={() => step('undo')}>↶</button>
         <button className="btn btn-ghost" aria-label="ביצוע מחדש" title="ביצוע מחדש" disabled={!hist.current.future.length} onClick={() => step('redo')}>↷</button>
+        <button className="btn btn-ghost" disabled={!dirty} title="מחזיר את ההזמנה לגרסה השמורה האחרונה" onClick={() => setDraft(event)}>שחזור הגרסה השמורה</button>
         <button className="btn btn-ghost lg:hidden" onClick={() => setView(view === 'edit' ? 'preview' : 'edit')}>{view === 'edit' ? 'תצוגה מקדימה' : 'חזרה לעריכה'}</button>
         <button className="btn btn-ghost" disabled={!canEdit || saving} onClick={() => save(!draft.published)}>{draft.published ? 'ביטול פרסום' : 'שמירה ופרסום'}</button>
         <button className="btn" disabled={!canEdit || saving || !dirty} onClick={() => save()}>{saving ? 'שומרים…' : draft.published ? 'שמירת השינויים' : 'שמירת טיוטה'}</button>
@@ -271,16 +271,13 @@ export default function EditorPage() {
             </>}
             {tab === 'טיפוגרפיה' && <>
               <Field label="פונט אחיד לכל ההזמנה" hint="מחליף את הפונט בכל הטקסטים, הכפתורים והטופס בבת אחת.">
-                <select className="field" value={HEBREW_FONTS.includes(design.font) ? design.font : ''} onChange={(e) => e.target.value && setDesign(applyFont(design, e.target.value))}>
-                  {!HEBREW_FONTS.includes(design.font) && <option value="">{design.font}</option>}
-                  {HEBREW_FONTS.map((f) => <option key={f}>{f}</option>)}</select></Field>
-              <Field label="פונט השורה באנגלית"><select className="field" value={design.latinFont} onChange={(e) => setDesign({ latinFont: e.target.value })}>
-                {['Cormorant Garamond', 'Playfair Display', 'Montserrat', 'Josefin Sans'].map((f) => <option key={f}>{f}</option>)}</select></Field>
+                <select className="field" data-testid="font" value={design.font} onChange={(e) => setDesign(applyFont(design, e.target.value))}>
+                  {HEBREW_FONTS.map((f, i) => <option key={f} value={f}>{f}{i ? '' : ' (מומלץ)'}</option>)}</select></Field>
+              <Field label="פינות הכפתורים והשדות"><select className="field" value={design.corners} onChange={(e) => setDesign({ corners: e.target.value as Design['corners'] })}>
+                <option value="soft">מעוגלות בעדינות</option><option value="sharp">חדות</option><option value="pill">עגולות לגמרי</option></select></Field>
               <Range label="מרווח בין חלקי ההזמנה" value={design.spacing} min={0.6} max={1.6} step={0.05} onChange={(n) => setDesign({ spacing: n })} suffix="×" />
               <p className="border-t border-line pt-3 text-xs text-muted">כוונון עדין לכל סוג טקסט בנפרד:</p>
               <div className="flex flex-wrap gap-1">{STYLE_KEYS.map((s) => <button key={s.key} type="button" onClick={() => setStyleKey(s.key)} className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${styleKey === s.key ? 'bg-ink text-white' : 'bg-paper'}`}>{s.label}</button>)}</div>
-              <Field label="פונט"><select className="field" value={st.font} onChange={(e) => setStyle({ font: e.target.value })}>
-                {[...new Set(FONTS.map((f) => f.group))].map((g) => <optgroup key={g} label={g}>{FONTS.filter((f) => f.group === g).map((f) => <option key={f.name}>{f.name}</option>)}</optgroup>)}</select></Field>
               <Range label="גודל" value={st.size} min={12} max={96} step={1} onChange={(n) => setStyle({ size: n })} suffix="px" />
               <Range label="עובי" value={st.weight} min={100} max={900} step={100} onChange={(n) => setStyle({ weight: n })} />
               <Range label="מרווח אותיות" value={st.spacing} min={-0.05} max={0.4} step={0.01} onChange={(n) => setStyle({ spacing: n })} suffix="em" />
@@ -297,13 +294,34 @@ export default function EditorPage() {
                   <button key={p.id} type="button" aria-pressed={design.palette === p.id} onClick={() => setDesign(applyPalette(design, p))}
                     className={`flex items-center gap-3 rounded-xl border p-2 text-start ${design.palette === p.id ? 'border-ink ring-2 ring-ink/15' : 'border-line hover:bg-paper'}`}>
                     <span className="flex h-10 w-28 flex-none overflow-hidden rounded-lg border border-line" aria-hidden="true">
-                      {[p.colors.surface, p.colors.soft, p.colors.bg, p.colors.accent, p.colors.ink].map((c, i) => <span key={i} className="flex-1" style={{ background: c }} />)}
+                      {[p.colors.surface, p.colors.soft, p.colors.line, p.colors.accent, p.colors.ink].map((c, i) => <span key={i} className="flex-1" style={{ background: c }} />)}
                     </span>
                     <span><b className="block text-sm">{p.name}</b><small className="text-muted">{p.mood}</small></span>
                   </button>
                 ))}
               </div>
-              <p className="border-t border-line pt-3 text-xs text-muted">התאמה אישית של צבע בודד. לחיצה על פלטה מחזירה את צבעי המקור שלה.</p>
+              {design.saved.length > 0 && <>
+                <span className="label">הפלטות שלי</span>
+                <div className="grid gap-2">
+                  {design.saved.map((p, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <button type="button" onClick={() => setDesign(applyPalette(design, { id: 'custom', name: p.name, mood: '', colors: p.colors, fall: [p.colors.accent, p.colors.line, '#FFFFFF', p.colors.muted] }))}
+                        className="flex flex-1 items-center gap-3 rounded-xl border border-line p-2 text-start hover:bg-paper">
+                        <span className="flex h-8 w-24 flex-none overflow-hidden rounded-lg border border-line" aria-hidden="true">
+                          {[p.colors.surface, p.colors.soft, p.colors.line, p.colors.accent, p.colors.ink].map((c, j) => <span key={j} className="flex-1" style={{ background: c }} />)}
+                        </span>
+                        <b className="text-sm">{p.name}</b>
+                      </button>
+                      <button type="button" className="btn btn-danger btn-sm" aria-label={`מחיקת הפלטה ${p.name}`} onClick={() => setDesign({ saved: design.saved.filter((_, j) => j !== i) })}>×</button>
+                    </div>
+                  ))}
+                </div>
+              </>}
+              <div className="flex flex-wrap gap-2 border-t border-line pt-3">
+                <button type="button" className="btn btn-ghost btn-sm" disabled={design.saved.length >= 8} onClick={() => setDesign({ saved: [...design.saved, { name: `הפלטה שלי ${design.saved.length + 1}`, colors: design.colors }] })}>שמירת הצבעים הנוכחיים כפלטה</button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDesign(applyPalette(design, PALETTES[0]))}>חזרה לברירת המחדל</button>
+              </div>
+              <p className="text-xs text-muted">התאמה אישית של צבע בודד:</p>
               <div className="grid grid-cols-2 gap-3">
                 {COLOR_KEYS.map((c) => <Field key={c.key} label={c.label}><input className="field !p-1" type="color" value={design.colors[c.key]} onChange={(e) => setDesign({ palette: 'custom', colors: { ...design.colors, [c.key]: e.target.value } })} /></Field>)}
               </div>

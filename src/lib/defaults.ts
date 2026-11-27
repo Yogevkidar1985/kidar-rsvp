@@ -2,27 +2,20 @@ import type { Design, TextStyle } from './types';
 
 export type Palette = { id: string; name: string; mood: string; colors: Design['colors']; fall: string[] };
 
-/** Five designed palettes. `muted` is darkened from the swatch where needed so small text keeps 4.5:1 contrast. */
+const pal = (id: string, name: string, mood: string, surface: string, soft: string, ink: string, muted: string, accent: string, line: string): Palette =>
+  ({ id, name, mood, colors: { bg: soft, surface, soft, ink, muted, accent, line, button: ink, buttonText: surface }, fall: [accent, line, '#FFFFFF', muted] });
+
+/** Five designed palettes: background, secondary background, text, secondary text, accent, borders. */
 export const PALETTES: Palette[] = [
-  { id: 'champagne', name: 'שמפניה ושנהב', mood: 'חם, אלגנטי, על-זמני',
-    colors: { bg: '#E7DCCB', surface: '#F8F5EF', soft: '#EFE8DC', ink: '#51463D', muted: '#7A6A5B', accent: '#A99683', button: '#51463D', buttonText: '#F8F5EF' },
-    fall: ['#FFFFFF', '#E7DCCB', '#D8C7B3', '#C9B59C'] },
-  { id: 'powder', name: 'תכלת אבקתי', mood: 'עדין, רגוע, מודרני',
-    colors: { bg: '#DCE8EF', surface: '#FAF8F4', soft: '#EDF3F6', ink: '#354B5C', muted: '#587183', accent: '#718B9D', button: '#354B5C', buttonText: '#FAF8F4' },
-    fall: ['#FFFFFF', '#DCE8EF', '#B9CEDB', '#9DB6C6'] },
-  { id: 'sage', name: 'מרווה וחול', mood: 'טבעי, אורגני, מעודן',
-    colors: { bg: '#DCE3D7', surface: '#F6F7F2', soft: '#E9DFD1', ink: '#4C514A', muted: '#66705E', accent: '#87927E', button: '#4C514A', buttonText: '#F6F7F2' },
-    fall: ['#FFFFFF', '#DCE3D7', '#C2CDB9', '#E9DFD1'] },
-  { id: 'silver', name: 'לבן וכסף', mood: 'נקי, מינימלי, עכשווי',
-    colors: { bg: '#E7E8E8', surface: '#FFFFFF', soft: '#F4F4F2', ink: '#424242', muted: '#6F6F6B', accent: '#A7A7A2', button: '#424242', buttonText: '#FFFFFF' },
-    fall: ['#FFFFFF', '#E7E8E8', '#D2D3D3', '#BDBDB9'] },
-  { id: 'dusty', name: 'כחול מאובק וזהב', mood: 'חגיגי, יוקרתי, ייחודי',
-    colors: { bg: '#AEBFCC', surface: '#F8F5EF', soft: '#E7EDF1', ink: '#465563', muted: '#627080', accent: '#C4A878', button: '#465563', buttonText: '#F8F5EF' },
-    fall: ['#FFFFFF', '#E7EDF1', '#C4A878', '#AEBFCC'] },
+  pal('champagne', 'שמפניה ושנהב', 'חם, אלגנטי, על-זמני', '#F8F5EF', '#F1EBE2', '#40352F', '#8C796D', '#B7A08C', '#D9CABC'),
+  pal('powder', 'תכלת אבקתי', 'עדין, רגוע, מודרני', '#F7F9FA', '#EAF0F4', '#354653', '#778C9A', '#A8BFCE', '#D6E0E6'),
+  pal('sage', 'מרווה וחול', 'טבעי, אורגני, מעודן', '#F7F7F1', '#EBEEE6', '#41493F', '#83907E', '#A6B19B', '#D9DED3'),
+  pal('silver', 'לבן וכסף', 'נקי, מינימלי, עכשווי', '#FFFFFF', '#F5F5F3', '#363636', '#888888', '#B6B6B0', '#E5E5E2'),
+  pal('dusty', 'כחול מאובק ושמפניה', 'חגיגי, יוקרתי, ייחודי', '#F8F6F2', '#E9EEF1', '#394957', '#8397A4', '#C2A77E', '#D9DFE3'),
 ];
 
-/** Hebrew families offered as the single invitation font. */
-export const HEBREW_FONTS = ['Frank Ruhl Libre', 'David Libre', 'Heebo', 'Assistant', 'Noto Sans Hebrew'];
+/** Hebrew families offered as the single invitation font. The first is the default. */
+export const HEBREW_FONTS = ['Heebo', 'Assistant', 'Noto Sans Hebrew', 'Rubik'];
 
 const t = (font: string, size: number, weight: number, color: string, extra: Partial<TextStyle> = {}): TextStyle =>
   ({ font, size, weight, spacing: 0, lineHeight: 1.3, align: 'center', color, ...extra });
@@ -30,10 +23,10 @@ const t = (font: string, size: number, weight: number, color: string, extra: Par
 /** The whole type system in one family: hierarchy comes from size, weight and spacing only. */
 export function typeSystem(font: string, ink: string): Design['styles'] {
   return {
-    headline: t(font, 46, 400, ink, { lineHeight: 1.12 }),
-    hosts: t(font, 26, 500, ink, { lineHeight: 1.25 }),
-    body: t(font, 18, 400, ink, { lineHeight: 1.75 }),
-    date: t(font, 17, 400, ink, { spacing: 0.02, lineHeight: 1.5 }),
+    headline: t(font, 40, 300, ink, { lineHeight: 1.15 }),
+    hosts: t(font, 28, 500, ink, { lineHeight: 1.25 }),
+    body: t(font, 18, 400, ink, { lineHeight: 1.8 }),
+    date: t(font, 17, 400, ink, { spacing: 0.01, lineHeight: 1.5 }),
   };
 }
 
@@ -42,14 +35,15 @@ export const DEFAULT_DESIGN: Design = {
   palette: P0.id,
   colors: P0.colors,
   font: HEBREW_FONTS[0],
-  latin: '', latinFont: 'Cormorant Garamond',
+  latin: '', latinFont: HEBREW_FONTS[0],
   spacing: 1,
+  saved: [], corners: 'soft',
   styles: typeSystem(HEBREW_FONTS[0], P0.colors.ink),
-  heroShape: 'arch',
+  heroShape: 'full',
   labels: { rsvp: 'אישור הגעה', rsvpTitle: 'נשמח לראותכם!', navigate: 'ניווט', calendar: 'הוספה ליומן', call: 'חיוג' },
   buttons: { navigate: true, calendar: true, call: true },
   entrance: true,
-  fall: { enabled: true, kind: 'feathers', speed: 0.8, intensity: 0.7, count: 18, duration: 0, colors: P0.fall },
+  fall: { enabled: true, kind: 'confetti', speed: 0.7, intensity: 0.7, count: 22, duration: 0, colors: P0.fall },
   celebrate: { enabled: true, kind: 'confetti', count: 140, duration: 4 },
 };
 
@@ -61,12 +55,21 @@ export function applyPalette(d: Design, p: Palette): Partial<Design> {
 /** One family for every text style and for the interface. */
 export function applyFont(d: Design, font: string): Partial<Design> {
   const styles = Object.fromEntries(Object.entries(d.styles).map(([k, s]) => [k, { ...s, font }])) as Design['styles'];
-  return { font, styles };
+  return { font, latinFont: font, styles };
 }
+/** The fonts the invitation may load: an older saved design that names another family falls back to the default. */
+export const allowedFont = (f: string) => (HEBREW_FONTS.includes(f) ? f : HEBREW_FONTS[0]);
 
 export function resolveDesign(d: Partial<Design> | null | undefined): Design {
   const x = d ?? {};
   const s = (x.styles ?? {}) as Partial<Design['styles']>;
+  const r = merge(x, s);
+  // one family everywhere: every text style follows the invitation font
+  const font = allowedFont(r.font);
+  const styles = Object.fromEntries(Object.entries(r.styles).map(([k, v]) => [k, { ...v, font }])) as Design['styles'];
+  return { ...r, font, latinFont: font, styles };
+}
+function merge(x: Partial<Design>, s: Partial<Design['styles']>): Design {
   return {
     ...DEFAULT_DESIGN, ...x,
     colors: { ...DEFAULT_DESIGN.colors, ...x.colors },
