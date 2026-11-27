@@ -114,7 +114,7 @@ const ANSWERED: Record<Answer, string> = { attending: 'אישרתם הגעה', m
 export default function InvitationView({ data, token = null, preview = false, celebrateKey = 0, test = false }: Props) {
   const d = useMemo(() => resolveDesign(data.design), [data.design]);
   const [guest, setGuest] = useState(data.guest);
-  const [sheet, setSheet] = useState<null | 'rsvp' | 'cal' | 'nav' | 'share' | 'contact'>(null);
+  const [sheet, setSheet] = useState<null | 'rsvp' | 'cal' | 'nav' | 'share' | 'contact' | 'map'>(null);
   const [pick, setPick] = useState<Answer | null>(null);
   const [mine, setMine] = useState<RsvpResult | null>(null);
   const [burst, setBurst] = useState(0);
@@ -213,6 +213,8 @@ export default function InvitationView({ data, token = null, preview = false, ce
   const waze = safeHttpUrl(data.waze_url) ?? (place ? `https://waze.com/ul?q=${encodeURIComponent(place)}&navigate=yes` : null);
   const gmaps = safeHttpUrl(data.gmaps_url) ?? (place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}` : null);
   const gcal = googleCalendarUrl(data);
+  // an interactive map of the address, shown inside the invitation. Built from the written address, so it needs no key.
+  const mapSrc = place ? `https://www.google.com/maps?q=${encodeURIComponent(place)}&hl=he&z=16&output=embed` : null;
   const amaps = place ? `https://maps.apple.com/?daddr=${encodeURIComponent(place)}` : null;
   const hostWa = data.contact_phone ? intlPhone(data.contact_phone) : null;
   const tel = data.contact_phone?.replace(/[^\d+]/g, '');
@@ -337,13 +339,25 @@ export default function InvitationView({ data, token = null, preview = false, ce
                   {data.address && <p style={{ ...body, marginTop: 2 }}>{data.address}</p>}
                 </>
               )}
-              {venue.length > 0 && photos(venue, 'inv-venue')}
               <div className="inv-quick" data-testid="actions">
                 {d.buttons.navigate && (waze || gmaps) && <button type="button" onClick={() => !preview && setSheet('nav')}><Icon name="navigation" /><span>{d.labels.navigate}</span></button>}
                 {d.buttons.calendar && gcal && <button type="button" onClick={() => !preview && setSheet('cal')}><Icon name="calendar" /><span>{d.labels.calendar}</span></button>}
                 {d.buttons.call && tel && <button type="button" onClick={() => !preview && setSheet('contact')}><Icon name="phone" /><span>יצירת קשר</span></button>}
                 <button type="button" onClick={() => !preview && setSheet('share')}><Icon name="share" /><span>שיתוף</span></button>
               </div>
+              {(venue.length > 0 || mapSrc || data.directions || data.parking || data.extra_info) && <h2 className="inv-more">מידע נוסף</h2>}
+              {venue.length > 0 && (
+                <div className="inv-carousel" data-testid="venue-gallery" aria-label="תמונות מהמקום">
+                  {venue.map((m, i) => (
+                    <button key={m.id} type="button" onClick={() => !preview && setLightbox(shots.findIndex((x) => x.id === m.id))} aria-label={m.caption || `תמונה ${i + 1} מתוך ${venue.length}, להגדלה`}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={m.url} alt={m.caption ?? ''} loading="lazy" decoding="async" />
+                      {venue.length > 1 && <span dir="ltr">{i + 1} / {venue.length}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {mapSrc && <button type="button" className="inv-btn ghost inv-mapbtn" data-testid="map-open" onClick={() => !preview && setSheet('map')}><Icon name="map" size={20} />למפת הגעה</button>}
               {(data.directions || data.parking || data.extra_info) && (
                 <dl className="inv-notes">
                   {data.directions && <div><dt>הוראות הגעה</dt><dd>{data.directions}</dd></div>}
@@ -400,6 +414,17 @@ export default function InvitationView({ data, token = null, preview = false, ce
       {sheet === 'rsvp' && (
         <RsvpSheet slug={data.slug} token={token} guest={guest} initial={pick} maxParty={data.rsvp_settings?.max_party ?? 15}
           accent={d.colors.accent} test={test} onClose={closeSheet} onSaved={onSaved} />
+      )}
+      {sheet === 'map' && mapSrc && (
+        <Sheet title="מפת הגעה" onClose={closeSheet}>
+          {place && <p className="sheet-sub">{place}</p>}
+          <div className="inv-map"><iframe title={`מפה: ${place}`} src={mapSrc} loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen /></div>
+          <div className="inv-choices">
+            {waze && <a href={waze} target="_blank" rel="noopener noreferrer"><Icon name="navigation" /><span>Waze</span></a>}
+            {gmaps && <a href={gmaps} target="_blank" rel="noopener noreferrer"><Icon name="pin" /><span>Google Maps</span></a>}
+            {amaps && <a href={amaps} target="_blank" rel="noopener noreferrer"><Icon name="map" /><span>מפות Apple</span></a>}
+          </div>
+        </Sheet>
       )}
       {sheet === 'nav' && (
         <Sheet title="ניווט לאירוע" onClose={closeSheet}>

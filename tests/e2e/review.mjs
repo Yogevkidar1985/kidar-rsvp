@@ -21,7 +21,7 @@ await mock.sql(`update events set published = true, venue_name = 'אולם הד�
   hero_url = $1, design = $2, headline = 'נולד לנו בן',
   intro_text = E'בשעה טובה, זכינו להרחיב את המשפחה.\nהנכם מוזמנים לחגוג ולהתרגש עימנו\nבמסיבת הברית של בננו.\nנוכחותכם תשמח אותנו.',
   closing_text = 'מחכים לראותכם,', hosts = 'יוגב ואביה קידר' where slug = 'kidar-brit'`, [img(1), JSON.stringify(design)]);
-await mock.sql(`insert into media_assets (event_id, kind, url, sort) select id, k, u, s from events, (values ('gallery', $1, 0), ('gallery', $2, 1), ('gallery', $3, 2), ('venue', $3, 0)) v(k, u, s) where slug = 'kidar-brit'`, [img(2), img(3), img(4)]);
+await mock.sql(`insert into media_assets (event_id, kind, url, sort) select id, k, u, s from events, (values ('gallery', $1, 0), ('gallery', $2, 1), ('gallery', $3, 2), ('venue', $3, 0), ('venue', $1, 1), ('venue', $2, 2)) v(k, u, s) where slug = 'kidar-brit'`, [img(2), img(3), img(4)]);
 if (palette) await mock.sql(`update events set design = $1 where slug = 'kidar-brit'`, [JSON.stringify({ ...design, ...JSON.parse(palette) })]);
 const env = { ...process.env, NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${MOCK}`, NEXT_PUBLIC_SUPABASE_ANON_KEY: ANON, SUPABASE_SERVICE_ROLE_KEY: SERVICE, RSVP_HASH_SECRET: 'test', NODE_USE_ENV_PROXY: '', HTTPS_PROXY: '', https_proxy: '', HTTP_PROXY: '', http_proxy: '' };
 const app = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-p', '3112', '-H', '127.0.0.1'], { cwd: root, env, stdio: 'ignore' });
@@ -81,6 +81,16 @@ try {
     await ap.locator('.sheet button', { hasText: 'סגירה' }).click(); await sleep(300);
   }
   console.log('actions:', JSON.stringify(sheets, null, 1));
+  // venue photographs and the map
+  const car = await ap.$eval('[data-testid=venue-gallery]', (c) => ({ slides: c.children.length, scrolls: c.scrollWidth > c.clientWidth, pageWider: document.documentElement.scrollWidth - 390 }));
+  await ap.locator('[data-testid=venue-gallery]').scrollIntoViewIfNeeded(); await sleep(400);
+  await ap.screenshot({ path: path.join(out, 'venue-gallery.png') });
+  await ap.click('[data-testid=venue-gallery] > button'); await ap.waitForSelector('.inv-light'); const lightOk = await ap.locator('.inv-light img').count(); await ap.click('.inv-light-x'); await sleep(250);
+  await ap.click('[data-testid=map-open]'); await ap.waitForSelector('.sheet .inv-map iframe'); await sleep(2500);
+  const mapSrc = await ap.$eval('.sheet .inv-map iframe', (f) => decodeURIComponent(f.src));
+  await ap.screenshot({ path: path.join(out, 'map-sheet.png') });
+  console.log('venue:', JSON.stringify({ ...car, lightboxOpens: !!lightOk, map: mapSrc.slice(0, 90), navBelowMap: await ap.$$eval('.sheet .inv-choices > *', (e) => e.length) }));
+  await ap.locator('.sheet button', { hasText: 'סגירה' }).click(); await sleep(300);
   const ics = await fetch(`${APP}/api/ics/kidar-brit`);
   const icsText = await ics.text();
   console.log('ics:', ics.status, ics.headers.get('content-type'), ics.headers.get('content-disposition'), '|', icsText.includes('BEGIN:VEVENT') && icsText.includes('DTSTART;TZID=Asia/Jerusalem:20261202T150000'), '| download:', (await fetch(`${APP}/api/ics/kidar-brit?download=1`)).headers.get('content-disposition'));

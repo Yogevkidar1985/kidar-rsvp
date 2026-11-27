@@ -238,6 +238,8 @@ export default function EditorPage() {
               {text('directions', 'הוראות הגעה', { area: true })}
               {text('parking', 'חניה', { area: true })}
               {text('extra_info', 'מידע נוסף על האירוע', { area: true })}
+              <div className="border-t border-line pt-3"><span className="label">תמונות של המקום (מוצגות בהזמנה תחת "מידע נוסף")</span>{drop('venue', 'הוספת תמונות של המקום')}{thumbs('venue')}</div>
+              <p className="text-xs text-muted">מפת ההגעה בהזמנה נבנית לבד משם המקום ומהכתובת.</p>
               <div className="grid gap-2 border-t border-line pt-3">
                 <span className="label">כפתורים בהזמנה</span>
                 {(['navigate', 'calendar', 'call'] as const).map((k) => (

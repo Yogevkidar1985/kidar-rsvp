@@ -193,6 +193,17 @@ input[type="range"] { accent-color: var(--color-ink); }
 .inv-options { display: grid; gap: 10px; margin-top: 24px; }
 .inv-rsvp { padding-bottom: 8px; }
 
+.inv-more { margin: 34px 0 0; font: 500 20px/1.3 var(--inv-font); color: var(--inv-ink); }
+/* photographs of the place: swiped sideways, one at a time, with the next peeking in */
+.inv-carousel { display: flex; gap: 10px; margin: 16px -28px 0; padding: 0 28px 4px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: 28px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.inv-carousel::-webkit-scrollbar { display: none; }
+.inv-carousel > button { position: relative; flex: none; width: 84%; padding: 0; border: 0; overflow: hidden; border-radius: var(--inv-radius-box); background: var(--inv-surface); scroll-snap-align: start; }
+.inv-carousel > button:only-child { width: 100%; }
+.inv-carousel img { display: block; width: 100%; aspect-ratio: 4/3; object-fit: cover; }
+.inv-carousel span { position: absolute; bottom: 10px; inset-inline-end: 10px; padding: 3px 9px; border-radius: 999px; background: rgb(20 20 20 / .55); color: #fff; font: 500 12px/1.4 var(--inv-font); letter-spacing: .04em; }
+.inv-mapbtn { gap: 10px; margin-top: 16px; }
+.inv-map { overflow: hidden; border-radius: var(--inv-radius-box); border: 1px solid var(--inv-line); background: var(--inv-soft); }
+.inv-map iframe { display: block; width: 100%; height: min(52dvh, 420px); border: 0; }
 .inv-venue { display: grid; gap: 6px; grid-template-columns: 1fr 1fr; margin-top: 24px; }
 .inv-venue button:first-child { grid-column: span 2; }
 .inv-venue button:first-child img { aspect-ratio: 16/10; }
