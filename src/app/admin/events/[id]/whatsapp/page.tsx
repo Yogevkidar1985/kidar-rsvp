@@ -115,16 +115,16 @@ export default function WhatsAppPage() {
     <>
       <PageHead title="הזמנות WhatsApp" sub={`${guests.filter((g) => g.invited_at).length} מתוך ${guests.length} משפחות כבר קיבלו הזמנה`} />
       <GreenNotice green={box.green} />
-      {!event.published && <p className="mb-3 rounded-xl bg-[#fbf0d9] px-4 py-3 text-sm font-semibold text-[#8a5a10]">ההזמנה עדיין לא מפורסמת. מפרסמים אותה ב"עיצוב ההזמנה" לפני השליחה, אחרת הקישור לא ייפתח.</p>}
-      <div className="mb-4 flex gap-1" role="tablist">
-        {TABS.map((t) => <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`rounded-lg px-4 py-2 text-sm font-semibold ${tab === t ? 'bg-ink text-white' : 'bg-white text-muted'}`}>{t}</button>)}
+      {!event.published && <p className="notice notice-warn mb-3">ההזמנה עדיין לא מפורסמת. מפרסמים אותה ב"עיצוב ההזמנה" לפני השליחה, אחרת הקישור לא ייפתח.</p>}
+      <div className="tabs mb-4 w-fit max-w-full" role="tablist">
+        {TABS.map((t) => <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}>{t}</button>)}
       </div>
 
       {tab === 'שליחה' && (
         <fieldset disabled={!canEdit} className="grid gap-4">
-          <div className="grid grid-cols-2 gap-2 sm:max-w-md">
+          <div className="tabs w-fit max-w-full">
             {([['bulk', 'שליחה לרבים'], ['one', 'הזמנה לאדם אחד']] as const).map(([k, l]) => (
-              <button key={k} type="button" aria-pressed={mode === k} onClick={() => setMode(k)} className={`rounded-xl border px-3 py-3 text-sm font-semibold ${mode === k ? 'border-ink bg-ink text-white' : 'border-line bg-white'}`}>{l}</button>
+              <button key={k} type="button" aria-pressed={mode === k} onClick={() => setMode(k)}>{l}</button>
             ))}
           </div>
 
@@ -194,7 +194,7 @@ export default function WhatsAppPage() {
             {mode === 'bulk' && (
               <dl className="grid grid-cols-2 gap-2 text-center text-sm sm:grid-cols-4" data-testid="send-summary">
                 {([['מסומנים', chosen.length], ['יקבלו הודעה', sums.eligible], ['כבר הוזמנו', sums.invited], ['לא יישלח', sums.noPhone + sums.opted]] as const).map(([l, v]) => (
-                  <div key={l} className="rounded-lg bg-paper px-1 py-2"><dd className="font-display text-xl">{v}</dd><dt className="text-xs text-muted">{l}</dt></div>
+                  <div key={l} className="rounded-lg bg-paper px-1 py-2"><dd className="text-xl font-semibold tabular-nums">{v}</dd><dt className="text-xs text-muted">{l}</dt></div>
                 ))}
               </dl>
             )}
@@ -240,7 +240,7 @@ export default function WhatsAppPage() {
         <div className="grid gap-4">
           <dl className="grid grid-cols-2 gap-2 text-center sm:grid-cols-4" data-testid="invite-totals">
             {([['נשלחו בהצלחה', stat('sent')], ['נכשלו', stat('failed')], ['ממתינות', stat('pending') + stat('sending')], ['דולגו', stat('skipped')]] as const).map(([l, v]) => (
-              <div key={l} className="card px-2 py-3"><dd className="font-display text-2xl">{v}</dd><dt className="text-xs text-muted">{l}</dt></div>
+              <div key={l} className="card stat text-start"><dt>{l}</dt><dd>{v}</dd></div>
             ))}
           </dl>
           <CampaignList kind="invite" box={box} empty="עדיין לא נשלחו הזמנות." />

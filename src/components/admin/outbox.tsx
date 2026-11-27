@@ -71,7 +71,7 @@ export function SetupNotice() {
 }
 export function GreenNotice({ green }: { green: boolean | null }) {
   if (green !== false) return null;
-  return <p className="mb-3 rounded-xl bg-[#fbf0d9] px-4 py-3 text-sm font-semibold text-[#8a5a10]">החיבור ל-WhatsApp (Green API) עדיין לא הוגדר בשרת. הודעות ייכנסו לתור ויחכו, ושום דבר לא יישלח עד שיוגדר.</p>;
+  return <p className="notice notice-warn mb-3">החיבור ל-WhatsApp (Green API) עדיין לא הוגדר בשרת. הודעות ייכנסו לתור ויחכו, ושום דבר לא יישלח עד שיוגדר.</p>;
 }
 
 /** Sample guest for previews when nobody is selected. */
@@ -99,7 +99,7 @@ export function MessageEditor({ kind, templates, body, setBody, templateId, setT
   };
   return (
     <div className="grid gap-3 lg:grid-cols-2">
-      <div className="grid content-start gap-3">
+      <div className="grid min-w-0 content-start gap-3">
         {templates.length > 0 && (
           <Field label={kind === 'invite' ? 'תבנית הזמנה' : 'תבנית תזכורת'}>
             <select className="field" data-testid="template" value={templateId} onChange={(e) => { const t = templates.find((x) => x.id === e.target.value); setTemplateId(e.target.value); if (t) setBody(t.body); }}>
@@ -114,12 +114,12 @@ export function MessageEditor({ kind, templates, body, setBody, templateId, setT
           {VARIABLES.map((v) => <button key={v.key} type="button" className="rounded-full border border-line bg-white px-2.5 py-1 text-xs font-semibold hover:bg-paper" onClick={() => insert(v.key)}>{v.label}</button>)}
         </div>
       </div>
-      <div>
+      <div className="min-w-0">
         <span className="label">כך זה ייראה ב-WhatsApp{previewFor ? ` · ${previewFor.contact_name || previewFor.family_name}` : ''}</span>
         <div className="rounded-2xl bg-[#e7ddd3] p-3" data-testid="wa-preview">
-          <div className="ms-auto max-w-[92%] whitespace-pre-wrap break-words rounded-xl rounded-ss-sm bg-[#d9fdd3] px-3 py-2 text-[15px] leading-relaxed text-[#111b21] shadow-sm" dir="auto">{text || '…'}</div>
+          <div className="ms-auto max-w-[92%] whitespace-pre-wrap [overflow-wrap:anywhere] rounded-xl rounded-ss-sm bg-[#d9fdd3] px-3 py-2 text-[15px] leading-relaxed text-[#111b21] shadow-sm" dir="auto">{text || '…'}</div>
         </div>
-        {missing.length > 0 && <p role="alert" className="mt-2 rounded-lg bg-[#f8e4e2] px-3 py-2 text-sm font-semibold text-[#9a3a32]">חסר ערך עבור: {missing.map(variableLabel).join(', ')}. ההודעה לא תישלח כך.</p>}
+        {missing.length > 0 && <p role="alert" className="notice notice-bad mt-2">חסר ערך עבור: {missing.map(variableLabel).join(', ')}. ההודעה לא תישלח כך.</p>}
       </div>
     </div>
   );
@@ -158,7 +158,7 @@ export function CampaignList({ kind, box, empty }: { kind: Campaign['kind']; box
               </div>
               <dl className="mt-3 grid grid-cols-4 gap-2 text-center text-sm">
                 {([['נמענים', n.total], ['נשלחו', n.sent], ['ממתינות', n.pending], ['נכשלו', n.failed]] as const).map(([l, v]) => (
-                  <div key={l} className="rounded-lg bg-paper px-1 py-2"><dd className="font-display text-xl">{v}</dd><dt className="text-xs text-muted">{l}</dt></div>
+                  <div key={l} className="rounded-lg bg-paper px-1 py-2"><dd className="text-xl font-semibold tabular-nums">{v}</dd><dt className="text-xs text-muted">{l}</dt></div>
                 ))}
               </dl>
               {n.skipped > 0 && <p className="mt-2 text-xs text-muted">{n.skipped} דולגו (שינוי סטטוס, ביטול או בקשה לא לקבל הודעות).</p>}

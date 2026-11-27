@@ -74,12 +74,12 @@ export default function RemindersPage() {
       <PageHead title="תזכורות אוטומטיות" sub="נשלחות רק למי שאישרו הגעה, ונבדקות שוב רגע לפני השליחה" />
       <GreenNotice green={box.green} />
       <dl className="mb-4 grid grid-cols-2 gap-2 text-center sm:grid-cols-4" data-testid="reminder-totals">
-        <div className="card col-span-2 px-3 py-3 sm:col-span-1"><dd className="font-display text-lg leading-tight">{next ? fmtWhen(next.scheduled_at!) : 'אין'}</dd><dt className="text-xs text-muted">התזכורת הבאה</dt></div>
-        <div className="card px-2 py-3"><dd className="font-display text-2xl">{eligible.length}</dd><dt className="text-xs text-muted">יקבלו תזכורת</dt></div>
-        <div className="card px-2 py-3"><dd className="font-display text-2xl">{attending.length - eligible.length}</dd><dt className="text-xs text-muted">מגיעים בלי תזכורת</dt></div>
-        <div className="card px-2 py-3"><dd className="font-display text-2xl">{guests.length - attending.length}</dd><dt className="text-xs text-muted">לא אישרו הגעה</dt></div>
+        <div className="card stat col-span-2 text-start sm:col-span-1"><dt>התזכורת הבאה</dt><dd className="!text-lg !leading-snug">{next ? fmtWhen(next.scheduled_at!) : 'לא תוזמנה'}</dd></div>
+        <div className="card stat text-start"><dt>יקבלו תזכורת</dt><dd>{eligible.length}</dd></div>
+        <div className="card stat text-start"><dt>מגיעים בלי תזכורת</dt><dd>{attending.length - eligible.length}</dd></div>
+        <div className="card stat text-start"><dt>לא אישרו הגעה</dt><dd>{guests.length - attending.length}</dd></div>
       </dl>
-      {!start && <p className="mb-3 rounded-xl bg-[#fbf0d9] px-4 py-3 text-sm font-semibold text-[#8a5a10]">לאירוע אין עדיין תאריך ושעה. מגדירים אותם ב"עיצוב ההזמנה", בלשונית "מועד".</p>}
+      {!start && <p className="notice notice-warn mb-3">לאירוע אין עדיין תאריך ושעה. מגדירים אותם ב"עיצוב ההזמנה", בלשונית "מועד".</p>}
 
       <fieldset disabled={!canEdit || !start} className="grid gap-4">
         <section className="card p-4">

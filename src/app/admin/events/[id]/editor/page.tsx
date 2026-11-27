@@ -4,6 +4,8 @@ import { supabaseBrowser } from '@/lib/supabase/client';
 import { useEvent } from '@/components/admin/EventContext';
 import { PageHead } from '@/components/admin/Shell';
 import { Field, dbError, useToast } from '@/components/admin/ui';
+import { DateField, TimeField } from '@/components/admin/fields';
+import { Icon } from '@/components/admin/icons';
 import InvitationView from '@/components/invitation/InvitationView';
 import { HEBREW_FONTS, PALETTES, applyFont, applyPalette, resolveDesign } from '@/lib/defaults';
 import { hebrewDate, weekdayLabel } from '@/lib/hebrew-date';
@@ -39,7 +41,7 @@ function Range({ label, value, min, max, step, onChange, suffix = '' }: { label:
   return (
     <label className="block">
       <span className="label flex justify-between"><span>{label}</span><span dir="ltr">{value}{suffix}</span></span>
-      <input type="range" className="w-full accent-[#1b2440]" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
+      <input type="range" className="w-full " min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
     </label>
   );
 }
@@ -187,19 +189,19 @@ export default function EditorPage() {
 
   return (
     <>
-      <PageHead title="עיצוב ההזמנה" sub={dirty ? 'יש שינויים שלא נשמרו' : 'כל השינויים שמורים'}>
-        <button className="btn btn-ghost" aria-label="ביטול הפעולה האחרונה" title="ביטול" disabled={!hist.current.past.length} onClick={() => step('undo')}>↶</button>
-        <button className="btn btn-ghost" aria-label="ביצוע מחדש" title="ביצוע מחדש" disabled={!hist.current.future.length} onClick={() => step('redo')}>↷</button>
-        <button className="btn btn-ghost" disabled={!dirty} title="מחזיר את ההזמנה לגרסה השמורה האחרונה" onClick={() => setDraft(event)}>שחזור הגרסה השמורה</button>
-        <button className="btn btn-ghost lg:hidden" onClick={() => setView(view === 'edit' ? 'preview' : 'edit')}>{view === 'edit' ? 'תצוגה מקדימה' : 'חזרה לעריכה'}</button>
+      <PageHead title="עיצוב ההזמנה" sub={saving ? 'שומרים…' : dirty ? 'יש שינויים שלא נשמרו' : draft.published ? 'פורסמה · כל השינויים שמורים' : 'טיוטה · כל השינויים שמורים'}>
+        <button className="btn btn-ghost btn-icon" aria-label="ביטול הפעולה האחרונה" title="ביטול" disabled={!hist.current.past.length} onClick={() => step('undo')}><Icon name="undo" /></button>
+        <button className="btn btn-ghost btn-icon" aria-label="ביצוע מחדש" title="ביצוע מחדש" disabled={!hist.current.future.length} onClick={() => step('redo')}><Icon name="redo" /></button>
+        {dirty && <button className="btn btn-ghost" title="מחזיר את ההזמנה לגרסה השמורה האחרונה" onClick={() => setDraft(event)}>ביטול השינויים</button>}
+        <button className="btn btn-ghost lg:hidden" onClick={() => setView(view === 'edit' ? 'preview' : 'edit')}><Icon name="eye" />{view === 'edit' ? 'תצוגה' : 'עריכה'}</button>
         <button className="btn btn-ghost" disabled={!canEdit || saving} onClick={() => save(!draft.published)}>{draft.published ? 'ביטול פרסום' : 'שמירה ופרסום'}</button>
         <button className="btn" disabled={!canEdit || saving || !dirty} onClick={() => save()}>{saving ? 'שומרים…' : draft.published ? 'שמירת השינויים' : 'שמירת טיוטה'}</button>
       </PageHead>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(320px,420px)_1fr]">
         <section className={`card p-4 ${view === 'preview' ? 'hidden lg:block' : ''}`}>
-          <div className="mb-4 flex flex-wrap gap-1" role="tablist">
-            {TABS.map((t) => <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-semibold ${tab === t ? 'bg-ink text-white' : 'text-muted hover:bg-paper'}`}>{t}</button>)}
+          <div className="tabs mb-4" role="tablist">
+            {TABS.map((t) => <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}>{t}</button>)}
           </div>
           <fieldset disabled={!canEdit} className="grid gap-3">
             {tab === 'תוכן' && <>
@@ -214,18 +216,17 @@ export default function EditorPage() {
                 <input className="field" dir="ltr" value={draft.slug} onChange={(e) => set('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} /></Field>
             </>}
             {tab === 'מועד' && <>
-              <Field label="תאריך לועזי"><input className="field" type="date" value={draft.event_date ?? ''} onChange={(e) => {
-                const v = e.target.value || null;
-                setDraft((d) => ({ ...d, event_date: v, weekday_label: v ? weekdayLabel(v) : d.weekday_label, hebrew_date: v ? hebrewDate(v) : d.hebrew_date }));
-              }} /></Field>
+              <div><span className="label">תאריך האירוע</span>
+                <DateField label="תאריך האירוע" value={draft.event_date} onChange={(v) => setDraft((d) => ({ ...d, event_date: v, weekday_label: v ? weekdayLabel(v) : d.weekday_label, hebrew_date: v ? hebrewDate(v) : d.hebrew_date }))} />
+                <span className="mt-1 block text-xs text-muted">היום בשבוע והתאריך העברי מחושבים לבד.</span></div>
               {text('weekday_label', 'יום בשבוע')}
               <Field label="תאריך עברי" hint="מחושב מהתאריך הלועזי, ואפשר לערוך ידנית.">
                 <div className="flex gap-2"><input className="field" value={draft.hebrew_date ?? ''} onChange={(e) => set('hebrew_date', e.target.value)} />
                   <button type="button" className="btn btn-ghost" disabled={!draft.event_date} onClick={() => draft.event_date && set('hebrew_date', hebrewDate(draft.event_date))}>חישוב</button></div></Field>
-              <div className="grid grid-cols-3 gap-2">
-                <Field label="קבלת פנים"><input className="field" type="time" value={draft.reception_time ?? ''} onChange={(e) => set('reception_time', e.target.value || null)} /></Field>
-                <Field label="טקס"><input className="field" type="time" value={draft.ceremony_time ?? ''} onChange={(e) => set('ceremony_time', e.target.value || null)} /></Field>
-                <Field label="סיום"><input className="field" type="time" value={draft.end_time ?? ''} onChange={(e) => set('end_time', e.target.value || null)} /></Field>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {([['reception_time', 'קבלת פנים'], ['ceremony_time', 'טקס'], ['end_time', 'סיום']] as const).map(([k, l]) => (
+                  <div key={k}><span className="label">{l}</span><TimeField label={l} value={draft[k]} onChange={(v) => set(k, v)} /></div>
+                ))}
               </div>
             </>}
             {tab === 'מקום' && <>
@@ -277,7 +278,7 @@ export default function EditorPage() {
                 <option value="soft">מעוגלות בעדינות</option><option value="sharp">חדות</option><option value="pill">עגולות לגמרי</option></select></Field>
               <Range label="מרווח בין חלקי ההזמנה" value={design.spacing} min={0.6} max={1.6} step={0.05} onChange={(n) => setDesign({ spacing: n })} suffix="×" />
               <p className="border-t border-line pt-3 text-xs text-muted">כוונון עדין לכל סוג טקסט בנפרד:</p>
-              <div className="flex flex-wrap gap-1">{STYLE_KEYS.map((s) => <button key={s.key} type="button" onClick={() => setStyleKey(s.key)} className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${styleKey === s.key ? 'bg-ink text-white' : 'bg-paper'}`}>{s.label}</button>)}</div>
+              <div className="tabs">{STYLE_KEYS.map((s) => <button key={s.key} type="button" aria-pressed={styleKey === s.key} onClick={() => setStyleKey(s.key)}>{s.label}</button>)}</div>
               <Range label="גודל" value={st.size} min={12} max={96} step={1} onChange={(n) => setStyle({ size: n })} suffix="px" />
               <Range label="עובי" value={st.weight} min={100} max={900} step={100} onChange={(n) => setStyle({ weight: n })} />
               <Range label="מרווח אותיות" value={st.spacing} min={-0.05} max={0.4} step={0.01} onChange={(n) => setStyle({ spacing: n })} suffix="em" />
@@ -358,16 +359,24 @@ export default function EditorPage() {
 
         <section className={`card overflow-hidden ${view === 'edit' ? 'hidden lg:block' : ''}`}>
           <div className="flex items-center justify-between border-b border-line px-3 py-2">
-            <span className="text-sm font-semibold text-muted">תצוגה מקדימה חיה</span>
-            <div className="flex gap-1">{DEVICES.map((d) => <button key={d.key} onClick={() => setDevice(d)} aria-pressed={device.key === d.key} className={`rounded-lg px-3 py-1 text-sm font-semibold ${device.key === d.key ? 'bg-ink text-white' : 'hover:bg-paper'}`}>{d.label}</button>)}</div>
+            <span className="text-sm font-medium text-muted">תצוגה מקדימה</span>
+            <div className="tabs">{DEVICES.map((d) => <button key={d.key} onClick={() => setDevice(d)} aria-pressed={device.key === d.key}>{d.label}</button>)}</div>
           </div>
-          <div ref={pane} className="h-[78dvh] overflow-hidden bg-[#dfe3ea]" data-testid="preview-pane">
+          <div ref={pane} className="h-[78dvh] overflow-hidden bg-[#eef1f5]" data-testid="preview-pane">
             <div data-testid="preview-frame" style={{ width: device.w, height: `calc(78dvh / ${scale})`, transform: `scale(${scale})`, transformOrigin: 'top right', marginInlineStart: Math.max(0, (paneW - device.w * scale) / 2), overflowY: 'auto', position: 'relative' }}>
               <InvitationView data={previewData} preview celebrateKey={celebrate} />
             </div>
           </div>
         </section>
       </div>
+      {/* phone: unsaved work keeps a save bar within reach, above the navigation */}
+      {dirty && canEdit && (
+        <div className="no-print fixed inset-x-0 bottom-[calc(56px+env(safe-area-inset-bottom))] z-30 flex items-center gap-2 border-t border-line bg-white/95 px-4 py-2 backdrop-blur lg:hidden">
+          <span className="flex-1 text-sm text-muted">יש שינויים שלא נשמרו</span>
+          <button className="btn btn-ghost btn-sm" onClick={() => setDraft(event)}>ביטול</button>
+          <button className="btn btn-sm" disabled={saving} onClick={() => save()}>{saving ? 'שומרים…' : 'שמירה'}</button>
+        </div>
+      )}
     </>
   );
 }

@@ -52,12 +52,12 @@ try {
   for (const w of [320, 360, 390, 430, 1280]) {
     const pg = await (await browser.newContext({ viewport: { width: w, height: w > 500 ? 900 : 780 }, deviceScaleFactor: 1, isMobile: w < 500, hasTouch: w < 500, locale: 'he-IL' })).newPage();
     await pg.goto(`${APP}/e/kidar-brit`, { waitUntil: 'networkidle' }); await scrollAll(pg);
-    const m = await pg.evaluate(() => {
-      const vw = window.innerWidth;
+    const m = await pg.evaluate((W) => {
+      const vw = W;
       const wide = [...document.querySelectorAll('.inv-col *')].filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && (r.right > vw + 1 || r.left < -1) && !e.closest('.inv-drift,canvas'); }).map((e) => e.className || e.tagName).slice(0, 4);
       const small = [...document.querySelectorAll('.inv a, .inv button')].filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && (r.height < 44 || r.width < 44) && !e.closest('.inv-sticky'); }).map((e) => `${e.textContent.trim().slice(0, 14)} ${Math.round(e.getBoundingClientRect().width)}x${Math.round(e.getBoundingClientRect().height)}`);
-      return { overflow: document.documentElement.scrollWidth - vw, wide, small, dir: document.querySelector('.inv').dir, font: getComputedStyle(document.querySelector('.inv h1')).fontFamily.split(',')[0] };
-    });
+      return { overflow: document.documentElement.scrollWidth - W, wide, small, dir: document.querySelector('.inv').dir, font: getComputedStyle(document.querySelector('.inv h1')).fontFamily.split(',')[0] };
+    }, w);
     console.log(`width ${w}:`, JSON.stringify(m));
     await pg.screenshot({ path: path.join(out, `w${w}.png`), fullPage: true });
     await pg.locator('[data-testid=rsvp-open]').click(); await pg.waitForSelector('.sheet form'); await sleep(400);
@@ -73,14 +73,18 @@ try {
     const aerr = []; ad.on('pageerror', (e) => aerr.push(e.message));
     await ad.goto(`${APP}/admin/login`); await ad.fill('input[type=password]', '1007'); await ad.click('button[aria-label="כניסה"]');
     await ad.waitForURL(/\/admin\/events\//); const base = ad.url().split('?')[0].replace(/\/$/, '');
-    for (const pgName of ['whatsapp', 'reminders', 'guests']) {
-      await ad.goto(`${base}/${pgName}`, { waitUntil: 'networkidle' }); await sleep(900);
+    for (const pgName of ['overview', 'editor', 'guests', 'whatsapp', 'reminders', 'tables', 'export']) {
+      await ad.goto(pgName === 'overview' ? base : `${base}/${pgName}`, { waitUntil: 'networkidle' }); await sleep(900);
       if (pgName === 'whatsapp') await ad.getByRole('button', { name: /סימון כל המוצגים/ }).click();
+      if (pgName === 'editor') {
+        await ad.getByRole('tab', { name: 'מועד' }).click({ timeout: 8000 }).catch(async (e) => console.log('editor tab not clickable:', aerr.join(' ; '), '|', String(e.message).split('\n').slice(0, 12).join(' / ')));
+        await sleep(300);
+      }
       await ad.screenshot({ path: path.join(out, `admin-${pgName}-${tag}.png`), fullPage: true });
-      console.log(`admin ${pgName} ${tag}: overflow ${await ad.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)}`);
+      console.log(`admin ${pgName} ${tag}: overflow ${await ad.evaluate((W) => document.documentElement.scrollWidth - W, ctxOpts.viewport.width)}`);
     }
     console.log(`admin ${tag} errors:`, aerr.join(' ; ') || 'none');
     await ad.context().close();
   }
   console.log('errors:', errs.join(' ; ') || 'none');
-} finally { await browser.close(); app.kill(); process.exit(0); }
+} catch (e) { console.log('FAILED:', String(e.message ?? e).slice(0, 600)); } finally { await browser.close(); app.kill(); process.exit(0); }

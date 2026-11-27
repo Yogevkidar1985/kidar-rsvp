@@ -4,48 +4,24 @@ import Link from 'next/link';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { useEvent } from '@/components/admin/EventContext';
 import { PageHead } from '@/components/admin/Shell';
+import { Icon } from '@/components/admin/icons';
 import { StatusPill, fmtDateTime, useToast } from '@/components/admin/ui';
 import { computeStats } from '@/lib/stats';
+import { eventStart, fmtWhen } from '@/lib/when';
 import type { ResponseRow } from '@/lib/types';
 
 const SOURCE: Record<string, string> = { public: 'דרך ההזמנה', admin: 'עודכן במערכת', system: 'מערכת' };
+const TONE = { ok: 'var(--color-ok)', warn: 'var(--color-warn)', no: 'var(--color-no)', idle: '#cfd6e1', ink: 'var(--color-ink)' };
 
-function Kpi({ label, value, sub, tone }: { label: string; value: React.ReactNode; sub?: string; tone?: string }) {
-  return (
-    <div className="card p-4">
-      <div className="text-sm font-semibold text-muted">{label}</div>
-      <div className={`mt-1 font-display text-[34px] font-medium leading-none ${tone ?? ''}`}>{value}</div>
-      {sub && <div className="mt-1.5 text-xs text-muted">{sub}</div>}
-    </div>
+function Stat({ label, value, sub, tone, href }: { label: string; value: React.ReactNode; sub?: string; tone?: string; href?: string }) {
+  const body = (
+    <>
+      <span className="stat-label">{label}</span>
+      <span className="stat-value" style={tone ? { color: tone } : undefined}>{value}</span>
+      {sub && <span className="text-xs text-muted">{sub}</span>}
+    </>
   );
-}
-
-function Donut({ parts }: { parts: { label: string; value: number; color: string }[] }) {
-  const total = parts.reduce((n, p) => n + p.value, 0);
-  const R = 54, C = 2 * Math.PI * R;
-  let acc = 0;
-  return (
-    <div className="flex flex-wrap items-center gap-6">
-      <svg viewBox="0 0 140 140" width="150" height="150" role="img" aria-label="התפלגות תשובות לפי משפחות">
-        <circle cx="70" cy="70" r={R} fill="none" stroke="#eceff4" strokeWidth="16" />
-        {total > 0 && parts.filter((p) => p.value > 0).map((p) => {
-          const len = (p.value / total) * C, off = acc; acc += len;
-          return <circle key={p.label} cx="70" cy="70" r={R} fill="none" stroke={p.color} strokeWidth="16"
-            strokeDasharray={`${Math.max(len - 2, 0.5)} ${C}`} strokeDashoffset={-off} transform="rotate(-90 70 70)" />;
-        })}
-        <text x="70" y="68" textAnchor="middle" fontSize="26" fontFamily="Frank Ruhl Libre, serif" fill="#1b2440">{total}</text>
-        <text x="70" y="86" textAnchor="middle" fontSize="11" fill="#66728a">משפחות</text>
-      </svg>
-      <ul className="grid gap-2 text-sm">
-        {parts.map((p) => (
-          <li key={p.label} className="flex items-center gap-2">
-            <span className="inline-block size-3 rounded-sm" style={{ background: p.color }} />
-            <span className="w-24">{p.label}</span><b>{p.value}</b>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+  return href ? <Link href={href} className="card stat transition-colors hover:border-[#cdd5e1]">{body}</Link> : <div className="card stat">{body}</div>;
 }
 
 export default function Overview() {
@@ -53,83 +29,104 @@ export default function Overview() {
   const toast = useToast();
   const s = useMemo(() => computeStats(guests), [guests]);
   const [log, setLog] = useState<ResponseRow[]>([]);
+  const [wa, setWa] = useState<{ failed: number; next: string | null } | null>(null);
   const stamp = guests.reduce((m, g) => (g.updated_at > m ? g.updated_at : m), '');
+  const base = `/admin/events/${event.id}`;
   useEffect(() => {
-    supabaseBrowser().from('rsvp_responses').select('id,guest_id,status,adults,children,babies,arrived,source,created_at')
-      .eq('event_id', event.id).order('created_at', { ascending: false }).limit(25)
+    const db = supabaseBrowser();
+    db.from('rsvp_responses').select('id,guest_id,status,adults,children,babies,arrived,source,created_at')
+      .eq('event_id', event.id).order('created_at', { ascending: false }).limit(12)
       .then(({ data }: { data: ResponseRow[] | null }) => setLog(data ?? []));
+    // WhatsApp figures exist once the messaging tables were added; until then this part stays hidden
+    Promise.all([
+      db.from('messages').select('id', { count: 'exact', head: true }).eq('event_id', event.id).eq('status', 'failed'),
+      db.from('campaigns').select('scheduled_at').eq('event_id', event.id).eq('kind', 'reminder').eq('status', 'scheduled').order('scheduled_at').limit(1),
+    ]).then(([f, c]) => setWa(f.error || c.error ? null : { failed: f.count ?? 0, next: (c.data as { scheduled_at: string }[] | null)?.[0]?.scheduled_at ?? null }));
   }, [event.id, stamp]);
   const names = useMemo(() => new Map(guests.map((g) => [g.id, g.family_name])), [guests]);
   const url = typeof window !== 'undefined' ? `${window.location.origin}/e/${event.slug}` : `/e/${event.slug}`;
   const seatsTotal = tables.reduce((n, t) => n + t.capacity, 0);
-  const groups = [{ label: 'מבוגרים', v: s.adults }, { label: 'ילדים', v: s.children }, { label: 'תינוקות', v: s.babies }];
-  const maxG = Math.max(1, ...groups.map((g) => g.v));
+  const invitedSent = guests.filter((g) => g.invited_at).length;
+  const start = eventStart(event);
+  const parts = [
+    { label: 'מגיעים', value: s.attendingFamilies, color: TONE.ok }, { label: 'עדיין לא בטוחים', value: s.maybeFamilies, color: TONE.warn },
+    { label: 'לא מגיעים', value: s.declinedFamilies, color: TONE.no }, { label: 'טרם השיבו', value: s.pendingFamilies, color: TONE.idle },
+  ];
+  const maxSeats = Math.max(s.allocatedSeats, s.confirmedSeats, seatsTotal, 1);
+  // the one thing most worth doing now
+  const next = !event.published ? { text: 'ההזמנה עדיין טיוטה. אורחים לא יכולים לפתוח אותה עד הפרסום.', cta: 'לעיצוב ולפרסום', href: `${base}/editor` }
+    : !guests.length ? { text: 'עדיין אין מוזמנים ברשימה.', cta: 'הוספת מוזמנים', href: `${base}/guests` }
+    : wa && invitedSent < guests.length ? { text: `${guests.length - invitedSent} משפחות עדיין לא קיבלו הזמנה ב-WhatsApp.`, cta: 'שליחת הזמנות', href: `${base}/whatsapp` }
+    : wa && !wa.next && s.attendingFamilies > 0 && start && start.getTime() > Date.now() ? { text: 'לא תוזמנה תזכורת למי שאישרו הגעה.', cta: 'תזמון תזכורת', href: `${base}/reminders` }
+    : null;
 
   return (
     <>
-      <PageHead title="סקירה" sub="הנתונים מתעדכנים מיד כשאורח שולח תשובה.">
-        <button className="btn btn-ghost" onClick={() => navigator.clipboard.writeText(url).then(() => toast('הקישור הועתק'), () => toast('לא הצלחנו להעתיק', true))}>העתקת קישור ההזמנה</button>
-        {event.published && <a className="btn" href={`/e/${event.slug}`} target="_blank" rel="noopener noreferrer">פתיחת ההזמנה</a>}
+      <PageHead title="סקירה" sub={start ? `האירוע ב-${fmtWhen(start)}` : 'הנתונים מתעדכנים מיד כשאורח שולח תשובה'}>
+        <button className="btn btn-ghost" onClick={() => navigator.clipboard.writeText(url).then(() => toast('הקישור הועתק'), () => toast('לא הצלחנו להעתיק', true))}><Icon name="copy" size={16} />העתקת הקישור</button>
+        {event.published && <a className="btn" href={`/e/${event.slug}`} target="_blank" rel="noopener noreferrer"><Icon name="eye" size={16} />פתיחת ההזמנה</a>}
       </PageHead>
 
-      {!event.published && (
-        <div className="mb-5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm">
-          ההזמנה עדיין לא פורסמה, ולכן אורחים לא יכולים לפתוח אותה. <Link className="font-bold underline" href={`/admin/events/${event.id}/editor`}>לעיצוב ולפרסום</Link>
+      {next && (
+        <div className="card mb-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <p className="text-sm"><b className="font-semibold">הצעד הבא: </b>{next.text}</p>
+          <Link className="btn btn-sm" href={next.href}>{next.cta}</Link>
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5" data-testid="kpis">
-        <Kpi label="סך המוזמנים" value={s.invitedTotal} sub={`${s.families} משפחות`} />
-        <Kpi label="אישרו הגעה" value={s.attendingPeople} sub="אנשים, כולל תינוקות" tone="text-ok" />
-        <Kpi label="משפחות שאישרו" value={s.attendingFamilies} />
-        <Kpi label="לא מגיעים" value={s.declinedPeople} sub={`${s.declinedFamilies} משפחות`} tone="text-no" />
-        <Kpi label="טרם השיבו" value={s.pendingPeople} sub={`${s.pendingFamilies} משפחות`} />
-        <Kpi label="אולי מגיעים" value={s.maybeFamilies} sub={s.maybePeople ? `${s.maybePeople} אנשים` : 'משפחות'} tone="text-maybe" />
-        <Kpi label="אחוז מענה" value={`${s.responseRate}%`} sub="משפחות שהשיבו" />
-        <Kpi label="מבוגרים" value={s.adults} />
-        <Kpi label="ילדים" value={s.children} />
-        <Kpi label="תינוקות" value={s.babies} sub="ללא כיסא" />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="kpis">
+        <Stat label="סך המוזמנים" value={s.invitedTotal} sub={`${s.families} משפחות`} href={`${base}/guests`} />
+        <Stat label="אישרו הגעה" value={s.attendingPeople} sub={`${s.attendingFamilies} משפחות · ${s.adults} מבוגרים, ${s.children} ילדים, ${s.babies} תינוקות`} tone={TONE.ok} />
+        <Stat label="טרם השיבו" value={s.pendingPeople} sub={`${s.pendingFamilies} משפחות · ${s.responseRate}% השיבו`} />
+        <Stat label="לא מגיעים" value={s.declinedPeople} sub={`${s.declinedFamilies} משפחות${s.maybeFamilies ? ` · ${s.maybeFamilies} עדיין לא בטוחים` : ''}`} tone={s.declinedPeople ? TONE.no : undefined} />
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <section className="card p-5">
-          <h2 className="mb-4 font-display text-lg font-medium">תשובות לפי משפחות</h2>
-          <Donut parts={[
-            { label: 'מגיעים', value: s.attendingFamilies, color: '#2f7d5b' }, { label: 'אולי', value: s.maybeFamilies, color: '#d39b34' },
-            { label: 'לא מגיעים', value: s.declinedFamilies, color: '#b4483f' }, { label: 'טרם השיבו', value: s.pendingFamilies, color: '#c3cad6' },
-          ]} />
-        </section>
-        <section className="card p-5">
-          <h2 className="mb-4 font-display text-lg font-medium">כיסאות לסידור השולחנות</h2>
-          <div className="grid gap-3 text-sm">
-            <Bar label="מקומות שהוקצו למשפחות" value={s.allocatedSeats} max={Math.max(s.allocatedSeats, s.confirmedSeats, seatsTotal, 1)} color="#c3cad6" />
-            <Bar label="כיסאות שאושרו (מבוגרים וילדים)" value={s.confirmedSeats} max={Math.max(s.allocatedSeats, s.confirmedSeats, seatsTotal, 1)} color="#2f7d5b" />
-            <Bar label={`מקומות בשולחנות (${tables.length} שולחנות)`} value={seatsTotal} max={Math.max(s.allocatedSeats, s.confirmedSeats, seatsTotal, 1)} color="#1b2440" />
+      <div className="mt-3 grid gap-3 lg:grid-cols-3">
+        <section className="card p-5 lg:col-span-2">
+          <h2 className="text-[17px] font-semibold">תשובות לפי משפחות</h2>
+          <div className="mt-4 flex h-3 overflow-hidden rounded-full bg-paper" role="img" aria-label={parts.map((p) => `${p.label}: ${p.value}`).join(', ')}>
+            {parts.filter((p) => p.value > 0).map((p) => <div key={p.label} style={{ width: `${(p.value / Math.max(s.families, 1)) * 100}%`, background: p.color }} />)}
           </div>
-          <div className="mt-5 flex items-end gap-4 border-t border-line pt-4">
-            {groups.map((g) => (
-              <div key={g.label} className="flex-1 text-center">
-                <div className="mx-auto flex h-20 w-10 items-end rounded-md bg-paper"><div className="w-full rounded-md bg-brass" style={{ height: `${(g.v / maxG) * 100}%` }} /></div>
-                <div className="mt-1 font-bold">{g.v}</div><div className="text-xs text-muted">{g.label}</div>
-              </div>
+          <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+            {parts.map((p) => (
+              <li key={p.label}>
+                <div className="flex items-center gap-1.5 text-xs text-muted"><i className="size-2 rounded-full" style={{ background: p.color }} />{p.label}</div>
+                <div className="mt-0.5 text-xl font-semibold tabular-nums">{p.value}</div>
+              </li>
             ))}
-            <div className="flex-[1.4] text-sm text-muted">הגיעו בפועל: <b className="text-ink">{s.arrivedPeople}</b> אנשים, {s.arrivedFamilies} משפחות</div>
+          </ul>
+          <div className="mt-5 grid gap-3 border-t border-line pt-4 text-sm">
+            <Bar label="מקומות שהוקצו למשפחות" value={s.allocatedSeats} max={maxSeats} color={TONE.idle} />
+            <Bar label="כיסאות שאושרו (מבוגרים וילדים)" value={s.confirmedSeats} max={maxSeats} color={TONE.ok} />
+            <Bar label={`מקומות בשולחנות (${tables.length} שולחנות)`} value={seatsTotal} max={maxSeats} color={TONE.ink} />
           </div>
+        </section>
+
+        <section className="card grid content-start gap-4 p-5">
+          <h2 className="text-[17px] font-semibold">הזמנות ותזכורות</h2>
+          {wa ? (
+            <>
+              <Row label="קיבלו הזמנה ב-WhatsApp" value={`${invitedSent} מתוך ${guests.length}`} />
+              <Row label="הודעות שנכשלו" value={wa.failed} tone={wa.failed ? TONE.no : undefined} />
+              <Row label="התזכורת הבאה" value={wa.next ? fmtWhen(wa.next) : 'לא תוזמנה'} />
+              <div className="flex flex-wrap gap-2 pt-1"><Link className="btn btn-ghost btn-sm" href={`${base}/whatsapp`}>הזמנות</Link><Link className="btn btn-ghost btn-sm" href={`${base}/reminders`}>תזכורות</Link></div>
+            </>
+          ) : <p className="text-sm text-muted">שליחת הזמנות ותזכורות ב-WhatsApp תהיה זמינה אחרי עדכון מסד הנתונים.</p>}
+          <div className="border-t border-line pt-4"><Row label="הגיעו בפועל" value={`${s.arrivedPeople} אנשים · ${s.arrivedFamilies} משפחות`} /></div>
         </section>
       </div>
 
-      <section className="card mt-4 p-5">
-        <h2 className="mb-3 font-display text-lg font-medium">היסטוריית אישורים</h2>
-        {!log.length ? <p className="text-sm text-muted">עדיין לא התקבלו תשובות. כל אישור, שינוי סטטוס ושינוי כמות יירשמו כאן.</p> : (
-          <ul className="divide-y divide-line text-sm">
+      <section className="card mt-3 p-5">
+        <h2 className="text-[17px] font-semibold">תשובות אחרונות</h2>
+        {!log.length ? <p className="mt-2 text-sm text-muted">עדיין לא התקבלו תשובות. כל אישור ושינוי יופיעו כאן.</p> : (
+          <ul className="mt-2 divide-y divide-line text-sm">
             {log.map((r) => (
               <li key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
-                <span className="w-24 text-muted" dir="ltr" style={{ textAlign: 'right' }}>{fmtDateTime(r.created_at)}</span>
-                <b className="min-w-28">{names.get(r.guest_id) ?? 'משפחה שנמחקה'}</b>
+                <b className="min-w-28 font-semibold">{names.get(r.guest_id) ?? 'משפחה שנמחקה'}</b>
                 <StatusPill status={r.status} />
-                {r.status !== 'declined' && <span>{r.adults} מבוגרים, {r.children} ילדים, {r.babies} תינוקות</span>}
+                {r.status !== 'declined' && <span className="text-muted">{r.adults} מבוגרים, {r.children} ילדים, {r.babies} תינוקות</span>}
                 {r.arrived && <span className="pill pill-attending">הגיעו</span>}
-                <span className="ms-auto text-xs text-muted">{SOURCE[r.source] ?? r.source}</span>
+                <span className="ms-auto text-xs text-muted">{SOURCE[r.source] ?? r.source} · <span dir="ltr">{fmtDateTime(r.created_at)}</span></span>
               </li>
             ))}
           </ul>
@@ -139,11 +136,14 @@ export default function Overview() {
   );
 }
 
+function Row({ label, value, tone }: { label: string; value: React.ReactNode; tone?: string }) {
+  return <div className="flex items-baseline justify-between gap-3 text-sm"><span className="text-muted">{label}</span><b className="font-semibold tabular-nums" style={tone ? { color: tone } : undefined}>{value}</b></div>;
+}
 function Bar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
   return (
     <div>
-      <div className="mb-1 flex justify-between"><span>{label}</span><b>{value}</b></div>
-      <div className="h-2.5 rounded-full bg-paper"><div className="h-full rounded-full" style={{ width: `${(value / max) * 100}%`, background: color }} /></div>
+      <div className="mb-1 flex justify-between"><span className="text-muted">{label}</span><b className="font-semibold tabular-nums">{value}</b></div>
+      <div className="h-2 rounded-full bg-paper"><div className="h-full rounded-full" style={{ width: `${(value / max) * 100}%`, background: color }} /></div>
     </div>
   );
 }
