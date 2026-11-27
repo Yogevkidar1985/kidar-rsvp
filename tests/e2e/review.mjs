@@ -69,6 +69,23 @@ try {
     fontSizes: await fp.$$eval('.sheet input, .sheet textarea', (els) => [...new Set(els.map((e) => getComputedStyle(e).fontSize))]),
     hints: await fp.$$eval('.sheet input', (els) => els.map((e) => `${e.name}:${e.getAttribute('enterkeyhint') ?? '-'}:${e.getAttribute('inputmode') ?? e.type}:${e.autocomplete || '-'}`)) }));
   console.log('extras:', JSON.stringify(await fp.evaluate(() => ({ sparkle: !!document.querySelector('.inv-sparkle svg'), ornament: !!document.querySelector('.inv-orn-draw svg'), countdown: document.querySelector('.inv-count')?.innerText.replace(/\n/g, ' ') }))));
+  // the four action tiles and what each one offers
+  const ap = await (await browser.newContext({ ...devices['iPhone 13'], locale: 'he-IL' })).newPage();
+  await ap.goto(`${APP}/kidar-brit/${(await mock.sql(`select link_code from guests limit 1`))[0]?.link_code ?? ''}`, { waitUntil: 'networkidle' }); await sleep(600);
+  const tiles = await ap.$$eval('[data-testid=actions] > *', (els) => els.map((e) => e.textContent.trim()));
+  const sheets = {};
+  for (const t of tiles) {
+    await ap.locator('[data-testid=actions] > *', { hasText: t }).click(); await ap.waitForSelector('.sheet'); await sleep(350);
+    sheets[t] = await ap.$$eval('.sheet .inv-choices > *, .sheet .inv-rows > *', (els) => els.map((e) => `${e.textContent.trim().slice(0, 22)} => ${(e.getAttribute('href') ?? 'button').slice(0, 70)}`));
+    await ap.screenshot({ path: path.join(out, `sheet-${tiles.indexOf(t)}.png`) });
+    await ap.locator('.sheet button', { hasText: 'סגירה' }).click(); await sleep(300);
+  }
+  console.log('actions:', JSON.stringify(sheets, null, 1));
+  const ics = await fetch(`${APP}/api/ics/kidar-brit`);
+  const icsText = await ics.text();
+  console.log('ics:', ics.status, ics.headers.get('content-type'), ics.headers.get('content-disposition'), '|', icsText.includes('BEGIN:VEVENT') && icsText.includes('DTSTART;TZID=Asia/Jerusalem:20261202T150000'), '| download:', (await fetch(`${APP}/api/ics/kidar-brit?download=1`)).headers.get('content-disposition'));
+  console.log('share never carries a personal link:', !JSON.stringify(sheets).includes((await mock.sql(`select link_code from guests limit 1`))[0]?.link_code ?? 'none-yet'));
+  await ap.context().close();
   // test mode: the whole journey on screen, nothing written
   const before = (await mock.sql(`select count(*)::int n from guests`))[0].n, seen = (await mock.sql(`select count(*)::int n from invitation_events`))[0].n;
   const tp = await (await browser.newContext({ ...devices['iPhone 13'], locale: 'he-IL' })).newPage();

@@ -5,7 +5,8 @@ import type { PublicInvitation, TextStyle } from '@/lib/types';
 import { DEFAULT_HERO, resolveDesign } from '@/lib/defaults';
 import { fontStack, fontsHref } from '@/lib/fonts';
 import { dateParts } from '@/lib/hebrew-date';
-import { googleCalendarUrl, icsFile } from '@/lib/calendar';
+import { googleCalendarUrl } from '@/lib/calendar';
+import { intlPhone } from '@/lib/phone';
 import { safeHttpUrl } from '@/lib/validation';
 import Particles from './Particles';
 import RsvpSheet, { type Answer, type RsvpResult } from './RsvpSheet';
@@ -76,6 +77,12 @@ const ICONS: Record<string, React.ReactNode> = {
   share: <><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98" /></>,
   link: <><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></>,
   down: <path d="m6 9 6 6 6-6" />,
+  chat: <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />,
+  facebook: <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />,
+  copy: <><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></>,
+  map: <><path d="M14.1 5.9 9.9 3.8a2 2 0 0 0-1.8 0L3.6 6A1 1 0 0 0 3 6.9v12.5a1 1 0 0 0 1.4.9l3.7-1.9a2 2 0 0 1 1.8 0l4.2 2.1a2 2 0 0 0 1.8 0l4.5-2.2a1 1 0 0 0 .6-.9V4.9a1 1 0 0 0-1.4-.9l-3.7 1.9a2 2 0 0 1-1.8 0z" /><path d="M9 3.8v15M15 5.8v15" /></>,
+  compass: <><circle cx="12" cy="12" r="10" /><path d="m16.2 7.8-2.1 6.3-6.3 2.1 2.1-6.3z" /></>,
+  save: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></>,
 };
 /** Line icons, one family (the Lucide / Feather outline set), drawn in the text colour. */
 const Icon = ({ name, size = 22 }: { name: keyof typeof ICONS; size?: number }) => (
@@ -107,7 +114,7 @@ const ANSWERED: Record<Answer, string> = { attending: 'אישרתם הגעה', m
 export default function InvitationView({ data, token = null, preview = false, celebrateKey = 0, test = false }: Props) {
   const d = useMemo(() => resolveDesign(data.design), [data.design]);
   const [guest, setGuest] = useState(data.guest);
-  const [sheet, setSheet] = useState<null | 'rsvp' | 'cal'>(null);
+  const [sheet, setSheet] = useState<null | 'rsvp' | 'cal' | 'nav' | 'share' | 'contact'>(null);
   const [pick, setPick] = useState<Answer | null>(null);
   const [mine, setMine] = useState<RsvpResult | null>(null);
   const [burst, setBurst] = useState(0);
@@ -189,12 +196,15 @@ export default function InvitationView({ data, token = null, preview = false, ce
     if (r.status === 'attending' && d.celebrate.enabled) setBurst((n) => n + 1);
   }, [d.celebrate.enabled]);
   const flash = (t: string) => { setNote(t); window.setTimeout(() => setNote(''), 2200); };
+  // What a guest passes on is the event's general link, never their own: a personal link lets its holder answer in the guest's name.
+  const [shareUrl, setShareUrl] = useState('');
+  useEffect(() => { setShareUrl(`${window.location.origin}/${data.slug}`); }, [data.slug]);
+  const shareText = [data.name, data.weekday_label, dateParts(data.event_date)?.numeric, data.reception_time || data.ceremony_time].filter(Boolean).join(' · ');
   async function copyLink() {
-    try { await navigator.clipboard.writeText(window.location.href); flash('הקישור הועתק'); } catch { flash('לא הצלחנו להעתיק את הקישור'); }
+    try { await navigator.clipboard.writeText(shareUrl); flash('הקישור הועתק'); } catch { flash('לא הצלחנו להעתיק את הקישור'); }
   }
-  async function share() {
-    if (navigator.share) { try { await navigator.share({ title: data.name, url: window.location.href }); } catch { /* the guest closed the share sheet */ } }
-    else await copyLink();
+  async function nativeShare() {
+    try { await navigator.share({ title: data.name, text: shareText, url: shareUrl }); } catch { /* the guest closed the share sheet */ }
   }
   const openRsvp = (a: Answer | null) => { if (preview) return; track('rsvp_start'); setPick(a); setSheet('rsvp'); };
 
@@ -203,6 +213,8 @@ export default function InvitationView({ data, token = null, preview = false, ce
   const waze = safeHttpUrl(data.waze_url) ?? (place ? `https://waze.com/ul?q=${encodeURIComponent(place)}&navigate=yes` : null);
   const gmaps = safeHttpUrl(data.gmaps_url) ?? (place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}` : null);
   const gcal = googleCalendarUrl(data);
+  const amaps = place ? `https://maps.apple.com/?daddr=${encodeURIComponent(place)}` : null;
+  const hostWa = data.contact_phone ? intlPhone(data.contact_phone) : null;
   const tel = data.contact_phone?.replace(/[^\d+]/g, '');
   const hero = safeHttpUrl(data.hero_url) ?? DEFAULT_HERO;
   const pos = Object.assign({ x: 50, y: 50, zoom: 1, ratio: '4/5', brightness: 1, contrast: 1, overlay: 0 }, data.hero_pos);
@@ -236,13 +248,6 @@ export default function InvitationView({ data, token = null, preview = false, ce
   const ornament = useMemo(() => ornamentLottie(d.colors.accent), [d.colors.accent]);
   const hasPlace = !!(data.venue_name || data.address || venue.length || data.directions || data.parking || data.extra_info);
 
-  function downloadIcs() {
-    const ics = icsFile(data);
-    if (!ics) return;
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
-    a.download = 'event.ics'; document.body.appendChild(a); a.click(); a.remove();
-  }
   const photos = (list: typeof gallery, cls: string) => (
     <div className={cls}>
       {list.map((m) => (
@@ -333,15 +338,11 @@ export default function InvitationView({ data, token = null, preview = false, ce
                 </>
               )}
               {venue.length > 0 && photos(venue, 'inv-venue')}
-              <div className="inv-quick">
-                {d.buttons.navigate && waze && <a href={waze} target="_blank" rel="noopener noreferrer"><Icon name="navigation" /><span>Waze</span></a>}
-                {d.buttons.navigate && gmaps && <a href={gmaps} target="_blank" rel="noopener noreferrer"><Icon name="pin" /><span>Google Maps</span></a>}
-                {d.buttons.calendar && gcal && <button type="button" onClick={() => setSheet('cal')}><Icon name="calendar" /><span>{d.labels.calendar}</span></button>}
-                {d.buttons.call && tel && <a href={`tel:${tel}`}><Icon name="phone" /><span>{d.labels.call}</span></a>}
-              </div>
-              <div className="inv-share">
-                <button type="button" onClick={() => !preview && share()}><Icon name="share" size={17} />שיתוף ההזמנה</button>
-                <button type="button" onClick={() => !preview && copyLink()}><Icon name="link" size={17} />העתקת הקישור</button>
+              <div className="inv-quick" data-testid="actions">
+                {d.buttons.navigate && (waze || gmaps) && <button type="button" onClick={() => !preview && setSheet('nav')}><Icon name="navigation" /><span>{d.labels.navigate}</span></button>}
+                {d.buttons.calendar && gcal && <button type="button" onClick={() => !preview && setSheet('cal')}><Icon name="calendar" /><span>{d.labels.calendar}</span></button>}
+                {d.buttons.call && tel && <button type="button" onClick={() => !preview && setSheet('contact')}><Icon name="phone" /><span>יצירת קשר</span></button>}
+                <button type="button" onClick={() => !preview && setSheet('share')}><Icon name="share" /><span>שיתוף</span></button>
               </div>
               {(data.directions || data.parking || data.extra_info) && (
                 <dl className="inv-notes">
@@ -400,10 +401,45 @@ export default function InvitationView({ data, token = null, preview = false, ce
         <RsvpSheet slug={data.slug} token={token} guest={guest} initial={pick} maxParty={data.rsvp_settings?.max_party ?? 15}
           accent={d.colors.accent} test={test} onClose={closeSheet} onSaved={onSaved} />
       )}
+      {sheet === 'nav' && (
+        <Sheet title="ניווט לאירוע" onClose={closeSheet}>
+          {place && <p className="sheet-sub">{place}</p>}
+          <div className="inv-choices">
+            {waze && <a href={waze} target="_blank" rel="noopener noreferrer"><Icon name="navigation" /><span>Waze</span></a>}
+            {gmaps && <a href={gmaps} target="_blank" rel="noopener noreferrer"><Icon name="pin" /><span>Google Maps</span></a>}
+            {amaps && <a href={amaps} target="_blank" rel="noopener noreferrer"><Icon name="map" /><span>מפות Apple</span></a>}
+          </div>
+        </Sheet>
+      )}
       {sheet === 'cal' && (
         <Sheet title="הוספה ליומן" onClose={closeSheet}>
-          {gcal && <a className="inv-btn" href={gcal} target="_blank" rel="noopener noreferrer">Google Calendar</a>}
-          <button type="button" className="inv-btn" onClick={downloadIcs}>Apple Calendar / Outlook</button>
+          <p className="sheet-sub">בחרו את היומן שאליו תרצו להוסיף את האירוע</p>
+          <div className="inv-rows">
+            <a href={`/api/ics/${data.slug}`}><Icon name="calendar" /><span>Apple Calendar<small>iPhone / iPad / Mac</small></span></a>
+            {gcal && <a href={gcal} target="_blank" rel="noopener noreferrer"><Icon name="calendar" /><span>Google Calendar<small>Android / iPhone</small></span></a>}
+            <a href={`/api/ics/${data.slug}?download=1`} download><Icon name="save" /><span>הורדת קובץ יומן<small>Outlook ויומנים אחרים (‎.ics)</small></span></a>
+          </div>
+          <p className="sheet-note">אם היומן לא נפתח מתוך WhatsApp או אפליקציה אחרת, פתחו את ההזמנה ב-Safari באייפון או ב-Chrome באנדרואיד ונסו שוב. אחרי שהאירוע נפתח צריך לאשר את השמירה ביומן.</p>
+        </Sheet>
+      )}
+      {sheet === 'share' && (
+        <Sheet title="שיתוף ההזמנה" onClose={closeSheet}>
+          <div className="inv-choices">
+            <a href={`https://wa.me/?text=${encodeURIComponent(`${shareText}\n${shareUrl}`)}`} target="_blank" rel="noopener noreferrer"><Icon name="chat" /><span>WhatsApp</span></a>
+            <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`} target="_blank" rel="noopener noreferrer"><Icon name="facebook" /><span>Facebook</span></a>
+            <button type="button" onClick={copyLink}><Icon name="copy" /><span>העתקה</span></button>
+            {typeof navigator !== 'undefined' && 'share' in navigator && <button type="button" onClick={nativeShare}><Icon name="share" /><span>עוד</span></button>}
+          </div>
+          <p className="sheet-note">נשלח הקישור הכללי של האירוע. מי שיקבל אותו ימלא את הפרטים שלו בעצמו.</p>
+        </Sheet>
+      )}
+      {sheet === 'contact' && tel && (
+        <Sheet title="יצירת קשר" onClose={closeSheet}>
+          <p className="sheet-sub">שאלה על האירוע? אפשר לפנות ישירות</p>
+          <div className="inv-rows">
+            <a href={`tel:${tel}`}><Icon name="phone" /><span>חיוג<small dir="ltr">{data.contact_phone}</small></span></a>
+            {hostWa && <a href={`https://wa.me/${hostWa}`} target="_blank" rel="noopener noreferrer"><Icon name="chat" /><span>הודעת WhatsApp<small>נפתחת שיחה עם המארחים</small></span></a>}
+          </div>
         </Sheet>
       )}
       {note && <div className="inv-toast" role="status">{note}</div>}
