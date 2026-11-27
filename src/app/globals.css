@@ -435,4 +435,5 @@ input[type="range"] { accent-color: var(--color-ink); }
 
 /* the venue's own logo in place of its name */
 .inv-venue-logo { display: block; width: auto; height: 92px; max-width: 60%; margin: 0 auto 12px; object-fit: contain; }
-.way__logo { display: block; max-width: min(190px, 70%); max-height: 52px; width: auto; height: auto; margin: 0 0 6px; object-fit: contain; }
+/* sized by its height, so it sits against the same edge as the text under it */
+.way__logo { display: block; height: 52px; width: auto; max-width: 70%; margin: 2px 0 6px; object-fit: contain; object-position: right center; align-self: flex-start; }
