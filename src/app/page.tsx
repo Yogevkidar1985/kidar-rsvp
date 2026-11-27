@@ -1,2 +1,3 @@
-import { redirect } from 'next/navigation';
-export default function Home() { redirect('/admin'); }
+import { notFound } from 'next/navigation';
+// The bare domain shows nothing: guests get their invitation link, the team opens /admin.
+export default function Home() { notFound(); }
