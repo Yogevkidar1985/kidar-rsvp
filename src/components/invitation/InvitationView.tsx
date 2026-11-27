@@ -369,7 +369,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
           ) : (
             <div className="inv-hero-empty">{preview ? 'כאן תופיע התמונה הראשית. מעלים אותה בלשונית "תמונות".' : ''}</div>
           )}
-          {hero && <span className="inv-scroll" aria-hidden="true"><i /><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m6 8 6 6 6-6" /><path d="m6 13 6 6 6-6" opacity=".45" /></svg></span>}
+          {hero && <span className="inv-scroll" aria-hidden="true"><i /><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m6 8 6 6 6-6" /><path d="m6 13 6 6 6-6" opacity=".45" /></svg></span>}
         </div>
 
         <main className="inv-body">
