@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import type { GuestStatus, PublicGuest } from '@/lib/types';
 import { normPhone } from '@/lib/phone';
 import { successLottie } from './successLottie';
+import { useDialogFocus } from '@/lib/dialog';
 
 const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
 export type Answer = Exclude<GuestStatus, 'pending'>;
@@ -30,7 +31,7 @@ const THANKS: Record<Answer, [string, string]> = {
 function Stepper({ label, hint, value, set, max }: { label: string; hint?: string; value: number; set: (n: number) => void; max: number }) {
   return (
     <div className="stepper">
-      <span><b style={{ fontWeight: 600 }}>{label}</b>{hint && <small style={{ display: 'block', color: 'var(--inv-muted)' }}>{hint}</small>}</span>
+      <span><b style={{ fontWeight: 600 }}>{label}</b>{hint && <small style={{ display: 'block', color: 'var(--inv-dim)' }}>{hint}</small>}</span>
       <div>
         <button type="button" aria-label={`פחות ${label}`} disabled={value <= 0} onClick={() => set(value - 1)}>−</button>
         <output aria-live="polite">{value}</output>
@@ -54,6 +55,8 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, initia
   const [error, setError] = useState('');
   const [done, setDone] = useState<Answer | null>(null);
   const first = useRef<HTMLInputElement>(null);
+  const box = useRef<HTMLDivElement>(null);
+  useDialogFocus(box);
   const key = `rsvp:${slug}:${token ?? ''}`;
 
   useEffect(() => {
@@ -99,7 +102,7 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, initia
 
   return (
     <div className="sheet-back" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-label="אישור הגעה" dir="rtl">
+      <div ref={box} tabIndex={-1} className="sheet" role="dialog" aria-modal="true" aria-label="אישור הגעה" dir="rtl">
         {done ? (
           <div style={{ textAlign: 'center', padding: '8px 0 6px' }} data-testid="rsvp-success">
             <div style={{ width: 150, height: 150, margin: '0 auto' }}>
@@ -107,7 +110,7 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, initia
             </div>
             <h2 className="sheet-title" style={{ margin: '4px 0 8px' }}>{THANKS[done][0]}</h2>
             {done !== 'declined' && total > 0 && <p style={{ margin: '0 0 6px', fontWeight: 600 }}>נרשמו {total} משתתפים</p>}
-            <p style={{ margin: 0, color: 'var(--inv-muted)', lineHeight: 1.6 }}>{test ? 'מצב בדיקה: כך ייראה המסך לאורח. התשובה לא נשמרה.' : THANKS[done][1]}</p>
+            <p style={{ margin: 0, color: 'var(--inv-dim)', lineHeight: 1.6 }}>{test ? 'מצב בדיקה: כך ייראה המסך לאורח. התשובה לא נשמרה.' : THANKS[done][1]}</p>
             <div style={{ display: 'grid', gap: 8, marginTop: 22 }}>
               <button type="button" className="inv-btn" onClick={onClose}>חזרה להזמנה</button>
               <button type="button" className="inv-btn ghost" onClick={() => setDone(null)}>עדכון התשובה</button>
@@ -118,7 +121,7 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, initia
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 12 }}>
               <div>
                 <h2 className="sheet-title">{answered ? 'עדכון אישור ההגעה' : 'אישור הגעה'}</h2>
-                {guest && <p style={{ margin: '4px 0 0', color: 'var(--inv-muted)' }}>{guest.family_name}{seatCap !== null ? ` · שמורים לכם ${seatCap} מקומות` : ''}</p>}
+                {guest && <p style={{ margin: '4px 0 0', color: 'var(--inv-dim)' }}>{guest.family_name}{seatCap !== null ? ` · שמורים לכם ${seatCap} מקומות` : ''}</p>}
               </div>
               <button type="button" aria-label="סגירה" onClick={onClose} className="sheet-x">×</button>
             </div>

@@ -1,5 +1,6 @@
 'use client';
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { useDialogFocus } from '@/lib/dialog';
 import type { GuestStatus } from '@/lib/types';
 import { STATUS_LABEL } from '@/lib/types';
 
@@ -8,6 +9,8 @@ export function StatusPill({ status }: { status: GuestStatus }) {
 }
 
 export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
+  const box = useRef<HTMLDivElement>(null);
+  useDialogFocus(box);
   useEffect(() => {
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', esc);
@@ -15,7 +18,7 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/45 sm:items-center sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div role="dialog" aria-modal="true" aria-label={title}
+      <div ref={box} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title}
         className={`max-h-[94dvh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 sm:rounded-2xl ${wide ? 'sm:max-w-2xl' : 'sm:max-w-md'}`}>
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="font-display text-xl font-medium">{title}</h2>

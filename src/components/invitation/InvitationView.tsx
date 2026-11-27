@@ -8,6 +8,7 @@ import { googleCalendarUrl, icsFile } from '@/lib/calendar';
 import { safeHttpUrl } from '@/lib/validation';
 import Particles from './Particles';
 import RsvpSheet, { type Answer, type RsvpResult } from './RsvpSheet';
+import { useDialogFocus } from '@/lib/dialog';
 
 type Props = {
   data: PublicInvitation; token?: string | null;
@@ -43,6 +44,8 @@ function youtubeId(u: string): string | null {
 }
 
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  const box = useRef<HTMLDivElement>(null);
+  useDialogFocus(box);
   useEffect(() => {
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', esc);
@@ -50,7 +53,7 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
   }, [onClose]);
   return (
     <div className="sheet-back" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={title} dir="rtl">
+      <div ref={box} tabIndex={-1} className="sheet" role="dialog" aria-modal="true" aria-label={title} dir="rtl">
         <h2 className="sheet-title">{title}</h2>
         <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>{children}</div>
         <button type="button" className="inv-btn ghost" style={{ marginTop: 10 }} onClick={onClose}>סגירה</button>
@@ -96,6 +99,19 @@ export default function InvitationView({ data, token = null, preview = false, ce
   const heroRef = useRef<HTMLDivElement>(null);
   const driftRef = useRef<HTMLDivElement>(null);
   const rsvpRef = useRef<HTMLElement>(null);
+  const lightRef = useRef<HTMLDivElement>(null);
+  useDialogFocus(lightRef, lightbox !== null);
+  useEffect(() => {
+    if (lightbox === null) return;
+    const n = data.media.length;
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLightbox(null);
+      else if (e.key === 'ArrowLeft' && n > 1) setLightbox((i) => (i === null ? i : (i + 1) % n));
+      else if (e.key === 'ArrowRight' && n > 1) setLightbox((i) => (i === null ? i : (i + n - 1) % n));
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, [lightbox, data.media.length]);
 
   useEffect(() => { setGuest(data.guest); }, [data.guest]);
   useEffect(() => { if (celebrateKey) setBurst((n) => n + 1); }, [celebrateKey]);
@@ -241,7 +257,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
         <main className="inv-body">
           <header className="inv-open">
             <Reveal on={anim}>
-              {d.latin && <p className="inv-latin" dir="ltr">{d.latin}</p>}
+              {d.latin && <p className="inv-latin" dir="ltr" lang="en">{d.latin}</p>}
               {data.hosts && <p className="inv-names" style={css(d.styles.hosts)}>{data.hosts}</p>}
               {data.name && <p className="inv-kicker">{data.name}</p>}
               <Ornament />
@@ -331,7 +347,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
                 </>
               ) : (
                 <>
-                  <p style={{ ...body, marginTop: 10, color: d.colors.muted, fontSize: Math.round(d.styles.body.size * 0.9) }}>נשמח לדעת אם תגיעו</p>
+                  <p style={{ ...body, marginTop: 10, color: 'var(--inv-dim)', fontSize: Math.round(d.styles.body.size * 0.9) }}>נשמח לדעת אם תגיעו</p>
                   <div className="inv-options">
                     {OPTIONS.map((o, i) => (
                       <button key={o.key} type="button" className={`inv-btn${i ? ' ghost' : ''}`} data-testid={i ? undefined : 'rsvp-open'} onClick={() => openRsvp(o.key)}>{o.label}</button>
@@ -361,7 +377,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
       )}
       {note && <div className="inv-toast" role="status">{note}</div>}
       {lightbox !== null && shots[lightbox] && (
-        <div className="inv-light" onClick={() => setLightbox(null)} role="dialog" aria-modal="true" aria-label="תמונה מוגדלת"
+        <div ref={lightRef} tabIndex={-1} className="inv-light" onClick={() => setLightbox(null)} role="dialog" aria-modal="true" aria-label="תמונה מוגדלת"
           onTouchStart={(e) => { touch.current = e.touches[0].clientX; }}
           onTouchEnd={(e) => { const dx = e.changedTouches[0].clientX - touch.current; if (Math.abs(dx) > 50 && shots.length > 1) { e.preventDefault(); setLightbox((lightbox + (dx > 0 ? 1 : shots.length - 1)) % shots.length); } }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}

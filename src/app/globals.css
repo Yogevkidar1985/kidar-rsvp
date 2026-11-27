@@ -9,9 +9,9 @@
   --color-line: #e6eaf0;
   --color-muted: #667085;
   --color-brass: #7886a5;
-  --color-ok: #16845b;
-  --color-warn: #b97a22;
-  --color-maybe: #b97a22;
+  --color-ok: #117550;
+  --color-warn: #8f5b0c;
+  --color-maybe: #8f5b0c;
   --color-no: #d94a4a;
   --color-info: #3976c5;
   --font-sans: "Heebo", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -138,7 +138,7 @@ input[type="range"] { accent-color: var(--color-ink); }
 .inv-quick:empty { display: none; }
 .inv-share { display: flex; justify-content: center; flex-wrap: wrap; gap: 0 18px; margin-top: 18px; white-space: nowrap; }
 .inv-share button { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 0 4px; border: 0; background: none; color: var(--inv-dim); font: 400 14.5px/1 var(--inv-font); }
-.inv-test { position: sticky; top: 0; z-index: 40; padding: 8px 14px; background: #b97a22; color: #fff; font: 500 13px/1.3 var(--inv-font); text-align: center; }
+.inv-test { position: sticky; top: 0; z-index: 40; padding: 8px 14px; background: #8a570b; color: #fff; font: 500 13px/1.3 var(--inv-font); text-align: center; }
 .inv-toast { position: fixed; inset-inline: 0; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 65; width: max-content; max-width: 86vw; margin: 0 auto; padding: 11px 18px; border-radius: 999px;
   background: var(--inv-ink); color: var(--inv-surface); font: 400 15px/1.2 var(--inv-font); animation: inv-fade .2s ease both; }
 
@@ -190,6 +190,7 @@ input[type="range"] { accent-color: var(--color-ink); }
 @keyframes inv-zoom { from { scale: 1.08; } to { scale: 1; } }
 
 .sheet-back { position: fixed; inset: 0; z-index: 50; background: color-mix(in srgb, var(--inv-ink, #1e2a44) 55%, transparent); display: flex; align-items: flex-end; justify-content: center; animation: inv-fade .2s ease both; }
+.sheet:focus, .inv-light:focus { outline: none; }
 .sheet { width: 100%; max-width: 480px; max-height: 94dvh; overflow-y: auto; background: var(--inv-surface, #fff); color: var(--inv-ink, #1e2a44); border-radius: 14px 14px 0 0;
   padding: 26px 24px calc(24px + env(safe-area-inset-bottom)); animation: sheet-up .34s cubic-bezier(.2,.8,.2,1) both; font-family: var(--inv-font, "Assistant", sans-serif); font-size: 16px; }
 @media (min-width: 640px) { .sheet-back { align-items: center; } .sheet { border-radius: 6px; } }

@@ -1,10 +1,11 @@
 'use client';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { useEvent } from './EventContext';
 import { Icon, type IconName } from './icons';
+import { useDialogFocus } from '@/lib/dialog';
 
 type Item = { href: string; label: string; short?: string; icon: IconName; owner?: boolean };
 const GROUPS: { title: string; items: Item[] }[] = [
@@ -32,6 +33,14 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const drawer = useRef<HTMLDivElement>(null);
+  useDialogFocus(drawer, open);
+  useEffect(() => {
+    if (!open) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [open]);
   const base = `/admin/events/${event.id}`;
   useEffect(() => { setOpen(false); }, [path]);
   async function signOut() { await supabaseBrowser().auth.signOut(); router.replace('/admin/login'); router.refresh(); }
@@ -46,7 +55,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     <nav className="grid gap-5" aria-label="ניווט באירוע">
       {groups.map((g) => (
         <div key={g.title}>
-          <div className="mb-1 px-2.5 text-[11px] font-semibold tracking-wide text-muted/80">{g.title}</div>
+          <div className="mb-1 px-2.5 text-[11px] font-semibold tracking-wide text-muted">{g.title}</div>
           <div className="grid gap-0.5">
             {g.items.map((n) => (
               <Link key={n.href} href={base + n.href} aria-current={isActive(n.href) ? 'page' : undefined}
@@ -104,7 +113,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       </nav>
       {open && (
         <div className="no-print fixed inset-0 z-50 flex items-end bg-text/40 lg:hidden" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
-          <div role="dialog" aria-modal="true" aria-label="תפריט" className="max-h-[86dvh] w-full overflow-y-auto rounded-t-2xl bg-white px-3 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3">
+          <div ref={drawer} tabIndex={-1} role="dialog" aria-modal="true" aria-label="תפריט" className="max-h-[86dvh] w-full overflow-y-auto rounded-t-2xl bg-white px-3 pb-[calc(16px+env(safe-area-inset-bottom))] pt-3">
             <div className="mb-3 flex items-center justify-between px-2.5">
               <span className="text-[15px] font-semibold">תפריט</span>
               <button type="button" className="btn btn-ghost btn-icon" aria-label="סגירה" onClick={() => setOpen(false)}><Icon name="close" /></button>
