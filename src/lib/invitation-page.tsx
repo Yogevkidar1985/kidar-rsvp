@@ -8,6 +8,8 @@ import type { PublicInvitation } from '@/lib/types';
 import InvitationView from '@/components/invitation/InvitationView';
 
 /** Names the site itself uses: an event can never be reached under one of them. */
+import { LINK_CODE } from './links';
+import { resolveDesign } from './defaults';
 const RESERVED = new Set(['admin', 'api', 'auth', 'e', 'i', 'og', 'fonts']);
 
 const load = cache(async (slug: string, token: string | null): Promise<PublicInvitation | null> => {
@@ -16,13 +18,14 @@ const load = cache(async (slug: string, token: string | null): Promise<PublicInv
   if (error) throw new Error('invitation lookup failed');
   return (data as PublicInvitation | null) ?? null;
 });
-/** A guest's key: the long token of older links, or the short code of new ones. Anything else is ignored. */
-export const guestKey = (g?: string | null) => (g && (/^[a-f0-9]{18}$/.test(g) || /^[A-Za-z0-9]{8}$/.test(g)) ? g : null);
+/** A guest's key: the long token of older links, the short code of new ones, or a word the owner chose. Anything else is ignored. */
+export const guestKey = (g?: string | null) => (g && (/^[a-f0-9]{18}$/.test(g) || LINK_CODE.test(g)) ? g : null);
 
 export async function invitationMetadata(slug: string, key: string | null): Promise<Metadata> {
   const data = await load(slug, key);
   if (!data) return { title: 'הזמנה' };
-  const description = [data.headline, data.weekday_label, data.hebrew_date, data.reception_time || data.ceremony_time].filter(Boolean).join(' · ');
+  const share = resolveDesign(data.design).share;
+  const description = share.description || [data.headline, data.weekday_label, data.hebrew_date, data.reception_time || data.ceremony_time].filter(Boolean).join(' · ');
   // the preview picture must be an absolute address: built from the configured site, or from the host that was asked
   const h = await headers();
   const origin = (process.env.NEXT_PUBLIC_SITE_URL || `${h.get('x-forwarded-proto') ?? 'https'}://${h.get('x-forwarded-host') ?? h.get('host') ?? ''}`).replace(/\/+$/, '');
@@ -30,7 +33,7 @@ export async function invitationMetadata(slug: string, key: string | null): Prom
   const image = { url: `${origin}/og/${data.slug}`, width: Math.round(1200 * k), height: Math.round(630 * k), alt: data.name };
   return {
     title: data.name, description, robots: { index: false, follow: false },
-    openGraph: { title: data.hosts ? `${data.hosts} · ${data.name}` : data.name, description, images: [image], locale: 'he_IL', type: 'website' },
+    openGraph: { title: share.title || (data.hosts ? `${data.hosts} · ${data.name}` : data.name), description, images: [image], locale: 'he_IL', type: 'website' },
     twitter: { card: 'summary_large_image', images: [image.url] },
   };
 }

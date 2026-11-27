@@ -18,10 +18,11 @@ const GROUPS: { title: string; items: Item[] }[] = [
     { href: '/editor', label: 'עיצוב ההזמנה', short: 'עיצוב', icon: 'design' },
     { href: '/whatsapp', label: 'הזמנות WhatsApp', short: 'הזמנות', icon: 'message' },
     { href: '/reminders', label: 'תזכורות', icon: 'bell' },
+    { href: '/links', label: 'קישורים', icon: 'link' },
   ] },
   { title: 'ניהול', items: [
     { href: '/export', label: 'ייצוא לאקסל', icon: 'download' },
-    { href: '/connections', label: 'התראות וחיבורים', icon: 'link', owner: true },
+    { href: '/connections', label: 'התראות וחיבורים', icon: 'bell', owner: true },
     { href: '/team', label: 'צוות והרשאות', icon: 'shield', owner: true },
   ] },
 ];

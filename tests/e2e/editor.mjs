@@ -118,6 +118,41 @@ try {
     }
   }
 
+  // links: a family's own code, the WhatsApp card texts, and the invitation's address
+  {
+    const [g] = await mock.sql(`insert into guests (event_id, family_name, phone, status) values ($1, 'משפחת כהן', '0501112233', 'pending') returning id, link_code`, [id]);
+    const post = (token) => fetch(`${APP}/api/rsvp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug: 'kidar-brit', token, name: 'משפחת כהן', phone: '0501112233', status: 'attending', adults: 2, children: 1, babies: 0 }) });
+    let r = await post(g.link_code);
+    check('links: an answer through the short personal link is saved on the family', r.status === 200 && (await mock.sql(`select status, adults from guests where id = $1`, [g.id]))[0].status === 'attending', String(r.status));
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'he-IL', permissions: ['clipboard-read', 'clipboard-write'] });
+    const p = await ctx.newPage(); p.on('dialog', (d) => d.accept());
+    await p.goto(APP + '/admin/login'); await p.fill('input', '1007'); await p.click('button[aria-label="כניסה"]'); await p.waitForURL(/admin\/events/);
+    await p.goto(`${APP}/admin/events/${id}/links`, { waitUntil: 'networkidle' });
+    const row = p.locator('[data-testid=link-row]', { hasText: 'משפחת כהן' });
+    await row.getByRole('button', { name: 'העתקה' }).click(); await sleep(300);
+    check('links: the personal link is copied', (await p.evaluate(() => navigator.clipboard.readText())) === `${APP}/kidar-brit/${g.link_code}`);
+    await row.getByRole('button', { name: 'עריכה' }).click(); await row.locator('input').fill('cohen'); await row.getByRole('button', { name: 'שמירה' }).click(); await sleep(900);
+    check('links: a chosen word replaces the code', (await mock.sql(`select link_code from guests where id = $1`, [g.id]))[0].link_code === 'cohen' && (await row.innerText()).includes('kidar-brit/cohen'));
+    await mock.sql(`update guests set status = 'pending', adults = 0, children = 0 where id = $1`, [g.id]);
+    r = await post('cohen');
+    check('links: the chosen word opens that family and takes its answer', r.status === 200 && (await mock.sql(`select status from guests where id = $1`, [g.id]))[0].status === 'attending' && (await mock.sql(`select count(*)::int n from guests where event_id = $1 and phone_norm is not null and family_name = 'משפחת כהן'`, [id]))[0].n === 1, String(r.status));
+    r = await post(g.link_code);
+    check('links: the replaced code no longer stands for the family', (await fetch(`${APP}/kidar-brit/${g.link_code}`)).status === 200);
+    const prev = p.locator('[data-testid=link-preview]');
+    await prev.locator('input').fill('הברית של קידר הקטן'); await prev.locator('textarea').fill('יום רביעי, 2.12, 15:00 · Tesoro'); await prev.getByRole('button', { name: 'שמירה' }).click(); await sleep(900);
+    const html = await (await fetch(`${APP}/kidar-brit`)).text();
+    check('links: the WhatsApp card carries the edited title and description', html.includes('property="og:title" content="הברית של קידר הקטן"') && html.includes('property="og:description" content="יום רביעי, 2.12, 15:00 · Tesoro"'));
+    check('links: the screen fits a phone', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+    await p.screenshot({ path: path.join(out, 'links-phone.png'), fullPage: true });
+    const main = p.locator('[data-testid=link-main]');
+    await main.locator('input').fill('Kidar Party!'); 
+    check('links: the address field keeps only valid characters', (await main.locator('input').inputValue()) === 'kidarparty');
+    await main.locator('input').fill('kidar-party'); await main.getByRole('button', { name: 'שמירת הכתובת' }).click(); await sleep(1200);
+    check('links: the new address opens the invitation and the old one does not', (await fetch(`${APP}/kidar-party/cohen`)).status === 200 && (await fetch(`${APP}/kidar-brit`)).status === 404);
+    await mock.sql(`update events set slug = 'kidar-brit' where id = $1`, [id]);
+    await ctx.close();
+  }
+
   // the setup notice, shown while the database update has not been run
   await mock.sql(`alter table campaigns rename to campaigns_off`);
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: 'he-IL', permissions: ['clipboard-read', 'clipboard-write'] });

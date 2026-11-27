@@ -119,7 +119,9 @@ export default function WhatsAppPage() {
 
   return (
     <>
-      <PageHead title="הזמנות WhatsApp" sub={`${guests.filter((g) => g.invited_at).length} מתוך ${guests.length} משפחות כבר קיבלו הזמנה`} />
+      <PageHead title="הזמנות WhatsApp" sub={`${guests.filter((g) => g.invited_at).length} מתוך ${guests.length} משפחות כבר קיבלו הזמנה`}>
+        <a className="btn btn-ghost" href={`/admin/events/${event.id}/links`}>עריכת הקישורים</a>
+      </PageHead>
       <GreenNotice green={box.green} />
       {!event.published && <p className="notice notice-warn mb-3">ההזמנה עדיין לא מפורסמת. מפרסמים אותה ב"עיצוב ההזמנה" לפני השליחה, אחרת הקישור לא ייפתח.</p>}
       <div className="tabs mb-4 w-fit max-w-full" role="tablist">

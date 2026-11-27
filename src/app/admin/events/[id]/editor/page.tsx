@@ -269,8 +269,7 @@ export default function EditorPage() {
               {text('intro_text', 'טקסט פתיחה', { area: true })}
               {text('hosts', 'בעלי האירוע')}
               {text('closing_text', 'טקסט סיום', { area: true })}
-              <Field label="כתובת ההזמנה" hint="שינוי הכתובת שובר קישורים שכבר נשלחו.">
-                <input className="field" dir="ltr" value={draft.slug} onChange={(e) => set('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} /></Field>
+              <p className="text-sm text-muted">את כתובת ההזמנה, תצוגת הקישור ב-WhatsApp והקישורים האישיים עורכים במסך <a className="font-medium underline" href={`/admin/events/${event.id}/links`}>קישורים</a>.</p>
             </>}
             {tab === 'מועד' && <>
               <div><span className="label">תאריך האירוע</span>

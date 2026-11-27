@@ -4,7 +4,8 @@ import { normPhone } from './phone';
 const count = z.coerce.number().int().min(0).max(50);
 export const rsvpSchema = z.object({
   slug: z.string().regex(/^[a-z0-9][a-z0-9-]{2,60}$/),
-  token: z.string().regex(/^[a-f0-9]{18}$/).nullish(),
+  // the long token of older links, or the code in a personal link (random, or a word the owner chose)
+  token: z.string().regex(/^(?:[a-f0-9]{18}|[A-Za-z0-9][A-Za-z0-9-]{3,23})$/).nullish(),
   name: z.string().trim().min(2, 'נא למלא שם מלא').max(80),
   phone: z.string().trim().refine((p) => normPhone(p) !== null, 'מספר הטלפון אינו תקין'),
   status: z.enum(['attending', 'maybe', 'declined']),
