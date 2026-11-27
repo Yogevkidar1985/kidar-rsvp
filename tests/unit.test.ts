@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { compare, duplicateIds, findDuplicates, normName, pairKey } from '../src/lib/duplicates';
 import { hebrewDate, weekdayLabel, dateParts } from '@/lib/hebrew-date';
 import { normPhone, intlPhone } from '@/lib/phone';
 import { rsvpSchema, safeHttpUrl } from '@/lib/validation';
@@ -125,5 +126,43 @@ describe('design', () => {
     const l = successLottie('#2F7D5B');
     expect(l.layers.map((x) => x.nm)).toEqual(['check', 'disc', 'rays', 'ring']); expect(l.op).toBe(90);
     expect(JSON.stringify(l)).not.toContain('undefined');
+  });
+});
+
+describe('duplicate detection', () => {
+  const g = (id: string, family_name: string, phone: string | null, extra: Record<string, unknown> = {}) =>
+    ({ id, event_id: 'e', family_name, contact_name: null, phone, status: 'pending', adults: 0, children: 0, babies: 0, ...extra }) as never;
+  it('treats one phone written four ways as one phone', () => {
+    const list = [g('1', 'דוד כהן', '054-304-9491'), g('2', 'דוד כהן', '0543049491'), g('3', 'דוד  כהן', '+972543049491'), g('4', 'כהן דוד', '972543049491')];
+    const groups = findDuplicates(list);
+    expect(groups).toHaveLength(1); expect(groups[0].ids).toHaveLength(4); expect(groups[0].confidence).toBe('very_high');
+    expect(groups[0].reasons).toContain('אותו מספר טלפון');
+  });
+  it('folds spacing, punctuation, "family of" and final letters in names', () => {
+    expect(normName('משפחת  כהן')).toBe(normName('כהן')); expect(normName('דוד כהן')).toBe(normName('כהן, דוד'));
+    expect(normName('David  COHEN')).toBe('cohen david'); expect(normName('אברהם')).toBe(normName('אברהמ'));
+  });
+  it('says why, and never ranks a name alone as certain', () => {
+    const sameName = compare(g('1', 'דוד כהן', '0501111111'), g('2', 'דוד כהן', '0502222222'))!;
+    expect(sameName.confidence).toBe('medium'); expect(sameName.reasons).toEqual(['אותו שם', 'מספרי טלפון שונים']);
+    const noPhone = compare(g('1', 'רונית שמש', null), g('2', 'רונית שמש', '0501111111'))!;
+    expect(noPhone.confidence).toBe('high'); expect(noPhone.reasons).toContain('לאחד מהם אין טלפון');
+    const spelling = compare(g('1', 'משפחת כוהן', null), g('2', 'משפחת כהן', null))!;
+    expect(spelling.reasons[0]).toContain('כמעט זהה');
+    expect(compare(g('1', 'דוד כהן', '0501111111'), g('2', 'שרה לוי', '0502222222'))).toBeNull();
+  });
+  it('flags a shared phone with different names for review instead of assuming one person', () => {
+    const m = compare(g('1', 'דוד כהן', '0501111111'), g('2', 'שרה לוי', '050-1111111'))!;
+    expect(m.confidence).toBe('high'); expect(m.reasons.join()).toContain('שמות שונים');
+  });
+  it('marks conflicting answers as critical and puts them first', () => {
+    const list = [g('1', 'אבי לוי', null), g('2', 'אבי לוי', null), g('3', 'דנה רז', '0501111111', { status: 'attending', adults: 2 }), g('4', 'דנה רז', '0501111111', { status: 'declined' })];
+    const groups = findDuplicates(list);
+    expect(groups[0].ids).toEqual(['3', '4']); expect(groups[0].critical).toBe(true); expect(groups[1].critical).toBe(false);
+  });
+  it('leaves out pairs a person marked as different people', () => {
+    const list = [g('1', 'דוד כהן', '0501111111'), g('2', 'דוד כהן', '0502222222')];
+    expect(findDuplicates(list, new Set([pairKey('2', '1')]))).toHaveLength(0);
+    expect(duplicateIds(findDuplicates(list)).size).toBe(2);
   });
 });

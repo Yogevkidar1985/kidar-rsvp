@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { supabaseBrowser } from '@/lib/supabase/client';
+import { useDuplicates } from '@/components/admin/Duplicates';
 import { useEvent } from '@/components/admin/EventContext';
 import { PageHead } from '@/components/admin/Shell';
 import { Icon } from '@/components/admin/icons';
@@ -86,6 +87,7 @@ export default function Overview() {
     { label: 'לא מגיעים', value: s.declinedFamilies, color: TONE.no }, { label: 'טרם השיבו', value: s.pendingFamilies, color: TONE.idle },
   ];
   const maxSeats = Math.max(s.allocatedSeats, s.confirmedSeats, seatsTotal, 1);
+  const dups = useDuplicates(event.id, guests);
   const ready: { ok: boolean; label: string; fix: string; href?: string }[] = [
     { ok: event.published, label: 'ההזמנה מפורסמת', fix: 'אורחים לא יכולים לפתוח אותה', href: `${base}/editor` },
     { ok: !!(event.venue_name || event.address), label: 'מקום האירוע וכתובת', fix: 'אורחים לא יודעים לאן להגיע', href: `${base}/editor?tab=מקום` },
@@ -94,6 +96,7 @@ export default function Overview() {
     { ok: green === true, label: 'התראות WhatsApp למארחים', fix: green === null ? 'לא הצלחנו לבדוק' : 'לא מחובר: לא תקבלו הודעה כשאורח משיב', href: `${base}/connections` },
     { ok: !!wa, label: 'הזמנות ותזכורות ב-WhatsApp', fix: 'נדרש עדכון חד-פעמי למסד הנתונים', href: `${base}/whatsapp` },
     { ok: guests.length > 0, label: 'רשימת מוזמנים', fix: 'הרשימה ריקה', href: `${base}/guests` },
+    ...(guests.length > 1 ? [{ ok: dups.groups.length === 0, label: 'אין כפילויות ברשימה', fix: `${dups.groups.length} קבוצות של רשומות דומות מחכות לבדיקה`, href: `${base}/guests?view=dups` }] : []),
   ];
   const missing = ready.filter((r) => !r.ok).length;
   // the one thing most worth doing now

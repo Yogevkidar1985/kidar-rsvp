@@ -4,15 +4,16 @@ import { seats, tableLoad } from './stats';
 
 export type ColumnKey = 'family_name' | 'contact_name' | 'phone' | 'allocated_seats' | 'adults' | 'children' | 'babies'
   | 'total' | 'status' | 'responded_at' | 'table' | 'group_name' | 'is_vip' | 'arrived' | 'preferences' | 'notes' | 'admin_notes'
-  | 'invited_at' | 'reminders_enabled' | 'opted_out' | 'link';
+  | 'invited_at' | 'reminders_enabled' | 'opted_out' | 'link' | 'created_at' | 'updated_at' | 'source';
 export const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: 'family_name', label: 'שם משפחה' }, { key: 'contact_name', label: 'איש קשר' }, { key: 'phone', label: 'טלפון' },
   { key: 'allocated_seats', label: 'מקומות שהוקצו' }, { key: 'adults', label: 'מבוגרים' }, { key: 'children', label: 'ילדים' },
   { key: 'babies', label: 'תינוקות' }, { key: 'total', label: 'סה״כ משתתפים' }, { key: 'status', label: 'סטטוס' },
-  { key: 'responded_at', label: 'תאריך אישור' }, { key: 'table', label: 'שולחן' }, { key: 'group_name', label: 'קבוצה' },
+  { key: 'created_at', label: 'מועד הרשמה' }, { key: 'responded_at', label: 'תשובה אחרונה' }, { key: 'table', label: 'שולחן' }, { key: 'group_name', label: 'קבוצה' },
   { key: 'is_vip', label: 'VIP' }, { key: 'arrived', label: 'הגיעו בפועל' }, { key: 'preferences', label: 'העדפות מיוחדות' },
   { key: 'notes', label: 'הערות האורח' }, { key: 'admin_notes', label: 'הערות פנימיות' },
   { key: 'invited_at', label: 'הזמנה נשלחה' }, { key: 'reminders_enabled', label: 'תזכורות' }, { key: 'opted_out', label: 'ביקשו לא לקבל הודעות' }, { key: 'link', label: 'קישור אישי' },
+  { key: 'updated_at', label: 'עודכן לאחרונה' }, { key: 'source', label: 'מקור' },
 ];
 export type Scope = 'all' | 'attending' | 'maybe' | 'pending' | 'declined';
 export const SCOPES: { key: Scope; label: string }[] = [
@@ -20,8 +21,12 @@ export const SCOPES: { key: Scope; label: string }[] = [
   { key: 'pending', label: 'מי שטרם השיבו' }, { key: 'declined', label: 'מי שלא מגיעים' },
 ];
 
-const fmtDate = (iso: string | null) => iso
-  ? new Intl.DateTimeFormat('he-IL', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Jerusalem' }).format(new Date(iso)) : '';
+/** 28/11/2026 01:14, in Israel time: the same in every sheet, so a column of them sorts and reads the same way. */
+const fmtDate = (iso: string | null) => {
+  if (!iso) return '';
+  const d = new Date(iso), o = { timeZone: 'Asia/Jerusalem' } as const;
+  return `${new Intl.DateTimeFormat('he-IL', { ...o, day: '2-digit', month: '2-digit', year: 'numeric' }).format(d).replace(/\./g, '/')} ${new Intl.DateTimeFormat('he-IL', { ...o, hour: '2-digit', minute: '2-digit', hour12: false }).format(d)}`;
+};
 
 export function guestRows(guests: Guest[], tables: TableRow[], scope: Scope, cols: ColumnKey[], linkOf: (g: Guest) => string = () => ''): (string | number)[][] {
   const tname = new Map(tables.map((t) => [t.id, t.name]));
@@ -30,6 +35,9 @@ export function guestRows(guests: Guest[], tables: TableRow[], scope: Scope, col
       case 'total': return g.adults + g.children + g.babies;
       case 'status': return STATUS_LABEL[g.status];
       case 'responded_at': return fmtDate(g.responded_at);
+      case 'created_at': return fmtDate(g.created_at);
+      case 'updated_at': return fmtDate(g.updated_at);
+      case 'source': return g.source === 'public' ? 'נרשם מההזמנה' : 'הוזן ידנית';
       case 'invited_at': return fmtDate(g.invited_at ?? null);
       case 'reminders_enabled': return g.reminders_enabled === false ? 'כבויות' : 'פעילות';
       case 'opted_out': return g.opted_out ? 'כן' : '';
@@ -91,4 +99,18 @@ export function download(blob: Blob, name: string) {
   a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/** The duplicate groups as a sheet: one row per record, the groups numbered, with why they were put together. */
+export function duplicateRows(guests: Guest[], groups: { ids: string[]; confidence: string; reasons: string[]; critical: boolean }[], label: Record<string, string>): (string | number)[][] {
+  const byId = new Map(guests.map((g) => [g.id, g]));
+  const rows: (string | number)[][] = [['קבוצה', 'רמת ודאות', 'הסיבה', 'שם', 'איש קשר', 'טלפון', 'סטטוס', 'משתתפים', 'מועד הרשמה', 'מקור']];
+  groups.forEach((grp, i) => { for (const id of grp.ids) { const g = byId.get(id); if (!g) continue;
+    rows.push([i + 1, label[grp.confidence] ?? grp.confidence, grp.reasons.join(' · '), g.family_name, g.contact_name ?? '', g.phone ?? '', STATUS_LABEL[g.status], g.adults + g.children + g.babies, fmtDate(g.created_at), g.source === 'public' ? 'נרשם מההזמנה' : 'הוזן ידנית']); } });
+  return rows;
+}
+/** Everyone in the order they registered, newest first. */
+export function registrationRows(guests: Guest[]): (string | number)[][] {
+  return [['מועד הרשמה', 'שם', 'איש קשר', 'טלפון', 'סטטוס', 'משתתפים', 'מקור', 'תשובה אחרונה'],
+    ...[...guests].sort((a, b) => b.created_at.localeCompare(a.created_at)).map((g) => [fmtDate(g.created_at), g.family_name, g.contact_name ?? '', g.phone ?? '', STATUS_LABEL[g.status], g.adults + g.children + g.babies, g.source === 'public' ? 'נרשם מההזמנה' : 'הוזן ידנית', fmtDate(g.responded_at)])];
 }

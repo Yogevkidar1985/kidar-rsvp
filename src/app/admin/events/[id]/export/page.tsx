@@ -3,20 +3,23 @@ import { useMemo, useState } from 'react';
 import { useEvent } from '@/components/admin/EventContext';
 import { PageHead } from '@/components/admin/Shell';
 import { inviteUrl } from '@/lib/templates';
-import { COLUMNS, SCOPES, download, guestRows, seatingRows, toCsv, toXlsx, type ColumnKey, type Scope } from '@/lib/export';
+import { COLUMNS, SCOPES, download, duplicateRows, guestRows, registrationRows, seatingRows, toCsv, toXlsx, type ColumnKey, type Scope } from '@/lib/export';
+import { useDuplicates } from '@/components/admin/Duplicates';
+import { CONFIDENCE_LABEL } from '@/lib/duplicates';
 
-const DEFAULT: ColumnKey[] = ['family_name', 'contact_name', 'phone', 'allocated_seats', 'adults', 'children', 'babies', 'total', 'status', 'responded_at', 'table', 'notes'];
+const DEFAULT: ColumnKey[] = ['family_name', 'contact_name', 'phone', 'allocated_seats', 'adults', 'children', 'babies', 'total', 'status', 'created_at', 'responded_at', 'table', 'preferences', 'notes'];
 
 export default function ExportPage() {
   const { event, guests, tables } = useEvent();
-  const [what, setWhat] = useState<'guests' | 'seating'>('guests');
+  const [what, setWhat] = useState<'guests' | 'seating' | 'dups' | 'registered'>('guests');
+  const dups = useDuplicates(event.id, guests);
   const [scope, setScope] = useState<Scope>('all');
   const [cols, setCols] = useState<ColumnKey[]>(DEFAULT);
   const rows = useMemo(() => what === 'guests'
     ? guestRows(guests, tables, scope, COLUMNS.map((c) => c.key).filter((k) => cols.includes(k)), (g) => inviteUrl(typeof window === 'undefined' ? '' : window.location.origin, event.slug, g))
-    : seatingRows(guests, tables), [what, guests, tables, scope, cols, event.slug]);
-  const title = what === 'guests' ? SCOPES.find((s) => s.key === scope)!.label : 'סידור שולחנות';
-  const file = `${event.slug}-${what === 'guests' ? scope : 'seating'}`;
+    : what === 'dups' ? duplicateRows(guests, dups.groups, CONFIDENCE_LABEL) : what === 'registered' ? registrationRows(guests) : seatingRows(guests, tables), [what, guests, tables, scope, cols, event.slug, dups.groups]);
+  const title = what === 'guests' ? SCOPES.find((s) => s.key === scope)!.label : what === 'dups' ? 'דוח כפילויות' : what === 'registered' ? 'לפי מועד הרשמה' : 'סידור שולחנות';
+  const file = `${event.slug}-${what === 'guests' ? scope : what}`;
   const empty = rows.length < 2 || (what === 'guests' && !cols.length);
 
   return (
@@ -25,7 +28,7 @@ export default function ExportPage() {
       <div className="no-print card grid gap-4 p-5">
         <div className="grid gap-3 sm:grid-cols-2">
           <label><span className="label">מה לייצא</span>
-            <select className="field" value={what} onChange={(e) => setWhat(e.target.value as 'guests' | 'seating')}><option value="guests">רשימת מוזמנים</option><option value="seating">סידור שולחנות</option></select></label>
+            <select className="field" value={what} onChange={(e) => setWhat(e.target.value as typeof what)}><option value="guests">רשימת מוזמנים</option><option value="registered">לפי מועד הרשמה</option><option value="dups">דוח כפילויות</option><option value="seating">סידור שולחנות</option></select></label>
           {what === 'guests' && <label><span className="label">אילו משפחות</span>
             <select className="field" value={scope} onChange={(e) => setScope(e.target.value as Scope)}>{SCOPES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}</select></label>}
         </div>
