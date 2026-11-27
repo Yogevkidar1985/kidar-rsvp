@@ -57,6 +57,17 @@ export type Guest = {
   table_id: string | null; notes: string | null; preferences: string | null; admin_notes: string | null;
   is_vip: boolean; group_name: string | null; invite_token: string; source: 'admin' | 'public';
   created_at: string; updated_at: string;
+  /** present once supabase/migrations/0002_whatsapp.sql has run */
+  invited_at?: string | null; reminders_enabled?: boolean; opted_out?: boolean;
+};
+export type CampaignStatus = 'scheduled' | 'sending' | 'paused' | 'done' | 'cancelled';
+export type Campaign = {
+  id: string; event_id: string; kind: 'invite' | 'reminder'; name: string; template_name: string | null; body: string;
+  status: CampaignStatus; note: string | null; scheduled_at: string | null; created_at: string; started_at: string | null; finished_at: string | null;
+};
+export type MessageRow = {
+  id: number; campaign_id: string; guest_id: string | null; name: string | null; phone: string; body: string | null;
+  status: 'pending' | 'sending' | 'sent' | 'failed' | 'skipped'; error: string | null; attempts: number; created_at: string; sent_at: string | null;
 };
 export type TableRow = { id: string; event_id: string; name: string; capacity: number; pos_x: number; pos_y: number; shape: 'round' | 'rect' };
 export type Integration = {

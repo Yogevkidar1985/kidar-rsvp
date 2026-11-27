@@ -21,6 +21,7 @@ grant all on storage.objects to authenticated, service_role;
 alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
 alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
 `;
+const CMP = { lte: '<=', lt: '<', gte: '>=', gt: '>' };
 const ident = (s) => { if (!/^[a-z_][a-z0-9_]*$/.test(s)) throw Object.assign(new Error('bad identifier'), { status: 400 }); return s; };
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
 const jwt = (sub) => `${b64({ alg: 'none' })}.${b64({ sub, role: 'authenticated', exp: Math.floor(Date.now() / 1000) + 3600 })}.x`;
@@ -30,6 +31,7 @@ export async function startMock(port, root) {
   await db.exec(PRELUDE);
   await db.exec(readFileSync(`${root}/supabase/migrations/0001_init.sql`, 'utf8'));
   await db.exec(readFileSync(`${root}/supabase/seed_kidar.sql`, 'utf8'));
+  await db.exec(readFileSync(`${root}/supabase/migrations/0002_whatsapp.sql`, 'utf8'));
   const files = new Map();
   let chain = Promise.resolve();
   const locked = (fn) => { const p = chain.then(fn, fn); chain = p.catch(() => {}); return p; };
@@ -54,6 +56,8 @@ export async function startMock(port, root) {
       if (['select', 'order', 'limit', 'columns', 'on_conflict'].includes(k)) continue;
       if (v.startsWith('eq.')) { vals.push(v.slice(3)); cond.push(`${ident(k)}::text = $${start + vals.length - 1}`); }
       else if (v === 'is.null') cond.push(`${ident(k)} is null`);
+      else if (v.startsWith('in.(') && v.endsWith(')')) { vals.push(v.slice(4, -1).split(',').map((x) => x.replace(/^"|"$/g, ''))); cond.push(`${ident(k)}::text = any(cast($${start + vals.length - 1} as text[]))`); }
+      else if (CMP[v.split('.')[0]]) { const [op, ...r] = v.split('.'); vals.push(r.join('.')); cond.push(`${ident(k)} ${CMP[op]} $${start + vals.length - 1}`); }
       else throw Object.assign(new Error(`unsupported filter ${v}`), { status: 400 });
     }
     return { sql: cond.length ? ` where ${cond.join(' and ')}` : '', vals };
@@ -85,6 +89,21 @@ export async function startMock(port, root) {
         return u ? send(200, session(u).user) : send(401, { msg: 'no user' });
       }
       if (p === '/auth/v1/logout') return send(204, '');
+      // the passcode lock signs in through the admin API: create the user, issue a link, verify it
+      if (p === '/auth/v1/admin/users' && token === SERVICE) {
+        const email = String(JSON.parse(raw.toString() || '{}').email).toLowerCase();
+        const had = (await db.query(`select id, email from auth.users where email=$1`, [email])).rows[0];
+        if (had) return send(422, { msg: 'A user with this email address has already been registered' });
+        return send(200, session((await db.query(`insert into auth.users (email) values ($1) returning id, email`, [email])).rows[0]).user);
+      }
+      if (p === '/auth/v1/admin/generate_link' && token === SERVICE) {
+        const u = (await db.query(`select id, email from auth.users where email=$1`, [String(JSON.parse(raw.toString() || '{}').email).toLowerCase()])).rows[0];
+        return u ? send(200, { ...session(u).user, action_link: 'http://x', email_otp: '000000', hashed_token: u.id, verification_type: 'magiclink', redirect_to: '' }) : send(404, { msg: 'no user' });
+      }
+      if (p === '/auth/v1/verify') {
+        const u = await userOf(JSON.parse(raw.toString() || '{}').token_hash);
+        return u ? send(200, session(u)) : send(403, { msg: 'invalid token' });
+      }
       if (p.startsWith('/storage/v1/object/public/')) {
         const f = files.get(p.slice('/storage/v1/object/public/'.length));
         return f ? send(200, f.body, f.type) : send(404, { message: 'not found' });
@@ -110,6 +129,11 @@ export async function startMock(port, root) {
         const one = (req.headers.accept ?? '').includes('vnd.pgrst.object');
         const ret = cols(q.get('select'));
         let rows;
+        if (req.method === 'HEAD') {
+          const w = where(q);
+          const n = (await run(token, () => db.query(`select count(*)::int n from public.${table}${w.sql}`, w.vals))).rows[0].n;
+          res.writeHead(200, { 'Content-Range': `*/${n}`, 'Access-Control-Expose-Headers': '*' }); return res.end();
+        }
         if (req.method === 'GET') {
           const w = where(q);
           const order = q.get('order') ? ' order by ' + q.get('order').split(',').map((o) => { const [c, d] = o.split('.'); return `${ident(c)} ${d === 'desc' ? 'desc' : 'asc'}`; }).join(',') : '';
@@ -119,7 +143,7 @@ export async function startMock(port, root) {
           const body = JSON.parse(raw.toString()); const list = Array.isArray(body) ? body : [body]; rows = [];
           for (const item of list) {
             const k = Object.keys(item).filter((x) => item[x] !== undefined).map(ident);
-            rows.push(...(await run(token, () => db.query(`insert into public.${table} (${k.join(',')}) select ${k.join(',')} from json_populate_record(null::public.${table}, $1) returning ${ret}`, [JSON.stringify(item)]))).rows);
+            rows.push(...(await run(token, () => db.query(`insert into public.${table} (${k.join(',')}) select ${k.join(',')} from json_populate_record(null::public.${table}, $1)${(req.headers.prefer ?? '').includes('ignore-duplicates') ? ' on conflict do nothing' : ''} returning ${ret}`, [JSON.stringify(item)]))).rows);
           }
         } else if (req.method === 'PATCH') {
           const body = JSON.parse(raw.toString()); const k = Object.keys(body).map(ident); const w = where(q, 2);

@@ -48,5 +48,39 @@ try {
   const desk = await (await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'he-IL' })).newPage();
   await desk.goto(`${APP}/e/kidar-brit`, { waitUntil: 'networkidle' }); await sleep(1200);
   await desk.screenshot({ path: path.join(out, 'desktop-top.png') });
+  // every phone width the invitation has to hold, plus a desktop: no sideways scroll, nothing clipped, tap targets big enough
+  for (const w of [320, 360, 390, 430, 1280]) {
+    const pg = await (await browser.newContext({ viewport: { width: w, height: w > 500 ? 900 : 780 }, deviceScaleFactor: 1, isMobile: w < 500, hasTouch: w < 500, locale: 'he-IL' })).newPage();
+    await pg.goto(`${APP}/e/kidar-brit`, { waitUntil: 'networkidle' }); await scrollAll(pg);
+    const m = await pg.evaluate(() => {
+      const vw = window.innerWidth;
+      const wide = [...document.querySelectorAll('.inv-col *')].filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && (r.right > vw + 1 || r.left < -1) && !e.closest('.inv-drift,canvas'); }).map((e) => e.className || e.tagName).slice(0, 4);
+      const small = [...document.querySelectorAll('.inv a, .inv button')].filter((e) => { const r = e.getBoundingClientRect(); return r.width > 0 && (r.height < 44 || r.width < 44) && !e.closest('.inv-sticky'); }).map((e) => `${e.textContent.trim().slice(0, 14)} ${Math.round(e.getBoundingClientRect().width)}x${Math.round(e.getBoundingClientRect().height)}`);
+      return { overflow: document.documentElement.scrollWidth - vw, wide, small, dir: document.querySelector('.inv').dir, font: getComputedStyle(document.querySelector('.inv h1')).fontFamily.split(',')[0] };
+    });
+    console.log(`width ${w}:`, JSON.stringify(m));
+    await pg.screenshot({ path: path.join(out, `w${w}.png`), fullPage: true });
+    await pg.locator('[data-testid=rsvp-open]').click(); await pg.waitForSelector('.sheet form'); await sleep(400);
+    console.log(`  rsvp sheet overflow: ${await pg.evaluate(() => { const s = document.querySelector('.sheet'); return s.scrollWidth - s.clientWidth; })}`);
+    await pg.screenshot({ path: path.join(out, `w${w}-rsvp.png`) });
+    await pg.context().close();
+  }
+  // the new admin screens, on a phone and on a desktop
+  await mock.sql(`insert into guests (event_id, family_name, phone, status, adults, group_name) select id, n, p, s::public.guest_status, a, g from events,
+    (values ('משפחת כהן', '0501111111', 'attending', 2, 'משפחה'), ('משפחת לוי', '0502222222', 'pending', 0, 'חברים'), ('משפחת מזרחי', '0503333333', 'maybe', 0, 'חברים'), ('משפחת פרץ', null, 'pending', 0, 'עבודה')) v(n, p, s, a, g) where slug = 'kidar-brit'`);
+  for (const [tag, ctxOpts] of [['phone', { ...devices['iPhone 13'], locale: 'he-IL' }], ['desktop', { viewport: { width: 1360, height: 900 }, locale: 'he-IL' }]]) {
+    const ad = await (await browser.newContext(ctxOpts)).newPage();
+    const aerr = []; ad.on('pageerror', (e) => aerr.push(e.message));
+    await ad.goto(`${APP}/admin/login`); await ad.fill('input[type=password]', '1007'); await ad.click('button[aria-label="כניסה"]');
+    await ad.waitForURL(/\/admin\/events\//); const base = ad.url().split('?')[0].replace(/\/$/, '');
+    for (const pgName of ['whatsapp', 'reminders', 'guests']) {
+      await ad.goto(`${base}/${pgName}`, { waitUntil: 'networkidle' }); await sleep(900);
+      if (pgName === 'whatsapp') await ad.getByRole('button', { name: /סימון כל המוצגים/ }).click();
+      await ad.screenshot({ path: path.join(out, `admin-${pgName}-${tag}.png`), fullPage: true });
+      console.log(`admin ${pgName} ${tag}: overflow ${await ad.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)}`);
+    }
+    console.log(`admin ${tag} errors:`, aerr.join(' ; ') || 'none');
+    await ad.context().close();
+  }
   console.log('errors:', errs.join(' ; ') || 'none');
 } finally { await browser.close(); app.kill(); process.exit(0); }

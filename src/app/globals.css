@@ -99,7 +99,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .inv-quick > *:active { transform: scale(.97); }
 @media (hover: hover) { .inv-quick > *:hover { border-color: var(--inv-accent); } }
 .inv-quick:empty { display: none; }
-.inv-share { display: flex; justify-content: center; gap: 22px; margin-top: 18px; }
+.inv-share { display: flex; justify-content: center; flex-wrap: wrap; gap: 0 18px; margin-top: 18px; white-space: nowrap; }
 .inv-share button { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 0 4px; border: 0; background: none; color: var(--inv-dim); font: 400 14.5px/1 var(--inv-font); }
 .inv-toast { position: fixed; inset-inline: 0; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 65; width: max-content; max-width: 86vw; margin: 0 auto; padding: 11px 18px; border-radius: 999px;
   background: var(--inv-ink); color: var(--inv-surface); font: 400 15px/1.2 var(--inv-font); animation: inv-fade .2s ease both; }

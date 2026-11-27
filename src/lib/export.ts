@@ -3,7 +3,8 @@ import { STATUS_LABEL } from './types';
 import { seats, tableLoad } from './stats';
 
 export type ColumnKey = 'family_name' | 'contact_name' | 'phone' | 'allocated_seats' | 'adults' | 'children' | 'babies'
-  | 'total' | 'status' | 'responded_at' | 'table' | 'group_name' | 'is_vip' | 'arrived' | 'preferences' | 'notes' | 'admin_notes';
+  | 'total' | 'status' | 'responded_at' | 'table' | 'group_name' | 'is_vip' | 'arrived' | 'preferences' | 'notes' | 'admin_notes'
+  | 'invited_at' | 'reminders_enabled' | 'opted_out';
 export const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: 'family_name', label: 'שם משפחה' }, { key: 'contact_name', label: 'איש קשר' }, { key: 'phone', label: 'טלפון' },
   { key: 'allocated_seats', label: 'מקומות שהוקצו' }, { key: 'adults', label: 'מבוגרים' }, { key: 'children', label: 'ילדים' },
@@ -11,6 +12,7 @@ export const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: 'responded_at', label: 'תאריך אישור' }, { key: 'table', label: 'שולחן' }, { key: 'group_name', label: 'קבוצה' },
   { key: 'is_vip', label: 'VIP' }, { key: 'arrived', label: 'הגיעו בפועל' }, { key: 'preferences', label: 'העדפות מיוחדות' },
   { key: 'notes', label: 'הערות האורח' }, { key: 'admin_notes', label: 'הערות פנימיות' },
+  { key: 'invited_at', label: 'הזמנה נשלחה' }, { key: 'reminders_enabled', label: 'תזכורות' }, { key: 'opted_out', label: 'ביקשו לא לקבל הודעות' },
 ];
 export type Scope = 'all' | 'attending' | 'maybe' | 'pending' | 'declined';
 export const SCOPES: { key: Scope; label: string }[] = [
@@ -28,6 +30,9 @@ export function guestRows(guests: Guest[], tables: TableRow[], scope: Scope, col
       case 'total': return g.adults + g.children + g.babies;
       case 'status': return STATUS_LABEL[g.status];
       case 'responded_at': return fmtDate(g.responded_at);
+      case 'invited_at': return fmtDate(g.invited_at ?? null);
+      case 'reminders_enabled': return g.reminders_enabled === false ? 'כבויות' : 'פעילות';
+      case 'opted_out': return g.opted_out ? 'כן' : '';
       case 'table': return g.table_id ? tname.get(g.table_id) ?? '' : '';
       case 'is_vip': return g.is_vip ? 'כן' : '';
       case 'arrived': return g.arrived ? (g.arrived_count ?? g.adults + g.children + g.babies) : '';

@@ -11,7 +11,7 @@ import { tableLoad } from '@/lib/stats';
 type SortKey = 'family_name' | 'status' | 'responded_at' | 'total' | 'allocated_seats';
 const STATUSES: GuestStatus[] = ['pending', 'attending', 'maybe', 'declined'];
 const blank = { family_name: '', contact_name: '', phone: '', allocated_seats: '' as number | '', status: 'pending' as GuestStatus,
-  adults: 0, children: 0, babies: 0, group_name: '', table_id: '', is_vip: false, admin_notes: '' };
+  adults: 0, children: 0, babies: 0, group_name: '', table_id: '', is_vip: false, admin_notes: '', reminders_enabled: true, opted_out: false };
 type Draft = typeof blank;
 
 export default function GuestsPage() {
@@ -30,6 +30,9 @@ export default function GuestsPage() {
   const [busy, setBusy] = useState(false);
   const [history, setHistory] = useState<ResponseRow[]>([]);
 
+  // the WhatsApp columns exist once supabase/migrations/0002_whatsapp.sql has run
+  const hasWa = guests.length > 0 ? 'reminders_enabled' in guests[0] : false;
+  const [log, setLog] = useState<{ id: number; status: string; sent_at: string | null; created_at: string; error: string | null; campaigns: { name: string; kind: string } | null }[]>([]);
   const groups = useMemo(() => [...new Set(guests.map((g) => g.group_name).filter(Boolean))] as string[], [guests]);
   const tname = useMemo(() => new Map(tables.map((t) => [t.id, t.name])), [tables]);
   const total = (g: Guest) => g.adults + g.children + g.babies;
@@ -52,6 +55,9 @@ export default function GuestsPage() {
     if (!edit?.id) return;
     db.from('rsvp_responses').select('id,guest_id,status,adults,children,babies,arrived,source,created_at').eq('guest_id', edit.id)
       .order('created_at', { ascending: false }).limit(20).then(({ data }: { data: ResponseRow[] | null }) => setHistory(data ?? []));
+    setLog([]);
+    db.from('messages').select('id,status,sent_at,created_at,error,campaigns(name,kind)').eq('guest_id', edit.id).order('id', { ascending: false }).limit(20)
+      .then(({ data }: { data: typeof log | null }) => setLog(data ?? []));
   }, [db, edit?.id]);
 
   const link = (g: Guest) => `${window.location.origin}/e/${event.slug}?g=${g.invite_token}`;
@@ -62,7 +68,7 @@ export default function GuestsPage() {
   };
   const openEdit = (g?: Guest) => setEdit(g ? { id: g.id, draft: { family_name: g.family_name, contact_name: g.contact_name ?? '', phone: g.phone ?? '',
     allocated_seats: g.allocated_seats ?? '', status: g.status, adults: g.adults, children: g.children, babies: g.babies, group_name: g.group_name ?? '',
-    table_id: g.table_id ?? '', is_vip: g.is_vip, admin_notes: g.admin_notes ?? '' } } : { id: null, draft: { ...blank } });
+    table_id: g.table_id ?? '', is_vip: g.is_vip, admin_notes: g.admin_notes ?? '', reminders_enabled: g.reminders_enabled !== false, opted_out: !!g.opted_out } } : { id: null, draft: { ...blank } });
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -73,6 +79,7 @@ export default function GuestsPage() {
       allocated_seats: d.allocated_seats === '' ? null : Number(d.allocated_seats), status: d.status,
       adults: Number(d.adults) || 0, children: Number(d.children) || 0, babies: Number(d.babies) || 0,
       group_name: d.group_name.trim() || null, table_id: d.table_id || null, is_vip: d.is_vip, admin_notes: d.admin_notes.trim() || null,
+      ...(hasWa ? { reminders_enabled: d.reminders_enabled, opted_out: d.opted_out } : {}),
     };
     setBusy(true);
     let ok: boolean;
@@ -150,6 +157,13 @@ export default function GuestsPage() {
                       </select>
                     ) : <StatusPill status={g.status} />}
                     {g.arrived && <div className="mt-1 text-xs font-semibold text-ok">הגיעו: {g.arrived_count ?? total(g)}</div>}
+                    {hasWa && <div className="mt-1 text-xs text-muted">{g.opted_out ? 'לא לשלוח הודעות' : g.invited_at ? 'הזמנה נשלחה' : 'טרם הוזמנו'}</div>}
+                    {hasWa && g.status === 'attending' && !g.opted_out && (
+                      <label className="mt-1 flex items-center gap-1.5 text-xs font-semibold">
+                        <input type="checkbox" disabled={!canEdit} checked={g.reminders_enabled !== false} aria-label={`תזכורות אוטומטיות ל${g.family_name}`}
+                          onChange={(e) => updateGuest(g.id, { reminders_enabled: e.target.checked })} />תזכורות
+                      </label>
+                    )}
                   </td>
                   <td className="px-3 py-2.5 text-muted" dir="ltr" style={{ textAlign: 'right' }}>{fmtDateTime(g.responded_at)}</td>
                   <td className="px-3 py-2.5">{g.table_id ? tname.get(g.table_id) : <span className="text-muted">—</span>}</td>
@@ -190,12 +204,26 @@ export default function GuestsPage() {
             <Field label="שולחן"><select className="field" value={edit.draft.table_id} onChange={(e) => set('table_id', e.target.value)}>
               <option value="">ללא שולחן</option>{tables.map((t) => <option key={t.id} value={t.id}>{t.name} ({tableLoad(t, guests).free} פנויים)</option>)}</select></Field>
             <label className="flex items-center gap-2 font-semibold sm:col-span-2"><input type="checkbox" checked={edit.draft.is_vip} onChange={(e) => set('is_vip', e.target.checked)} />אורח VIP</label>
+            {hasWa && <>
+              <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={edit.draft.reminders_enabled} onChange={(e) => set('reminders_enabled', e.target.checked)} />לכלול בתזכורות אוטומטיות</label>
+              <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={edit.draft.opted_out} onChange={(e) => set('opted_out', e.target.checked)} />ביקשו לא לקבל הודעות WhatsApp</label>
+            </>}
             <div className="sm:col-span-2"><Field label="הערות פנימיות (האורח לא רואה)"><textarea className="field" rows={2} maxLength={500} value={edit.draft.admin_notes} onChange={(e) => set('admin_notes', e.target.value)} /></Field></div>
             {history.length > 0 && (
               <div className="sm:col-span-2">
                 <div className="label">היסטוריית תשובות</div>
                 <ul className="grid gap-1 text-sm">{history.map((h) => (
                   <li key={h.id} className="flex flex-wrap items-center gap-2"><span className="w-24 text-muted" dir="ltr" style={{ textAlign: 'right' }}>{fmtDateTime(h.created_at)}</span><StatusPill status={h.status} /><span>{h.adults} / {h.children} / {h.babies}</span>{h.arrived && <span className="pill pill-attending">הגיעו</span>}</li>
+                ))}</ul>
+              </div>
+            )}
+            {log.length > 0 && (
+              <div className="sm:col-span-2">
+                <div className="label">הודעות WhatsApp</div>
+                <ul className="grid gap-1 text-sm">{log.map((m) => (
+                  <li key={m.id} className="flex flex-wrap items-center gap-2"><span className="w-24 text-muted" dir="ltr" style={{ textAlign: 'right' }}>{fmtDateTime(m.sent_at ?? m.created_at)}</span>
+                    <span>{m.campaigns?.kind === 'reminder' ? 'תזכורת' : 'הזמנה'}: {m.campaigns?.name}</span>
+                    <span className={`pill ${m.status === 'sent' ? 'pill-attending' : m.status === 'failed' ? 'pill-declined' : 'pill-pending'}`}>{m.status === 'sent' ? 'נשלחה' : m.status === 'failed' ? 'נכשלה' : m.status === 'skipped' ? 'דולגה' : 'ממתינה'}</span></li>
                 ))}</ul>
               </div>
             )}

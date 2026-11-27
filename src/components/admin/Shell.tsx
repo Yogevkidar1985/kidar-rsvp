@@ -7,7 +7,8 @@ import { useEvent } from './EventContext';
 
 const NAV = [
   { href: '', label: 'סקירה' }, { href: '/guests', label: 'מוזמנים' }, { href: '/tables', label: 'שולחנות' },
-  { href: '/editor', label: 'עיצוב ההזמנה' }, { href: '/export', label: 'ייצוא' },
+  { href: '/editor', label: 'עיצוב ההזמנה' }, { href: '/whatsapp', label: 'הזמנות WhatsApp' }, { href: '/reminders', label: 'תזכורות אוטומטיות' },
+  { href: '/export', label: 'ייצוא' },
   { href: '/connections', label: 'התראות וחיבורים', owner: true }, { href: '/team', label: 'צוות והרשאות', owner: true },
 ];
 
