@@ -165,7 +165,8 @@ input[type="range"] { accent-color: var(--color-ink); }
 .inv-pin { display: inline-grid; place-items: center; width: 52px; height: 52px; margin-bottom: 14px; border-radius: 50%; border: 1px solid var(--inv-line); background: var(--inv-surface); color: var(--inv-accent-ink); }
 
 .inv-when { padding: 14px 8px 12px; border-block: 1px solid var(--inv-line); }
-.inv-datenum { font-size: min(calc(3.1em * var(--sz-date, 1)), 14.6cqw); white-space: nowrap; font-weight: 900; letter-spacing: 0; line-height: 1.05; font-variant-numeric: lining-nums tabular-nums; color: var(--inv-ink); }
+/* the date fills the width at 1; the size control only ever makes it smaller, so it can never spill */
+.inv-datenum { font-size: calc(min(3.1em, 14.6cqw) * var(--sz-date, 1)); white-space: nowrap; font-weight: 900; letter-spacing: 0; line-height: 1.05; font-variant-numeric: lining-nums tabular-nums; color: var(--inv-ink); }
 .inv-dateline { margin-top: 6px; font-size: 1.06em; color: var(--inv-dim); }
 .inv-times { display: flex; justify-content: center; gap: 32px; margin-top: 10px; }
 .inv-times > div { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; color: var(--inv-accent-ink); }
@@ -615,3 +616,23 @@ li.is-picked { box-shadow: inset 0 0 0 1.5px var(--color-ink); }
 .seat-bar .btn-ghost { background: transparent; color: #fff; border-color: rgb(255 255 255 / .4); }
 @media (min-width: 1024px) { .seat-bar { bottom: 14px; } }
 @media print { .seat-grid { display: block; } .hall-scroll { max-height: none; overflow: visible; border: 0; } .seat-plan { position: static; } .kpis { display: none; } }
+
+/* ---- editor: the preview follows the control being touched ---- */
+.ed-pane { height: var(--pane-h, 78dvh); }
+.ed-dock-toggle { display: none; }
+.rng-top small { font-weight: 500; color: #566074; }
+.rng[data-hit] { outline: 2px solid var(--color-ink); outline-offset: 6px; border-radius: 10px; transition: outline-color .3s; }
+/* the part a control changes is ringed in the preview for a moment */
+[data-testid='preview-frame'] [data-ed-mark] { outline: 3px dashed #d6336c; outline-offset: 5px; border-radius: 6px; animation: ed-mark 1.8s ease-out both; }
+@keyframes ed-mark { 0%, 70% { outline-color: #d6336c; } 100% { outline-color: transparent; } }
+[data-testid='preview-frame'] { cursor: pointer; }
+/* phone: while editing, a strip of the real invitation stays on screen above the controls */
+@media (max-width: 1023px) {
+  .ed-dock { order: -1; position: sticky; top: 52px; z-index: 12; --pane-h: 34dvh; box-shadow: 0 10px 24px -14px rgb(16 24 40 / .35); }
+  .ed-dock.is-off { --pane-h: 0px; }
+  .ed-dock .ed-devices, .ed-dock .ed-open { display: none; }
+  .ed-dock .ed-dock-toggle { display: inline-flex; }
+  .ed-dock .ed-preview-head { padding-block: 4px; }
+  .ed-tabs { position: static; box-shadow: none; }
+  .ed-form { scroll-margin-top: calc(34dvh + 110px); }
+}

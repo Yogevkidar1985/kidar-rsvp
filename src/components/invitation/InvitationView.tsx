@@ -331,7 +331,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
   const fonts = fontsHref([d.font]);
   const vars = {
     '--inv-bg': d.colors.bg, '--inv-surface': d.colors.surface, '--inv-soft': d.colors.soft, '--inv-ink': d.colors.ink, '--inv-muted': `color-mix(in srgb, ${d.colors.muted} ${Math.round(100 - clamp(d.contrast, 0, 1) * 100)}%, ${d.colors.ink})`,
-    '--sz-date': String(clamp(d.sizes.date, 0.5, 2)), '--sz-count': String(clamp(d.sizes.countdown, 0.5, 2)), '--sz-emblem': String(clamp(d.sizes.emblem, 0.5, 2.5)), '--sz-logo': String(clamp(d.sizes.logo, 0.5, 2.5)),
+    '--sz-date': String(clamp(d.sizes.date, 0.5, 1)), '--sz-count': String(clamp(d.sizes.countdown, 0.5, 2)), '--sz-emblem': String(clamp(d.sizes.emblem, 0.5, 2.5)), '--sz-logo': String(clamp(d.sizes.logo, 0.5, 2.5)),
     '--sz-arrow': String(clamp(d.sizes.arrow, 0.5, 2)), '--sz-btn': String(clamp(d.sizes.buttons, 0.7, 1.5)), '--sz-gal': String(clamp(d.sizes.gallery, 0.6, 1.4)),
     '--inv-scale': String(Math.min(1.5, Math.max(0.8, d.textScale || 1))), '--inv-accent': d.colors.accent, '--inv-button': d.colors.button, '--inv-button-text': d.colors.buttonText,
     '--inv-line': d.colors.line, '--inv-font': fontStack(d.font), '--inv-gap': `${Math.round(30 * d.spacing)}px`,

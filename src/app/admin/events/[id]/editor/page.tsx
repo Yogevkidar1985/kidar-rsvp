@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { useEvent } from '@/components/admin/EventContext';
 import { PageHead } from '@/components/admin/Shell';
@@ -32,7 +32,7 @@ const COLOR_SETS: { name: string; colors: string[] }[] = [
   { name: 'תכלת', colors: ['#7FB4DE', '#B9D8F0', '#3F7FB5', '#EAF4FB'] },
 ];
 const SIZE_KEYS: { key: keyof Design['sizes']; label: string; min: number; max: number }[] = [
-  { key: 'date', label: 'התאריך', min: 0.6, max: 1.3 }, { key: 'countdown', label: 'הספירה לאחור', min: 0.6, max: 1.4 }, { key: 'emblem', label: 'האייקון שמעל השמות', min: 0.5, max: 2.5 },
+  { key: 'date', label: 'התאריך (1× = מלוא רוחב ההזמנה)', min: 0.5, max: 1 }, { key: 'countdown', label: 'הספירה לאחור', min: 0.6, max: 1.4 }, { key: 'emblem', label: 'האייקון שמעל השמות', min: 0.5, max: 2.5 },
   { key: 'logo', label: 'לוגו המקום', min: 0.5, max: 2.5 }, { key: 'arrow', label: 'החץ שעל התמונה', min: 0.5, max: 2 }, { key: 'buttons', label: 'הכפתורים', min: 0.8, max: 1.4 }, { key: 'gallery', label: 'כרטיסי הגלריה', min: 0.6, max: 1.1 },
 ];
 const STYLE_KEYS: { key: keyof Design['styles']; label: string }[] = [
@@ -82,16 +82,32 @@ function KindPicker({ value, colors, thick, onChange, name }: { value: ParticleK
   return <div className="kind-grid" role="group" aria-label={name} data-testid={`kinds-${name}`}>{KINDS.map((k) => <KindTile key={k.key} kind={k.key} label={k.label} colors={colors} thick={thick} active={value === k.key} onPick={() => onChange(k.key)} />)}</div>;
 }
 
-/** A slider with a minus and a plus beside it: on a phone a finger lands on a button more surely than on a thin track. */
-function Range({ label, value, min, max, step, onChange, suffix = '' }: { label: string; value: number; min: number; max: number; step: number; onChange: (n: number) => void; suffix?: string }) {
+/** Which part of the invitation a control changes: where it is in the preview, and what to measure there. */
+const PARTS: Record<string, { sel: string; unit: 'font' | 'height' | 'width'; of?: string }> = {
+  text: { sel: '.inv-first p', unit: 'font' }, headline: { sel: '.inv-first h1, .inv-first h2', unit: 'font' }, hosts: { sel: '.inv-names', unit: 'font' },
+  body: { sel: '.inv-first p', unit: 'font' }, dateText: { sel: '.inv-dateline', unit: 'font' },
+  date: { sel: '.inv-datenum', unit: 'font' }, countdown: { sel: '[data-testid=countdown]', unit: 'font', of: '[data-testid=countdown] b' },
+  emblem: { sel: '[data-testid=emblem]', unit: 'width' }, logo: { sel: '.inv-venue-logo', unit: 'height' }, arrow: { sel: '.inv-scroll', unit: 'width' },
+  buttons: { sel: '.inv-options', unit: 'height', of: '.inv-options .inv-btn' }, gallery: { sel: '[data-testid=stack-gallery]', unit: 'width', of: '[data-testid=stack-gallery] .sgal__card' },
+  confetti: { sel: '.inv-hero', unit: 'width' }, spacing: { sel: '.inv-when', unit: 'height' },
+};
+const PART_OF_STYLE: Record<string, string> = { headline: 'headline', hosts: 'hosts', date: 'dateText', body: 'body' };
+const PartCtx = createContext<{ show: (part: string) => void; sizes: Record<string, string> }>({ show: () => {}, sizes: {} });
+
+/** A slider with a minus and a plus beside it: on a phone a finger lands on a button more surely than on a thin track.
+ *  With `part`, touching it brings that part of the invitation into the preview, and the real size is written beside the value. */
+function Range({ label, value, min, max, step, onChange, suffix = '', part }: { label: string; value: number; min: number; max: number; step: number; onChange: (n: number) => void; suffix?: string; part?: string }) {
+  const ctx = useContext(PartCtx);
   const digits = (String(step).split('.')[1] ?? '').length;
-  const move = (by: number) => onChange(Math.min(max, Math.max(min, +(value + by * step).toFixed(digits))));
+  const touch = () => { if (part) ctx.show(part); };
+  const move = (by: number) => { touch(); onChange(Math.min(max, Math.max(min, +(value + by * step).toFixed(digits)))); };
+  const real = part && suffix !== 'px' ? ctx.sizes[part] : '';
   return (
-    <div className="rng">
-      <div className="rng-top"><span className="label !mb-0">{label}</span><output dir="ltr">{+value.toFixed(digits)}{suffix}</output></div>
+    <div className="rng" data-part={part}>
+      <div className="rng-top"><span className="label !mb-0">{label}</span><output dir="ltr">{+value.toFixed(digits)}{suffix}{real && <small> · {real}</small>}</output></div>
       <div className="rng-row">
         <button type="button" aria-label={`${label}: פחות`} disabled={value <= min} onClick={() => move(-1)}>−</button>
-        <label><span className="sr-only">{label}</span><input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} /></label>
+        <label><span className="sr-only">{label}</span><input type="range" min={min} max={max} step={step} value={value} onPointerDown={touch} onFocus={touch} onChange={(e) => { touch(); onChange(Number(e.target.value)); }} /></label>
         <button type="button" aria-label={`${label}: יותר`} disabled={value >= max} onClick={() => move(1)}>+</button>
       </div>
     </div>
@@ -161,6 +177,34 @@ export default function EditorPage() {
     } catch { toast('החיפוש נכשל. בדקו את החיבור ונסו שוב.', true); } finally { setLocating(false); }
   }
   const [paneW, setPaneW] = useState(390);
+  const frame = useRef<HTMLDivElement>(null);
+  const [dock, setDock] = useState(true);            // phone: a strip of the real invitation stays above the controls
+  const [sizes, setSizes] = useState<Record<string, string>>({});
+  const flash = useRef(0);
+  /** Brings a part of the invitation into the preview and outlines it for a moment. */
+  const showPart = useCallback((part: string) => {
+    const box = frame.current, p = PARTS[part];
+    if (!box || !p) return;
+    const el = box.querySelector<HTMLElement>(p.sel);
+    if (!el) return;
+    box.querySelectorAll('[data-ed-mark]').forEach((x) => x.removeAttribute('data-ed-mark'));
+    el.setAttribute('data-ed-mark', '');
+    const k = box.getBoundingClientRect().width / box.offsetWidth || 1;          // the frame is drawn scaled
+    const top = (el.getBoundingClientRect().top - box.getBoundingClientRect().top) / k + box.scrollTop;
+    box.scrollTo({ top: Math.max(0, top - (box.clientHeight - el.offsetHeight) / 2), behavior: 'smooth' });
+    window.clearTimeout(flash.current);
+    flash.current = window.setTimeout(() => el.removeAttribute('data-ed-mark'), 1800);
+  }, []);
+  /** A tap on a part of the preview leads to the control that sizes it. */
+  const fromPreview = (e: React.MouseEvent) => {
+    const hit = e.target as HTMLElement;
+    const part = ['date', 'countdown', 'emblem', 'logo', 'arrow', 'buttons', 'gallery'].find((k) => hit.closest(PARTS[k].sel)) ?? (hit.closest('.inv-names') ? 'hosts' : hit.closest('.inv-first h1, .inv-first h2') ? 'headline' : hit.closest('.inv-dateline') ? 'dateText' : hit.closest('.inv-first p') ? 'body' : null);
+    if (!part) return;
+    const style = Object.entries(PART_OF_STYLE).find(([, v]) => v === part)?.[0] as keyof Design['styles'] | undefined;
+    if (style) { setStyleKey(style); setTab('טיפוגרפיה'); } else setTab('גדלים');
+    setView('edit'); showPart(part);
+    window.setTimeout(() => { const row = document.querySelector<HTMLElement>(`.rng[data-part="${part}"]`); row?.scrollIntoView({ block: 'center', behavior: 'smooth' }); row?.setAttribute('data-hit', ''); window.setTimeout(() => row?.removeAttribute('data-hit'), 1600); }, 120);
+  };
   const design = useMemo(() => resolveDesign(draft.design), [draft.design]);
   const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(event), [draft, event]);
 
@@ -299,9 +343,26 @@ export default function EditorPage() {
   ];
   const must = steps.filter((s) => !s.optional), mustDone = must.filter((s) => s.ok).length;
   const tabAt = TABS.indexOf(tab);
+  // how large each part really is right now, read from the preview itself
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      const box = frame.current;
+      if (!box) return;
+      const next: Record<string, string> = {};
+      for (const [key, p] of Object.entries(PARTS)) {
+        const el = box.querySelector<HTMLElement>(p.of ?? p.sel);
+        if (!el || key === 'confetti' || key === 'spacing') continue;
+        const cs = getComputedStyle(el);
+        const px = p.unit === 'font' ? parseFloat(cs.fontSize) : p.unit === 'height' ? el.offsetHeight : el.offsetWidth;
+        if (px) next[key] = `${Math.round(px)}px`;
+      }
+      setSizes((old) => (JSON.stringify(old) === JSON.stringify(next) ? old : next));
+    }, 180);
+    return () => window.clearTimeout(id);
+  }, [previewData, tab, view, paneW]);
   const tileColors = design.fall.colors.map((c) => (/^#f{3}(f{3})?$/i.test(c) ? design.colors.line : c));
   return (
-    <>
+    <PartCtx.Provider value={{ show: showPart, sizes }}>
       <PageHead title="עיצוב ההזמנה" sub={saving ? 'שומרים…' : dirty ? 'יש שינויים שלא נשמרו' : draft.published ? 'פורסמה · כל השינויים שמורים' : 'טיוטה · כל השינויים שמורים'}>
         <button className="btn btn-ghost btn-icon" aria-label="ביטול הפעולה האחרונה" title="ביטול" disabled={!hist.current.past.length} onClick={() => step('undo')}><Icon name="undo" /></button>
         <button className="btn btn-ghost btn-icon" aria-label="ביצוע מחדש" title="ביצוע מחדש" disabled={!hist.current.future.length} onClick={() => step('redo')}><Icon name="redo" /></button>
@@ -426,13 +487,13 @@ export default function EditorPage() {
               {text('video_url', 'סרטון (קישור YouTube או קובץ MP4)', { ltr: true, placeholder: 'https://' })}
             </>}
             {tab === 'גדלים' && <>
-              <p className="text-sm text-muted">כל חלק בהזמנה אפשר להגדיל ולהקטין. 1× הוא הגודל שתוכנן.</p>
-              <Range label="כל הטקסט בהזמנה" value={design.textScale} min={0.85} max={1.4} step={0.05} onChange={(n) => setDesign({ textScale: n })} suffix="×" />
-              {SIZE_KEYS.map((s) => <Range key={s.key} label={s.label} value={design.sizes[s.key]} min={s.min} max={s.max} step={0.05} onChange={(n) => setDesign({ sizes: { ...design.sizes, [s.key]: n } })} suffix="×" />)}
-              <Range label="מרווח בין חלקי ההזמנה" value={design.spacing} min={0.4} max={1.8} step={0.05} onChange={(n) => setDesign({ spacing: n })} suffix="×" />
-              <Range label="כמות הקונפטי" value={design.fall.count} min={4} max={120} step={2} onChange={(n) => setDesign({ fall: { ...design.fall, count: n } })} />
-              <Range label="גודל הקונפטי" value={design.fall.size} min={0.5} max={2.5} step={0.1} onChange={(n) => setDesign({ fall: { ...design.fall, size: n } })} suffix="×" />
-              <Range label="עובי הקונפטי" value={design.fall.thick} min={0.4} max={2.5} step={0.1} onChange={(n) => setDesign({ fall: { ...design.fall, thick: n } })} suffix="×" />
+              <p className="text-sm text-muted">נגיעה במחוון מביאה את החלק הזה לתצוגה המקדימה ומסמנת אותו. ליד כל ערך כתוב הגודל בפועל. אפשר גם ללחוץ על חלק בתצוגה כדי להגיע למחוון שלו.</p>
+              <Range part="text" label="כל הטקסט בהזמנה" value={design.textScale} min={0.85} max={1.4} step={0.05} onChange={(n) => setDesign({ textScale: n })} suffix="×" />
+              {SIZE_KEYS.map((s) => <Range key={s.key} part={s.key} label={s.label} value={design.sizes[s.key]} min={s.min} max={s.max} step={0.05} onChange={(n) => setDesign({ sizes: { ...design.sizes, [s.key]: n } })} suffix="×" />)}
+              <Range part="spacing" label="מרווח בין חלקי ההזמנה" value={design.spacing} min={0.4} max={1.8} step={0.05} onChange={(n) => setDesign({ spacing: n })} suffix="×" />
+              <Range part="confetti" label="כמות הקונפטי" value={design.fall.count} min={4} max={120} step={2} onChange={(n) => setDesign({ fall: { ...design.fall, count: n } })} />
+              <Range part="confetti" label="גודל הקונפטי" value={design.fall.size} min={0.5} max={2.5} step={0.1} onChange={(n) => setDesign({ fall: { ...design.fall, size: n } })} suffix="×" />
+              <Range part="confetti" label="עובי הקונפטי" value={design.fall.thick} min={0.4} max={2.5} step={0.1} onChange={(n) => setDesign({ fall: { ...design.fall, thick: n } })} suffix="×" />
               <button type="button" className="btn btn-ghost btn-sm justify-self-start" onClick={() => setDesign({ textScale: 1.15, spacing: 1, sizes: { date: 1, countdown: 1, emblem: 1, logo: 1, arrow: 1, buttons: 1, gallery: 1 } })}>חזרה לגדלים המקוריים</button>
             </>}
             {tab === 'טיפוגרפיה' && <>
@@ -442,11 +503,11 @@ export default function EditorPage() {
               <Field label="פינות הכפתורים והשדות"><select className="field" value={design.corners} onChange={(e) => setDesign({ corners: e.target.value as Design['corners'] })}>
                 <option value="soft">מעוגלות בעדינות</option><option value="sharp">חדות</option><option value="pill">עגולות לגמרי</option></select></Field>
               <p className="border-t border-line pt-3 text-xs text-muted">כוונון עדין לכל סוג טקסט בנפרד:</p>
-              <div className="tabs">{STYLE_KEYS.map((s) => <button key={s.key} type="button" aria-pressed={styleKey === s.key} onClick={() => setStyleKey(s.key)}>{s.label}</button>)}</div>
-              <Range label="גודל" value={st.size} min={12} max={96} step={1} onChange={(n) => setStyle({ size: n })} suffix="px" />
-              <Range label="עובי" value={st.weight} min={100} max={900} step={100} onChange={(n) => setStyle({ weight: n })} />
-              <Range label="מרווח אותיות" value={st.spacing} min={-0.05} max={0.4} step={0.01} onChange={(n) => setStyle({ spacing: n })} suffix="em" />
-              <Range label="גובה שורה" value={st.lineHeight} min={0.9} max={2.2} step={0.05} onChange={(n) => setStyle({ lineHeight: n })} />
+              <div className="tabs">{STYLE_KEYS.map((s) => <button key={s.key} type="button" aria-pressed={styleKey === s.key} onClick={() => { setStyleKey(s.key); showPart(PART_OF_STYLE[s.key]); }}>{s.label}</button>)}</div>
+              <Range part={PART_OF_STYLE[styleKey]} label="גודל" value={st.size} min={12} max={96} step={1} onChange={(n) => setStyle({ size: n })} suffix="px" />
+              <Range part={PART_OF_STYLE[styleKey]} label="עובי" value={st.weight} min={100} max={900} step={100} onChange={(n) => setStyle({ weight: n })} />
+              <Range part={PART_OF_STYLE[styleKey]} label="מרווח אותיות" value={st.spacing} min={-0.05} max={0.4} step={0.01} onChange={(n) => setStyle({ spacing: n })} suffix="em" />
+              <Range part={PART_OF_STYLE[styleKey]} label="גובה שורה" value={st.lineHeight} min={0.9} max={2.2} step={0.05} onChange={(n) => setStyle({ lineHeight: n })} />
               <div className="grid grid-cols-2 gap-2">
                 <Field label="יישור"><select className="field" value={st.align} onChange={(e) => setStyle({ align: e.target.value as TextStyle['align'] })}><option value="center">מרכז</option><option value="right">ימין</option><option value="left">שמאל</option></select></Field>
                 <Field label="צבע"><input className="field !p-1" type="color" value={st.color} onChange={(e) => setStyle({ color: e.target.value })} /></Field>
@@ -562,13 +623,14 @@ export default function EditorPage() {
           </div>
         </section>
 
-        <section className={`card ed-preview overflow-hidden ${view === 'edit' ? 'hidden lg:block' : ''}`}>
-          <div className="flex items-center justify-between border-b border-line px-3 py-2">
-            <span className="text-sm font-medium text-muted">תצוגה מקדימה <a className="ms-2 underline" href={`/${event.slug}?test=1`} target="_blank" rel="noreferrer">פתיחה בחלון</a></span>
-            <div className="tabs">{DEVICES.map((d) => <button key={d.key} onClick={() => setDevice(d)} aria-pressed={device.key === d.key}>{d.label}</button>)}</div>
+        <section className={`card ed-preview overflow-hidden ${view === 'edit' ? `ed-dock ${dock ? '' : 'is-off'}` : ''}`} data-testid="ed-dock">
+          <div className="ed-preview-head flex items-center justify-between border-b border-line px-3 py-2">
+            <span className="text-sm font-medium text-muted">תצוגה מקדימה <a className="ed-open ms-2 underline" href={`/${event.slug}?test=1`} target="_blank" rel="noreferrer">פתיחה בחלון</a></span>
+            <div className="tabs ed-devices">{DEVICES.map((d) => <button key={d.key} onClick={() => setDevice(d)} aria-pressed={device.key === d.key}>{d.label}</button>)}</div>
+            <button type="button" className="ed-dock-toggle btn btn-ghost btn-sm" aria-expanded={dock} onClick={() => setDock(!dock)}>{dock ? 'הסתרה' : 'הצגה'}</button>
           </div>
-          <div ref={pane} className="h-[78dvh] overflow-hidden bg-[#eef1f5]" data-testid="preview-pane">
-            <div data-testid="preview-frame" style={{ width: device.w, height: `calc(78dvh / ${scale})`, transform: `scale(${scale})`, transformOrigin: 'top right', marginInlineStart: Math.max(0, (paneW - device.w * scale) / 2), overflowY: 'auto', position: 'relative' }}>
+          <div ref={pane} className="ed-pane overflow-hidden bg-[#eef1f5]" data-testid="preview-pane">
+            <div ref={frame} onClickCapture={fromPreview} data-testid="preview-frame" style={{ width: device.w, height: `calc(var(--pane-h, 78dvh) / ${scale})`, transform: `scale(${scale})`, transformOrigin: 'top right', marginInlineStart: Math.max(0, (paneW - device.w * scale) / 2), overflowY: 'auto', position: 'relative' }}>
               <InvitationView data={previewData} preview celebrateKey={celebrate} />
             </div>
           </div>
@@ -582,6 +644,6 @@ export default function EditorPage() {
           <button className="btn btn-sm" disabled={saving} onClick={() => save()}>{saving ? 'שומרים…' : 'שמירה'}</button>
         </div>
       )}
-    </>
+    </PartCtx.Provider>
   );
 }
