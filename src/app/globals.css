@@ -453,3 +453,9 @@ input[type="range"] { accent-color: var(--color-ink); }
 .inv-sec p { text-wrap: pretty; }
 /* on the narrowest phones the two buttons of the map card sit one under the other, so the phone number always fits */
 @container (max-width: 350px) { .way__actions { flex-direction: column; } .way__actions .inv-btn { flex: none; width: 100%; font-size: 16px; } }
+
+/* preferences as one-tap chips */
+.sheet-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.sheet-chips button { min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--inv-ink) 24%, transparent); background: transparent; font: 500 15.5px/1 var(--inv-font); color: var(--inv-ink); cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+.sheet-chips button[aria-pressed="true"] { background: var(--inv-button); border-color: var(--inv-button); color: var(--inv-button-text); }
+.sheet-chips button[aria-pressed="true"]::before { content: '✓ '; }

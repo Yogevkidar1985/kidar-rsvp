@@ -170,9 +170,17 @@ try {
     const before = (await mock.sql(`select count(*)::int n from guests where event_id = $1`, [id]))[0].n;
     await p.locator('[data-testid=rsvp-open]').evaluate((e) => e.scrollIntoView({ block: 'center' })); await sleep(400); await p.locator('[data-testid=rsvp-open]').tap();
     await p.locator('.sheet input[name=name]').fill('משפחת בלי טלפון');
+    const order = await p.evaluate(() => { const y = (q) => document.querySelector(q)?.getBoundingClientRect().top ?? -1; return [y('.sheet input[name=name]'), y('.sheet input[name=phone]'), y('[data-testid=rsvp-prefs]'), y('.sheet-add')]; });
+    check('answer: name, phone, preferences, then the note', order.every((v, i) => v > 0 && (!i || v > order[i - 1])), JSON.stringify(order));
+    check('answer: kashrut is the first preference', (await p.locator('[data-testid=rsvp-prefs] .sheet-chips button').first().innerText()) === 'כשרות');
+    await p.locator('[data-testid=rsvp-prefs] .sheet-chips button', { hasText: 'כשרות' }).tap(); await p.locator('[data-testid=rsvp-prefs] .sheet-chips button', { hasText: 'כיסא תינוק' }).tap();
+    await p.locator('.sheet input[name=preferences]').fill('ללא גלוטן');
+    check('answer: the send button stays on screen', await p.locator('[data-testid=rsvp-send]').evaluate((b) => { const r = b.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; }));
+    await p.screenshot({ path: path.join(out, 'sheet-phone.png') });
     check('answer: the phone field says it is optional', (await p.locator('.sheet label', { hasText: 'טלפון נייד' }).innerText()).includes('לא חובה'));
     await p.locator('.sheet button[type=submit]').tap(); await p.locator('[data-testid=rsvp-success]').waitFor({ timeout: 10000 });
-    let rows = await mock.sql(`select id, phone, status, adults, link_code from guests where event_id = $1 and family_name = 'משפחת בלי טלפון'`, [id]);
+    let rows = await mock.sql(`select id, phone, status, adults, link_code, preferences from guests where event_id = $1 and family_name = 'משפחת בלי טלפון'`, [id]);
+    check('answer: tapped and typed preferences are saved together, kashrut first', rows[0]?.preferences === 'כשרות, כיסא תינוק, ללא גלוטן', rows[0]?.preferences);
     check('answer: saved without a phone number', rows.length === 1 && rows[0].phone === null && rows[0].status === 'attending', JSON.stringify(rows));
     check('answer: the phone remembers the family\'s own code', (await p.evaluate(() => Object.entries(localStorage).find(([k]) => k.endsWith(':own'))?.[1])) === rows[0].link_code);
     await p.reload({ waitUntil: 'networkidle' }); await p.locator('[data-testid=rsvp-open]').evaluate((e) => e.scrollIntoView({ block: 'center' })); await sleep(400); await p.locator('[data-testid=rsvp-open]').tap();

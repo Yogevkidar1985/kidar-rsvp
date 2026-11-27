@@ -28,6 +28,13 @@ const THANKS: Record<Answer, [string, string]> = {
   declined: ['תודה שעדכנתם', 'חבל שלא תוכלו להגיע. אם משהו ישתנה, אפשר לעדכן מאותו קישור.'],
 };
 
+/** The preferences most guests have, kashrut first. */
+const PREFS = ['כשרות', 'צמחוני', 'טבעוני', 'כיסא תינוק', 'נגישות'];
+function splitPrefs(text: string | null | undefined) {
+  const parts = (text ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+  return { picked: PREFS.filter((p) => parts.includes(p)), other: parts.filter((p) => !PREFS.includes(p)).join(', ') };
+}
+
 function Stepper({ label, hint, value, set, max }: { label: string; hint?: string; value: number; set: (n: number) => void; max: number }) {
   return (
     <div className="stepper">
@@ -57,7 +64,11 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, colors
   const [adults, setAdults] = useState(answered ? guest!.adults : 2);
   const [children, setChildren] = useState(answered ? guest!.children : 0);
   const [babies, setBabies] = useState(answered ? guest!.babies : 0);
-  const [preferences, setPreferences] = useState(guest?.preferences ?? '');
+  // preferences: the common ones are one tap each, anything else is typed. Both end up in the one text the owners read.
+  const [picked, setPicked] = useState<string[]>(() => splitPrefs(guest?.preferences ?? '').picked);
+  const [other, setOther] = useState(() => splitPrefs(guest?.preferences ?? '').other);
+  const preferences = [...PREFS.filter((p) => picked.includes(p)), other.trim()].filter(Boolean).join(', ');
+  const togglePref = (p: string) => setPicked((c) => (c.includes(p) ? c.filter((x) => x !== p) : [...c, p]));
   const [notes, setNotes] = useState(guest?.notes ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -65,7 +76,7 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, colors
   const phoneRef = useRef<HTMLInputElement>(null);
   const back = useRef<HTMLDivElement>(null);
   const [done, setDone] = useState<Answer | null>(null);
-  // preferences and notes stay folded away until someone wants them: most guests never do
+  // the note stays folded away until someone wants it: most guests never do
   const [more, setMore] = useState(false);
   const check = useMemo(() => successLottie(accent), [accent]);
   const party = useMemo(() => partyLottie(colors?.length ? colors : [accent]), [colors, accent]);
@@ -187,11 +198,6 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, colors
               {bad.status && <p role="alert" className="sheet-hint">{bad.status}</p>}
             </fieldset>
 
-            <label className="sheet-row"><span className="sheet-label">שם מלא</span>
-              <input ref={first} className="sheet-field" name="name" autoComplete="name" autoCapitalize="words" enterKeyHint="next" maxLength={80} placeholder="למשל: משפחת כהן" aria-invalid={!!bad.name} aria-describedby={bad.name ? 'rsvp-name-err' : undefined}
-                value={name} onChange={(e) => { setName(e.target.value); if (bad.name) setBad((b) => ({ ...b, name: undefined })); }} onKeyDown={enter()} required />
-              {bad.name && <span id="rsvp-name-err" role="alert" className="sheet-hint">{bad.name}</span>}</label>
-
             {status && status !== 'declined' && (
               <div className="sheet-count" data-testid="rsvp-count">
                 <Stepper label="מבוגרים" value={adults} set={setAdults} max={adults + Math.max(0, roomSeats)} />
@@ -201,19 +207,30 @@ export default function RsvpSheet({ slug, token, guest, maxParty, accent, colors
               </div>
             )}
 
+            <label className="sheet-row"><span className="sheet-label">שם מלא</span>
+              <input ref={first} className="sheet-field" name="name" autoComplete="name" autoCapitalize="words" enterKeyHint="next" maxLength={80} placeholder="למשל: משפחת כהן" aria-invalid={!!bad.name} aria-describedby={bad.name ? 'rsvp-name-err' : undefined}
+                value={name} onChange={(e) => { setName(e.target.value); if (bad.name) setBad((b) => ({ ...b, name: undefined })); }} onKeyDown={enter(() => phoneRef.current?.focus())} required />
+              {bad.name && <span id="rsvp-name-err" role="alert" className="sheet-hint">{bad.name}</span>}</label>
+
             <label className="sheet-row"><span className="sheet-label">טלפון נייד <span style={{ fontWeight: 400, opacity: .8 }}>(לא חובה)</span></span>
               <input ref={phoneRef} className="sheet-field" name="phone" type="tel" inputMode="tel" autoComplete="tel" enterKeyHint="done" dir="ltr" style={{ textAlign: 'right' }} maxLength={20} placeholder="050-1234567" aria-invalid={!!bad.phone} aria-describedby={bad.phone ? 'rsvp-phone-err' : undefined}
                 value={phone} onChange={(e) => { setPhone(e.target.value.replace(/[^\d+\-\s()]/g, '')); if (bad.phone) setBad((b) => ({ ...b, phone: undefined })); }} onKeyDown={enter()} />
               {bad.phone && <span id="rsvp-phone-err" role="alert" className="sheet-hint">{bad.phone}</span>}</label>
 
-            {more ? (
-              <div className="sheet-more">
-                {status !== 'declined' && <label className="sheet-row"><span className="sheet-label">העדפות מיוחדות (צמחוני, כיסא תינוק, נגישות)</span>
-                  <input className="sheet-field" name="preferences" autoComplete="off" enterKeyHint="done" maxLength={500} value={preferences} onChange={(e) => setPreferences(e.target.value)} onKeyDown={enter()} /></label>}
-                <label className="sheet-row"><span className="sheet-label">הערה לבעלי האירוע</span>
-                  <textarea className="sheet-field" name="notes" autoComplete="off" rows={2} maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
+            {status !== 'declined' && (
+              <div className="sheet-row" role="group" aria-label="העדפות מיוחדות" data-testid="rsvp-prefs">
+                <span className="sheet-label">העדפות מיוחדות <span style={{ fontWeight: 400, opacity: .8 }}>(לא חובה)</span></span>
+                <div className="sheet-chips">
+                  {PREFS.map((p) => <button key={p} type="button" aria-pressed={picked.includes(p)} onClick={() => togglePref(p)}>{p}</button>)}
+                </div>
+                <input className="sheet-field" style={{ marginTop: 8 }} name="preferences" aria-label="העדפה אחרת" autoComplete="off" enterKeyHint="done" maxLength={300} placeholder="משהו אחר? כתבו כאן" value={other} onChange={(e) => setOther(e.target.value)} onKeyDown={enter()} />
               </div>
-            ) : <button type="button" className="sheet-add" onClick={() => setMore(true)}>+ העדפות מיוחדות או הערה</button>}
+            )}
+
+            {more ? (
+              <label className="sheet-row"><span className="sheet-label">הערות לבעלי האירוע</span>
+                <textarea className="sheet-field" name="notes" autoComplete="off" rows={2} maxLength={500} autoFocus={!notes} value={notes} onChange={(e) => setNotes(e.target.value)} /></label>
+            ) : <button type="button" className="sheet-add" onClick={() => setMore(true)}>+ הוספת הערה</button>}
 
             {error && <p role="alert" className="sheet-error">{error}</p>}
             <div className="sheet-foot">
