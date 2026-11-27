@@ -56,7 +56,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     <nav className="grid gap-5" aria-label="ניווט באירוע">
       {groups.map((g) => (
         <div key={g.title}>
-          <div className="mb-1 px-2.5 text-[11px] font-semibold tracking-wide text-muted">{g.title}</div>
+          <div className="mb-1 px-2.5 text-xs font-semibold tracking-wide text-muted">{g.title}</div>
           <div className="grid gap-0.5">
             {g.items.map((n) => (
               <Link key={n.href} href={base + n.href} aria-current={isActive(n.href) ? 'page' : undefined}

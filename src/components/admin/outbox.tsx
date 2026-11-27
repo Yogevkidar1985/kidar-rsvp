@@ -129,7 +129,7 @@ export function MessageEditor({ kind, templates, body, setBody, templateId, setT
           <textarea ref={area} className="field min-h-56 leading-relaxed" data-testid="body" maxLength={2000} value={body} onChange={(e) => setBody(e.target.value)} />
         </Field>
         <div className="flex flex-wrap gap-1.5" aria-label="הוספת משתנה">
-          {VARIABLES.map((v) => <button key={v.key} type="button" className="rounded-full border border-line bg-white px-2.5 py-1 text-xs font-semibold hover:bg-paper" onClick={() => insert(v.key)}>{v.label}</button>)}
+          {VARIABLES.map((v) => <button key={v.key} type="button" className="min-h-9 rounded-full border border-line bg-white px-3 py-1 text-[13px] font-semibold hover:bg-paper" onClick={() => insert(v.key)}>{v.label}</button>)}
         </div>
       </div>
       <div className="min-w-0">

@@ -355,7 +355,7 @@ export default function EditorPage() {
                 {(['navigate', 'calendar', 'call'] as const).map((k) => (
                   <div key={k} className="flex items-center gap-2">
                     <input type="checkbox" aria-label={`הצגת כפתור ${design.labels[k]}`} checked={design.buttons[k]} onChange={(e) => setDesign({ buttons: { ...design.buttons, [k]: e.target.checked } })} />
-                    <input className="field" maxLength={30} value={design.labels[k]} onChange={(e) => setDesign({ labels: { ...design.labels, [k]: e.target.value } })} />
+                    <input className="field" aria-label={`הטקסט על כפתור ${design.labels[k]}`} maxLength={30} value={design.labels[k]} onChange={(e) => setDesign({ labels: { ...design.labels, [k]: e.target.value } })} />
                   </div>
                 ))}
               </div>

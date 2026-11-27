@@ -249,6 +249,8 @@ export default function InvitationView({ data, token = null, preview = false, ce
   const body = css(d.styles.body);
   const dateStyle = css(d.styles.date);
   const anim = d.entrance;
+  // inside the editor the page already has its own main heading
+  const Headline = preview ? 'h2' : 'h1';
   const times = [
     data.reception_time && { t: data.reception_time, l: 'קבלת פנים' },
     data.ceremony_time && { t: data.ceremony_time, l: 'טקס' },
@@ -315,7 +317,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
 
           <section className="inv-sec inv-first">
             {guest && <Reveal on={anim}><p className="inv-dear">{guest.family_name} היקרים</p></Reveal>}
-            {data.headline && <Reveal on={anim}><h1 style={css(d.styles.headline)}>{data.headline}</h1></Reveal>}
+            {data.headline && <Reveal on={anim}><Headline style={css(d.styles.headline)}>{data.headline}</Headline></Reveal>}
             {data.intro_text && <Reveal on={anim} delay={50}><p style={{ ...body, marginTop: 20, whiteSpace: 'pre-line' }}>{data.intro_text}</p></Reveal>}
             {(data.closing_text || data.hosts) && (
               <Reveal on={anim} delay={100}>
