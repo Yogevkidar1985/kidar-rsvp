@@ -1,5 +1,6 @@
 import 'server-only';
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
 import { supabaseAdmin } from '@/lib/supabase/admin';
@@ -7,7 +8,7 @@ import type { PublicInvitation } from '@/lib/types';
 import InvitationView from '@/components/invitation/InvitationView';
 
 /** Names the site itself uses: an event can never be reached under one of them. */
-const RESERVED = new Set(['admin', 'api', 'auth', 'e', 'i']);
+const RESERVED = new Set(['admin', 'api', 'auth', 'e', 'i', 'og', 'fonts']);
 
 const load = cache(async (slug: string, token: string | null): Promise<PublicInvitation | null> => {
   if (!/^[a-z0-9][a-z0-9-]{2,60}$/.test(slug) || RESERVED.has(slug)) return null;
@@ -21,10 +22,16 @@ export const guestKey = (g?: string | null) => (g && (/^[a-f0-9]{18}$/.test(g) |
 export async function invitationMetadata(slug: string, key: string | null): Promise<Metadata> {
   const data = await load(slug, key);
   if (!data) return { title: 'הזמנה' };
-  const description = [data.headline, data.weekday_label, data.hebrew_date].filter(Boolean).join(' · ');
+  const description = [data.headline, data.weekday_label, data.hebrew_date, data.reception_time || data.ceremony_time].filter(Boolean).join(' · ');
+  // the preview picture must be an absolute address: built from the configured site, or from the host that was asked
+  const h = await headers();
+  const origin = (process.env.NEXT_PUBLIC_SITE_URL || `${h.get('x-forwarded-proto') ?? 'https'}://${h.get('x-forwarded-host') ?? h.get('host') ?? ''}`).replace(/\/+$/, '');
+  const k = data.hero_url ? 0.7 : 1; // the picture is drawn smaller when it carries a photograph
+  const image = { url: `${origin}/og/${data.slug}`, width: Math.round(1200 * k), height: Math.round(630 * k), alt: data.name };
   return {
     title: data.name, description, robots: { index: false, follow: false },
-    openGraph: { title: data.name, description, images: data.hero_url ? [data.hero_url] : [] },
+    openGraph: { title: data.hosts ? `${data.hosts} · ${data.name}` : data.name, description, images: [image], locale: 'he_IL', type: 'website' },
+    twitter: { card: 'summary_large_image', images: [image.url] },
   };
 }
 
