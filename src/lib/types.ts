@@ -5,7 +5,7 @@ export type TextStyle = {
   font: string; size: number; weight: number; spacing: number; lineHeight: number;
   align: 'right' | 'center' | 'left'; color: string;
 };
-export type ParticleKind = 'petals' | 'feathers' | 'confetti' | 'hearts' | 'stars';
+export type ParticleKind = 'petals' | 'feathers' | 'confetti' | 'hearts' | 'stars' | 'ribbons' | 'dots' | 'squares' | 'triangles' | 'sparkles' | 'mix';
 export type Design = {
   /** id of the palette the colours came from; 'custom' after a manual colour change */
   palette: string;
@@ -25,8 +25,8 @@ export type Design = {
   labels: { rsvp: string; rsvpTitle: string; navigate: string; calendar: string; call: string };
   buttons: { navigate: boolean; calendar: boolean; call: boolean };
   entrance: boolean;
-  fall: { enabled: boolean; kind: ParticleKind; speed: number; intensity: number; count: number; duration: number; colors: string[] };
-  celebrate: { enabled: boolean; kind: ParticleKind; count: number; duration: number };
+  fall: { enabled: boolean; kind: ParticleKind; speed: number; intensity: number; count: number; duration: number; colors: string[]; size: number; thick: number };
+  celebrate: { enabled: boolean; kind: ParticleKind; count: number; duration: number; size: number; thick: number; speed: number };
   /** small animated touches: sparkles beside the names, a divider that draws itself, a countdown to the event */
   extras: { sparkle: boolean; countdown: boolean };
   /** where the pin sits on the map, and the address text it was found for */

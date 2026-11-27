@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { canSend, roleIn } from '@/lib/admin-auth';
 import { sendWhatsApp } from '@/lib/outbox';
+import { greenCreds } from '@/lib/green';
 import { normPhone } from '@/lib/phone';
 import { render, variables, variableLabel } from '@/lib/templates';
 
@@ -31,11 +32,13 @@ export async function POST(req: Request) {
     : (its ?? []).flatMap((i) => ((i.config as { recipients?: { name: string; phone: string }[] })?.recipients ?? []));
   if (!targets.length) return NextResponse.json({ ok: false, message: 'הקלידו מספר לבדיקה, או הוסיפו מספרים לקבלת התראות ב"התראות וחיבורים".' }, { status: 400 });
   const site = (process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin).replace(/\/+$/, '');
+  const creds = await greenCreds(parsed.data.eventId);
+  if (!creds) return NextResponse.json({ ok: false, message: 'WhatsApp עוד לא חובר. מחברים במסך "התראות וחיבורים".' }, { status: 400 });
   let sent = 0; const errors: string[] = [];
   for (const t of targets.slice(0, 5)) {
     const { text, missing } = render(parsed.data.body, variables(ev, { family_name: t.name, contact_name: t.name }, site, true));
     if (missing.length) return NextResponse.json({ ok: false, message: `חסר ערך: ${missing.map(variableLabel).join(', ')}` }, { status: 400 });
-    try { await sendWhatsApp(t.phone, `[בדיקה]\n${text}`); sent++; } catch (e) { errors.push(e instanceof Error ? e.message : 'שגיאה'); }
+    try { await sendWhatsApp(creds, t.phone, `[בדיקה]\n${text}`); sent++; } catch (e) { errors.push(e instanceof Error ? e.message : 'שגיאה'); }
   }
   return NextResponse.json({ ok: sent > 0 && !errors.length, sent, message: errors[0] ?? null });
 }

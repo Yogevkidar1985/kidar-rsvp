@@ -34,7 +34,7 @@ export function useOutbox() {
     setState('ready');
   }, [db, event.id]);
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => { fetch('/api/admin/integrations').then((r) => r.json()).then((j) => setGreen(!!j.greenApiConfigured)).catch(() => setGreen(null)); }, []);
+  useEffect(() => { fetch(`/api/admin/integrations?event=${event.id}`).then((r) => r.json()).then((j) => setGreen(!!j.greenApiConfigured)).catch(() => setGreen(null)); }, [event.id]);
 
   const active = campaigns.some((c) => c.status === 'sending');
   const busy = useRef(false);
@@ -61,17 +61,34 @@ export function useOutbox() {
   return { campaigns, messages, custom, templates, counts, state, green, load, countsOf: (id: string) => counts.get(id) ?? zero() };
 }
 
+/** The one-time database update, as three taps: copy, open Supabase, run. */
 export function SetupNotice() {
+  const [copied, setCopied] = useState<'no' | 'yes' | 'failed'>('no');
+  const ref = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').match(/^https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1];
+  const editor = ref ? `https://supabase.com/dashboard/project/${ref}/sql/new` : 'https://supabase.com/dashboard';
+  async function copy() {
+    try {
+      const sql = await fetch('/setup.sql', { cache: 'no-store' }).then((r) => { if (!r.ok) throw new Error(); return r.text(); });
+      await navigator.clipboard.writeText(sql); setCopied('yes');
+    } catch { setCopied('failed'); }
+  }
   return (
-    <div className="card p-5">
+    <div className="card p-5" data-testid="setup-notice">
       <h2 className="font-display text-xl font-medium">נדרש עדכון חד-פעמי למסד הנתונים</h2>
-      <p className="mt-2 text-muted">כדי לשלוח הזמנות ותזכורות צריך להריץ פעם אחת את הקובץ <b dir="ltr">supabase/migrations/0002_whatsapp.sql</b> ב-SQL Editor של Supabase. אחרי ההרצה רעננו את העמוד.</p>
+      <p className="mt-2 text-muted">העדכון מוסיף את ההזמנות והתזכורות ב-WhatsApp, קישורים אישיים קצרים, מעקב צפיות וחיבור WhatsApp מתוך המערכת. הוא לא נוגע במוזמנים ובתשובות שכבר נשמרו.</p>
+      <ol className="mt-4 grid gap-3">
+        <li className="flex flex-wrap items-center gap-3"><span className="pill pill-pending">1</span><button type="button" className="btn" onClick={copy}>{copied === 'yes' ? 'הועתק ✓' : 'העתקת קוד העדכון'}</button>
+          {copied === 'failed' && <a className="text-sm font-medium underline" href="/setup.sql" target="_blank" rel="noreferrer">ההעתקה נחסמה. פתחו את הקוד והעתיקו ידנית</a>}</li>
+        <li className="flex flex-wrap items-center gap-3"><span className="pill pill-pending">2</span><a className="btn btn-ghost" href={editor} target="_blank" rel="noreferrer">פתיחת SQL Editor ב-Supabase</a></li>
+        <li className="flex flex-wrap items-center gap-3"><span className="pill pill-pending">3</span><span>מדביקים, לוחצים <b dir="ltr">Run</b>, וחוזרים לכאן.</span><button type="button" className="btn btn-ghost btn-sm" onClick={() => location.reload()}>רענון</button></li>
+      </ol>
     </div>
   );
 }
 export function GreenNotice({ green }: { green: boolean | null }) {
+  const { event } = useEvent();
   if (green !== false) return null;
-  return <p className="notice notice-warn mb-3">החיבור ל-WhatsApp (Green API) עדיין לא הוגדר בשרת. הודעות ייכנסו לתור ויחכו, ושום דבר לא יישלח עד שיוגדר.</p>;
+  return <p className="notice notice-warn mb-3">WhatsApp עוד לא מחובר. הודעות ייכנסו לתור ויחכו, ושום דבר לא יישלח עד החיבור. <a className="font-medium underline" href={`/admin/events/${event.id}/connections`}>לחיבור WhatsApp</a></p>;
 }
 
 /** Sample guest for previews when nobody is selected. */

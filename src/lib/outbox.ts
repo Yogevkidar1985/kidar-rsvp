@@ -3,8 +3,8 @@ import { supabaseAdmin } from './supabase/admin';
 import { intlPhone } from './phone';
 import { eventStart } from './when';
 import { render, variables, variableLabel, type EventForMessage } from './templates';
+import { greenCreds, type GreenCreds } from './green';
 
-export const greenReady = () => !!(process.env.GREEN_API_INSTANCE_ID && process.env.GREEN_API_TOKEN);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const EVENT_COLS = 'id,slug,name,hosts,published,event_date,weekday_label,hebrew_date,reception_time,ceremony_time,venue_name,address,waze_url,gmaps_url';
 type EventRow = EventForMessage & { id: string; published: boolean };
@@ -13,15 +13,14 @@ type Camp = { id: string; event_id: string; kind: 'invite' | 'reminder'; body: s
 class SendError extends Error { constructor(msg: string, public retry: boolean) { super(msg); } }
 
 /** One WhatsApp message through Green API. Resolves with the provider's message id only when Green API accepted it. */
-export async function sendWhatsApp(phone: string, message: string): Promise<string> {
+export async function sendWhatsApp(creds: GreenCreds | null, phone: string, message: string): Promise<string> {
   const chat = intlPhone(phone);
   if (!chat) throw new SendError('מספר הטלפון אינו תקין', false);
-  if (!greenReady()) throw new SendError('Green API לא הוגדר בשרת', true);
-  const base = (process.env.GREEN_API_URL || 'https://api.green-api.com').replace(/\/$/, '');
+  if (!creds) throw new SendError('WhatsApp עוד לא חובר לאירוע', true);
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), 8000);
   try {
-    const r = await fetch(`${base}/waInstance${process.env.GREEN_API_INSTANCE_ID}/sendMessage/${process.env.GREEN_API_TOKEN}`, {
+    const r = await fetch(`${creds.url}/waInstance${creds.instance}/sendMessage/${creds.token}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chatId: `${chat}@c.us`, message }), signal: ctl.signal, redirect: 'error',
     });
     if (!r.ok) throw new SendError(`Green API החזיר ${r.status}`, r.status === 429 || r.status >= 500);
@@ -74,7 +73,13 @@ export async function runTick(budgetMs = 6500, now = new Date()): Promise<TickRe
 
   // 3. the queue
   const camps = new Map<string, Camp | null>();
-  if (!greenReady()) out.waiting = true;
+  const creds = new Map<string, GreenCreds | null>();
+  const credsOf = async (id: string) => { if (!creds.has(id)) creds.set(id, await greenCreds(id)); return creds.get(id)!; };
+  // nothing is claimed while no event with open work has a WhatsApp connection: the queue simply waits
+  const { data: open0 } = await db.from('campaigns').select('event_id').eq('status', 'sending');
+  const ready = new Set<string>();
+  for (const id of new Set((open0 ?? []).map((c) => c.event_id as string))) if (await credsOf(id)) ready.add(id);
+  if (!ready.size) out.waiting = true;
   while (!out.waiting && Date.now() - started < budgetMs) {
     const { data: claimed, error } = await db.rpc('claim_messages', { p_limit: 1 });
     if (error) throw new Error('claim failed');
@@ -103,7 +108,7 @@ export async function runTick(budgetMs = 6500, now = new Date()): Promise<TickRe
     const { text, missing } = render(c.body, variables(ev, g ?? { family_name: m.name ?? '', contact_name: m.name }, c.site_url));
     if (missing.length) { await finish('failed', { error: `חסר ערך: ${missing.map(variableLabel).join(', ')}` }); continue; }
     try {
-      const id = await sendWhatsApp(m.phone, text);
+      const id = await sendWhatsApp(await credsOf(c.event_id), m.phone, text);
       const at = new Date().toISOString();
       await finish('sent', { provider_id: id, body: text, sent_at: at, error: null });
       if (c.kind === 'invite' && g && !g.invited_at) await db.from('guests').update({ invited_at: at }).eq('id', g.id);

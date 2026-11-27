@@ -12,13 +12,21 @@ const VenueMap = dynamic(() => import('@/components/invitation/VenueMap'), { ssr
 import InvitationView from '@/components/invitation/InvitationView';
 import { HEBREW_FONTS, PALETTES, applyFont, applyPalette, resolveDesign } from '@/lib/defaults';
 import { hebrewDate, weekdayLabel } from '@/lib/hebrew-date';
+import { MIX, shape } from '@/components/invitation/Particles';
 import type { Design, EventRow, Media, ParticleKind, TextStyle } from '@/lib/types';
 
 const TABS = ['תוכן', 'מועד', 'מקום', 'תמונות', 'טיפוגרפיה', 'צבעים', 'אנימציות', 'אישורי הגעה'] as const;
 type Tab = (typeof TABS)[number];
 const DEVICES = [{ key: 'mobile', label: 'נייד', w: 390 }, { key: 'tablet', label: 'טאבלט', w: 768 }, { key: 'desktop', label: 'מחשב', w: 1180 }] as const;
 const KINDS: { key: ParticleKind; label: string }[] = [
-  { key: 'feathers', label: 'נוצות' }, { key: 'petals', label: 'עלי כותרת' }, { key: 'confetti', label: 'קונפטי' }, { key: 'hearts', label: 'לבבות' }, { key: 'stars', label: 'כוכבים' },
+  { key: 'confetti', label: 'קונפטי' }, { key: 'mix', label: 'מיקס חגיגי' }, { key: 'ribbons', label: 'סרטים' }, { key: 'dots', label: 'עיגולים' }, { key: 'squares', label: 'ריבועים' }, { key: 'triangles', label: 'משולשים' },
+  { key: 'sparkles', label: 'נצנוצים' }, { key: 'stars', label: 'כוכבים' }, { key: 'hearts', label: 'לבבות' }, { key: 'petals', label: 'עלי כותרת' }, { key: 'feathers', label: 'נוצות' },
+];
+const COLOR_SETS: { name: string; colors: string[] }[] = [
+  { name: 'צבעוני', colors: ['#F25F5C', '#FFB703', '#3A86FF', '#2EC4B6', '#8E7DBE'] },
+  { name: 'פסטל', colors: ['#F7C6CE', '#BFD8F2', '#FCE7A8', '#C9E4C5', '#DCCBEA'] },
+  { name: 'זהב', colors: ['#C9A24A', '#E6CF8F', '#F6EBCB', '#9C7A2B'] },
+  { name: 'תכלת', colors: ['#7FB4DE', '#B9D8F0', '#3F7FB5', '#EAF4FB'] },
 ];
 const STYLE_KEYS: { key: keyof Design['styles']; label: string }[] = [
   { key: 'headline', label: 'כותרת ראשית' }, { key: 'hosts', label: 'שמות ומקום' }, { key: 'date', label: 'תאריך ושעות' }, { key: 'body', label: 'טקסט רץ' },
@@ -38,6 +46,33 @@ async function shrink(file: File, max = 2000): Promise<Blob> {
     c.getContext('2d')!.drawImage(bmp, 0, 0, c.width, c.height);
     return await new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error('encode'))), 'image/jpeg', 0.86));
   } catch { return file; }
+}
+
+/** One kind, drawn with the real drawing code in the chosen colours, so the tile shows what will fall. */
+function KindTile({ kind, colors, thick, label, active, onPick }: { kind: ParticleKind; colors: string[]; thick: number; label: string; active: boolean; onPick: () => void }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const c = ref.current, ctx = c?.getContext('2d');
+    if (!c || !ctx) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2), W = 72, H = 40;
+    c.width = W * dpr; c.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+    const spots = [[14, 14, -0.5, 6], [36, 24, 0.35, 7.5], [58, 13, 0.9, 6], [24, 31, 1.4, 4.5], [50, 31, -1.1, 5]];
+    spots.forEach(([x, y, rot, r], i) => {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+      ctx.fillStyle = colors[i % colors.length] ?? '#888';
+      shape(ctx, kind === 'mix' ? MIX[i % MIX.length] : kind, r * (kind === 'ribbons' ? 0.7 : 1), thick);
+      ctx.restore();
+    });
+  }, [kind, colors, thick]);
+  return (
+    <button type="button" className="kind-tile" aria-pressed={active} onClick={onPick}>
+      <canvas ref={ref} style={{ width: 72, height: 40 }} aria-hidden />
+      <span>{label}</span>
+    </button>
+  );
+}
+function KindPicker({ value, colors, thick, onChange, name }: { value: ParticleKind; colors: string[]; thick: number; onChange: (k: ParticleKind) => void; name: string }) {
+  return <div className="kind-grid" role="group" aria-label={name} data-testid={`kinds-${name}`}>{KINDS.map((k) => <KindTile key={k.key} kind={k.key} label={k.label} colors={colors} thick={thick} active={value === k.key} onPick={() => onChange(k.key)} />)}</div>;
 }
 
 function Range({ label, value, min, max, step, onChange, suffix = '' }: { label: string; value: number; min: number; max: number; step: number; onChange: (n: number) => void; suffix?: string }) {
@@ -206,15 +241,16 @@ export default function EditorPage() {
     </div>
   );
 
+  const tileColors = design.fall.colors.map((c) => (/^#f{3}(f{3})?$/i.test(c) ? design.colors.line : c));
   return (
     <>
       <PageHead title="עיצוב ההזמנה" sub={saving ? 'שומרים…' : dirty ? 'יש שינויים שלא נשמרו' : draft.published ? 'פורסמה · כל השינויים שמורים' : 'טיוטה · כל השינויים שמורים'}>
         <button className="btn btn-ghost btn-icon" aria-label="ביטול הפעולה האחרונה" title="ביטול" disabled={!hist.current.past.length} onClick={() => step('undo')}><Icon name="undo" /></button>
         <button className="btn btn-ghost btn-icon" aria-label="ביצוע מחדש" title="ביצוע מחדש" disabled={!hist.current.future.length} onClick={() => step('redo')}><Icon name="redo" /></button>
-        {dirty && <button className="btn btn-ghost" title="מחזיר את ההזמנה לגרסה השמורה האחרונה" onClick={() => setDraft(event)}>ביטול השינויים</button>}
+        {dirty && <button className="btn btn-ghost hidden lg:inline-flex" title="מחזיר את ההזמנה לגרסה השמורה האחרונה" onClick={() => setDraft(event)}>ביטול השינויים</button>}
         <button className="btn btn-ghost lg:hidden" onClick={() => setView(view === 'edit' ? 'preview' : 'edit')}><Icon name="eye" />{view === 'edit' ? 'תצוגה' : 'עריכה'}</button>
-        <button className="btn btn-ghost" disabled={!canEdit || saving} onClick={() => save(!draft.published)}>{draft.published ? 'ביטול פרסום' : 'שמירה ופרסום'}</button>
-        <button className="btn" disabled={!canEdit || saving || !dirty} onClick={() => save()}>{saving ? 'שומרים…' : draft.published ? 'שמירת השינויים' : 'שמירת טיוטה'}</button>
+        <button className={draft.published ? 'btn btn-ghost' : 'btn'} disabled={!canEdit || saving} onClick={() => save(!draft.published)}>{draft.published ? 'ביטול פרסום' : 'שמירה ופרסום'}</button>
+        <button className={`${draft.published ? 'btn' : 'btn btn-ghost'} hidden lg:inline-flex`} disabled={!canEdit || saving || !dirty} onClick={() => save()}>{saving ? 'שומרים…' : draft.published ? 'שמירת השינויים' : 'שמירת טיוטה'}</button>
       </PageHead>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(320px,420px)_1fr]">
@@ -367,22 +403,50 @@ export default function EditorPage() {
               <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={design.entrance} onChange={(e) => setDesign({ entrance: e.target.checked })} />כניסה הדרגתית של התמונה והטקסטים</label>
               <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={design.extras.sparkle} onChange={(e) => setDesign({ extras: { ...design.extras, sparkle: e.target.checked } })} />נצנוצים ליד השמות וקו מפריד שמצייר את עצמו</label>
               <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={design.extras.countdown} onChange={(e) => setDesign({ extras: { ...design.extras, countdown: e.target.checked } })} />ספירה לאחור עד האירוע</label>
-              <div className="grid gap-3 border-t border-line pt-3">
-                <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={design.fall.enabled} onChange={(e) => setDesign({ fall: { ...design.fall, enabled: e.target.checked } })} />אלמנטים שנופלים מהתמונה</label>
-                <Field label="סוג האלמנט"><select className="field" value={design.fall.kind} onChange={(e) => setDesign({ fall: { ...design.fall, kind: e.target.value as ParticleKind } })}>{KINDS.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}</select></Field>
-                <Range label="כמות" value={design.fall.count} min={4} max={80} step={1} onChange={(n) => setDesign({ fall: { ...design.fall, count: n } })} />
-                <Range label="מהירות" value={design.fall.speed} min={0.3} max={2.5} step={0.1} onChange={(n) => setDesign({ fall: { ...design.fall, speed: n } })} suffix="×" />
-                <Range label="עוצמה" value={design.fall.intensity} min={0.2} max={1} step={0.05} onChange={(n) => setDesign({ fall: { ...design.fall, intensity: n } })} />
-                <Range label="משך (0 = ללא הפסקה)" value={design.fall.duration} min={0} max={30} step={1} onChange={(n) => setDesign({ fall: { ...design.fall, duration: n } })} suffix=" שנ׳" />
-                <div><span className="label">צבעי האלמנטים</span><div className="flex gap-2">{design.fall.colors.map((c, i) => <input key={i} type="color" aria-label={`צבע ${i + 1}`} className="h-9 w-12 rounded border border-line" value={c} onChange={(e) => setDesign({ fall: { ...design.fall, colors: design.fall.colors.map((x, j) => (j === i ? e.target.value : x)) } })} />)}</div></div>
+              <div className="grid gap-3 border-t border-line pt-3" data-testid="fall-controls">
+                <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={design.fall.enabled} onChange={(e) => setDesign({ fall: { ...design.fall, enabled: e.target.checked } })} />קונפטי שנופל מהתמונה</label>
+                {design.fall.enabled && <>
+                  <div><span className="label">סוג</span><KindPicker name="fall" value={design.fall.kind} colors={tileColors} thick={design.fall.thick} onChange={(k) => setDesign({ fall: { ...design.fall, kind: k } })} /></div>
+                  <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+                    <Range label="מהירות" value={design.fall.speed} min={0.3} max={2.5} step={0.1} onChange={(n) => setDesign({ fall: { ...design.fall, speed: n } })} suffix="×" />
+                    <Range label="כמות" value={design.fall.count} min={4} max={80} step={1} onChange={(n) => setDesign({ fall: { ...design.fall, count: n } })} />
+                    <Range label="גודל" value={design.fall.size} min={0.5} max={2.5} step={0.1} onChange={(n) => setDesign({ fall: { ...design.fall, size: n } })} suffix="×" />
+                    <Range label="עובי" value={design.fall.thick} min={0.4} max={2.5} step={0.1} onChange={(n) => setDesign({ fall: { ...design.fall, thick: n } })} suffix="×" />
+                    <Range label="עוצמת הצבע" value={design.fall.intensity} min={0.2} max={1} step={0.05} onChange={(n) => setDesign({ fall: { ...design.fall, intensity: n } })} />
+                    <Range label="משך (0 = ללא הפסקה)" value={design.fall.duration} min={0} max={30} step={1} onChange={(n) => setDesign({ fall: { ...design.fall, duration: n } })} suffix=" שנ׳" />
+                  </div>
+                  <div>
+                    <span className="label">צבעים</span>
+                    <div className="flex flex-wrap items-center gap-2" data-testid="fall-colors">
+                      {design.fall.colors.map((c, i) => (
+                        <span key={i} className="swatch">
+                          <input type="color" aria-label={`צבע ${i + 1}`} value={c} onChange={(e) => setDesign({ fall: { ...design.fall, colors: design.fall.colors.map((x, j) => (j === i ? e.target.value : x)) } })} />
+                          {design.fall.colors.length > 1 && <button type="button" aria-label={`הסרת צבע ${i + 1}`} onClick={() => setDesign({ fall: { ...design.fall, colors: design.fall.colors.filter((_, j) => j !== i) } })}>×</button>}
+                        </span>
+                      ))}
+                      {design.fall.colors.length < 8 && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDesign({ fall: { ...design.fall, colors: [...design.fall.colors, design.colors.accent] } })}>+ צבע</button>}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {COLOR_SETS.map((s) => <button key={s.name} type="button" className="btn btn-ghost btn-sm" onClick={() => setDesign({ fall: { ...design.fall, colors: s.colors } })}><span className="flex" aria-hidden>{s.colors.slice(0, 5).map((c) => <i key={c} style={{ background: c }} className="-ms-1 inline-block h-3.5 w-3.5 rounded-full border border-white first:ms-0" />)}</span>{s.name}</button>)}
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDesign({ fall: { ...design.fall, colors: (PALETTES.find((p) => p.id === design.palette)?.fall) ?? [design.colors.accent, design.colors.line, '#FFFFFF', design.colors.muted] } })}>צבעי ההזמנה</button>
+                    </div>
+                  </div>
+                </>}
               </div>
               <div className="grid gap-3 border-t border-line pt-3">
                 <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={design.celebrate.enabled} onChange={(e) => setDesign({ celebrate: { ...design.celebrate, enabled: e.target.checked } })} />חגיגה אחרי אישור הגעה</label>
-                <p className="text-xs text-muted">האפקט מופעל רק אחרי שהתשובה נשמרה בשרת.</p>
-                <Field label="סוג האלמנט"><select className="field" value={design.celebrate.kind} onChange={(e) => setDesign({ celebrate: { ...design.celebrate, kind: e.target.value as ParticleKind } })}>{KINDS.map((k) => <option key={k.key} value={k.key}>{k.label}</option>)}</select></Field>
-                <Range label="כמות" value={design.celebrate.count} min={20} max={300} step={10} onChange={(n) => setDesign({ celebrate: { ...design.celebrate, count: n } })} />
-                <Range label="משך" value={design.celebrate.duration} min={1} max={10} step={0.5} onChange={(n) => setDesign({ celebrate: { ...design.celebrate, duration: n } })} suffix=" שנ׳" />
-                <button type="button" className="btn btn-ghost" onClick={() => { setView('preview'); setCelebrate((n) => n + 1); }}>הפעלת החגיגה בתצוגה המקדימה</button>
+                {design.celebrate.enabled && <>
+                  <p className="text-xs text-muted">האפקט מופעל רק אחרי שהתשובה נשמרה בשרת, בצבעים שנבחרו למעלה.</p>
+                  <div><span className="label">סוג</span><KindPicker name="celebrate" value={design.celebrate.kind} colors={tileColors} thick={design.celebrate.thick} onChange={(k) => setDesign({ celebrate: { ...design.celebrate, kind: k } })} /></div>
+                  <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+                    <Range label="מהירות" value={design.celebrate.speed} min={0.5} max={2} step={0.1} onChange={(n) => setDesign({ celebrate: { ...design.celebrate, speed: n } })} suffix="×" />
+                    <Range label="כמות" value={design.celebrate.count} min={20} max={300} step={10} onChange={(n) => setDesign({ celebrate: { ...design.celebrate, count: n } })} />
+                    <Range label="גודל" value={design.celebrate.size} min={0.5} max={2.5} step={0.1} onChange={(n) => setDesign({ celebrate: { ...design.celebrate, size: n } })} suffix="×" />
+                    <Range label="עובי" value={design.celebrate.thick} min={0.4} max={2.5} step={0.1} onChange={(n) => setDesign({ celebrate: { ...design.celebrate, thick: n } })} suffix="×" />
+                    <Range label="משך" value={design.celebrate.duration} min={1} max={10} step={0.5} onChange={(n) => setDesign({ celebrate: { ...design.celebrate, duration: n } })} suffix=" שנ׳" />
+                  </div>
+                  <button type="button" className="btn btn-ghost" onClick={() => { setView('preview'); setCelebrate((n) => n + 1); }}>הפעלת החגיגה בתצוגה המקדימה</button>
+                </>}
               </div>
             </>}
             {tab === 'אישורי הגעה' && <>

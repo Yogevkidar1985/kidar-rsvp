@@ -4,8 +4,7 @@ import { supabaseAdmin } from './supabase/admin';
 import { intlPhone } from './phone';
 import { buildMessage, type GuestSnapshot, type NotifyKind } from './messages';
 import type { Integration } from './types';
-
-export const greenApiConfigured = () => !!(process.env.GREEN_API_INSTANCE_ID && process.env.GREEN_API_TOKEN);
+import { greenCreds, type GreenCreds } from './green';
 
 function isPublicHttps(raw: string): boolean {
   try {
@@ -25,11 +24,10 @@ async function post(url: string, body: string, headers: Record<string, string> =
   } finally { clearTimeout(timer); }
 }
 
-async function sendGreenApi(phone: string, message: string) {
+async function sendGreenApi(c: GreenCreds, phone: string, message: string) {
   const chat = intlPhone(phone);
   if (!chat) throw new Error('מספר טלפון לא תקין');
-  const base = (process.env.GREEN_API_URL || 'https://api.green-api.com').replace(/\/$/, '');
-  await post(`${base}/waInstance${process.env.GREEN_API_INSTANCE_ID}/sendMessage/${process.env.GREEN_API_TOKEN}`,
+  await post(`${c.url}/waInstance${c.instance}/sendMessage/${c.token}`,
     JSON.stringify({ chatId: `${chat}@c.us`, message }));
 }
 
@@ -46,6 +44,7 @@ export async function dispatch(eventId: string, kind: NotifyKind, guest: GuestSn
       db.from('guests').select('adults,children,babies').eq('event_id', eventId).eq('status', 'attending'),
     ]);
     if (!integrations?.length || !ev) return out;
+    const creds = (integrations as Integration[]).some((i) => i.type !== 'webhook') ? await greenCreds(eventId) : null;
     const totals = {
       attendingFamilies: att?.length ?? 0,
       attendingPeople: (att ?? []).reduce((n, g) => n + g.adults + g.children + g.babies, 0),
@@ -65,8 +64,8 @@ export async function dispatch(eventId: string, kind: NotifyKind, guest: GuestSn
       } else {
         for (const r of it.config.recipients ?? []) {
           targets.push({ target: r.phone, run: async () => {
-            if (!greenApiConfigured()) throw new Error('Green API לא הוגדר בשרת');
-            await sendGreenApi(r.phone, text);
+            if (!creds) throw new Error('WhatsApp עוד לא חובר. מחברים במסך "התראות וחיבורים".');
+            await sendGreenApi(creds, r.phone, text);
           } });
         }
       }

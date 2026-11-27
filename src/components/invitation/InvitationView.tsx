@@ -270,7 +270,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
       <div className={`inv-col${anim ? ' inv-load' : ''}`}>
         {d.fall.enabled && origin.height > 0 && (
           <Particles mode="fall" kind={d.fall.kind} count={d.fall.count} colors={d.fall.colors} speed={d.fall.speed}
-            intensity={d.fall.intensity} duration={d.fall.duration} originY={origin.top}
+            intensity={d.fall.intensity} size={d.fall.size} thick={d.fall.thick} duration={d.fall.duration} originY={origin.top}
             style={{ position: 'absolute', top: 0, insetInline: 0, width: '100%', height: origin.top + origin.height + 300, zIndex: 5 }} />
         )}
 
@@ -481,7 +481,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
         </div>
       )}
       {burst > 0 && (
-        <Particles key={burst} mode="burst" kind={d.celebrate.kind} count={d.celebrate.count} duration={d.celebrate.duration}
+        <Particles key={burst} mode="burst" kind={d.celebrate.kind} count={d.celebrate.count} duration={d.celebrate.duration} size={d.celebrate.size} thick={d.celebrate.thick} speed={d.celebrate.speed}
           colors={burstColors}
           onDone={() => setBurst(0)}
           style={{ position: preview ? 'absolute' : 'fixed', inset: 0, width: '100%', height: '100%', zIndex: 70 }} />

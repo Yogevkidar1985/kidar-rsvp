@@ -20,7 +20,11 @@ export default function ConnectionsPage() {
   const toast = useToast();
   const db = supabaseBrowser();
   const [list, setList] = useState<Integration[]>([]);
-  const [greenReady, setGreenReady] = useState(false);
+  const [conn, setConn] = useState<{ ready: boolean; source: 'env' | 'db' | null; instance: string | null; state: string | null }>({ ready: false, source: null, instance: null, state: null });
+  const greenReady = conn.ready;
+  const [creds, setCreds] = useState({ instance: '', token: '', url: '' });
+  const [credMsg, setCredMsg] = useState<{ ok: boolean; text: string; setup?: boolean } | null>(null);
+  const [openForm, setOpenForm] = useState(false);
   const [busy, setBusy] = useState('');
   const [hook, setHook] = useState({ name: '', url: '', secret: '' });
   const [rcpt, setRcpt] = useState({ name: '', phone: '' });
@@ -31,8 +35,24 @@ export default function ConnectionsPage() {
   }, [db, event.id]);
   useEffect(() => {
     void load();
-    fetch('/api/admin/integrations').then((r) => r.json()).then((j) => setGreenReady(!!j.greenApiConfigured)).catch(() => {});
-  }, [load]);
+    void loadConn();
+  }, [load]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function loadConn() {
+    const j = await fetch(`/api/admin/integrations?event=${event.id}&check=1`).then((r) => r.json()).catch(() => null);
+    if (j?.ok) setConn({ ready: !!j.greenApiConfigured, source: j.source, instance: j.instance, state: j.state });
+  }
+  async function connect(e: React.FormEvent) {
+    e.preventDefault(); setBusy('connect'); setCredMsg(null);
+    const r = await fetch('/api/admin/green', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ eventId: event.id, instance: creds.instance.trim(), token: creds.token.trim(), url: creds.url.trim() || undefined }) }).then((x) => x.json()).catch(() => null);
+    setBusy('');
+    if (!r?.ok) return setCredMsg({ ok: false, text: r?.message ?? 'החיבור נכשל. נסו שוב.', setup: !!r?.setup });
+    setCreds({ instance: '', token: '', url: '' }); setOpenForm(false); setCredMsg({ ok: !!r.linked, text: r.message });
+    await loadConn();
+  }
+  async function disconnect() {
+    if (!window.confirm('לנתק את WhatsApp? הודעות שבתור יחכו עד חיבור מחדש.')) return;
+    await fetch(`/api/admin/green?event=${event.id}`, { method: 'DELETE' }); setCredMsg(null); await loadConn();
+  }
 
   if (!isOwner) return <p className="text-muted">המסך הזה פתוח לבעלי האירוע בלבד.</p>;
   const green = list.find((i) => i.type === 'greenapi');
@@ -83,7 +103,30 @@ export default function ConnectionsPage() {
           <h2 className="font-display text-lg font-medium">WhatsApp דרך Green API</h2>
           {green ? <State it={green} ready={greenReady} /> : <span className="pill pill-pending">לא הוגדרו נמענים</span>}
         </div>
-        {!greenReady && <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm">השרת עדיין לא מחזיק את פרטי החיבור ל-Green API. מגדירים אותם במשתני הסביבה <span dir="ltr">GREEN_API_INSTANCE_ID</span> ו-<span dir="ltr">GREEN_API_TOKEN</span> ומפעילים מחדש. עד אז לא יישלחו הודעות.</p>}
+        <div className="mt-3 rounded-xl border border-line p-4" data-testid="green-connect">
+          <div className="flex flex-wrap items-center gap-2">
+            <b>חיבור החשבון</b>
+            {greenReady
+              ? <span className={`pill ${conn.state === 'authorized' ? 'pill-attending' : 'pill-pending'}`}>{conn.state === 'authorized' ? 'מחובר' : conn.state === 'notAuthorized' ? 'ממתין לסריקת QR' : 'פרטים שמורים'}</span>
+              : <span className="pill pill-declined">לא מחובר</span>}
+            {greenReady && <span className="text-sm text-muted">מופע <span dir="ltr">{conn.instance}</span>{conn.source === 'env' ? ' · מוגדר בשרת' : ''}</span>}
+            {greenReady && conn.source === 'db' && <span className="ms-auto flex gap-2"><button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpenForm(!openForm)}>החלפה</button><button type="button" className="btn btn-danger btn-sm" onClick={disconnect}>ניתוק</button></span>}
+          </div>
+          {greenReady && conn.state === 'notAuthorized' && <p className="notice notice-warn mt-3">הפרטים נכונים, אבל הטלפון עוד לא מקושר. במסוף של Green API סורקים את קוד ה-QR מתוך WhatsApp בטלפון השולח (מכשירים מקושרים).</p>}
+          {credMsg && <p className={`notice mt-3 ${credMsg.ok ? '' : 'notice-warn'}`} role="status">{credMsg.text}</p>}
+          {(!greenReady || openForm) && conn.source !== 'env' && (
+            <form onSubmit={connect} className="mt-3 grid gap-3">
+              <p className="text-sm text-muted">נכנסים ל-<a className="font-medium underline" href="https://console.green-api.com" target="_blank" rel="noreferrer" dir="ltr">console.green-api.com</a>, פותחים את המופע, ומעתיקים משם את שלושת הערכים. הטוקן נשמר בשרת בלבד ולא מוצג שוב.</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="מזהה המופע (idInstance)"><input className="field" dir="ltr" inputMode="numeric" autoComplete="off" required pattern="[0-9]{6,20}" value={creds.instance} onChange={(e) => setCreds({ ...creds, instance: e.target.value })} /></Field>
+                <Field label="טוקן (apiTokenInstance)"><input className="field" dir="ltr" type="password" autoComplete="off" required minLength={20} value={creds.token} onChange={(e) => setCreds({ ...creds, token: e.target.value })} /></Field>
+              </div>
+              <Field label="כתובת ה-API (apiUrl), אם מופיעה במסוף"><input className="field" dir="ltr" inputMode="url" autoComplete="off" placeholder="https://api.green-api.com" value={creds.url} onChange={(e) => setCreds({ ...creds, url: e.target.value })} /></Field>
+              <div><button className="btn" disabled={busy === 'connect'}>{busy === 'connect' ? 'בודקים מול Green API…' : 'בדיקה וחיבור'}</button></div>
+            </form>
+          )}
+        </div>
+        <h3 className="mt-5 font-medium">מי מקבל התראה על כל תשובה</h3>
         <ul className="mt-3 divide-y divide-line text-sm">
           {(green?.config.recipients ?? []).map((r, i) => (
             <li key={i} className="flex items-center gap-3 py-2"><b>{r.name || 'נמען'}</b><span dir="ltr">{r.phone}</span>

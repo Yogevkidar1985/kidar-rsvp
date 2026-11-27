@@ -31,7 +31,7 @@ export default function Overview() {
   const [log, setLog] = useState<ResponseRow[]>([]);
   const [wa, setWa] = useState<{ failed: number; next: string | null } | null>(null);
   const [green, setGreen] = useState<boolean | null>(null);
-  useEffect(() => { fetch('/api/admin/integrations').then((r) => r.json()).then((j) => setGreen(!!j.greenApiConfigured)).catch(() => setGreen(null)); }, []);
+  useEffect(() => { fetch(`/api/admin/integrations?event=${event.id}`).then((r) => r.json()).then((j) => setGreen(!!j.greenApiConfigured)).catch(() => setGreen(null)); }, [event.id]);
   const [visits, setVisits] = useState<{ guest_id: string | null; kind: string; visitor: string | null }[] | null>(null);
   const stamp = guests.reduce((m, g) => (g.updated_at > m ? g.updated_at : m), '');
   const base = `/admin/events/${event.id}`;
