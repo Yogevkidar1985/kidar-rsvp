@@ -272,7 +272,7 @@ export default function Overview() {
               );
             })}
           </ol>
-          <details className="mt-3 text-xs text-muted"><summary className="cursor-pointer py-1 font-medium text-ink">איך המספרים נספרים?</summary><p className="mt-1">האחוזים הם מתוך כל המשפחות ברשימה. הספירה היא של משפחות, לא של אנשים: {s.attendingFamilies} משפחות שאישרו הן {s.attendingPeople} משתתפים. "פתחו" נספר רק כשההזמנה נטענה בדפדפן של אדם, לא בתצוגת קישור של WhatsApp.</p></details>
+          <details className="mt-3 text-xs text-muted"><summary className="flex min-h-10 cursor-pointer items-center font-medium text-ink">איך המספרים נספרים?</summary><p className="mt-1">האחוזים הם מתוך כל המשפחות ברשימה. הספירה היא של משפחות, לא של אנשים: {s.attendingFamilies} משפחות שאישרו הן {s.attendingPeople} משתתפים. "פתחו" נספר רק כשההזמנה נטענה בדפדפן של אדם, לא בתצוגת קישור של WhatsApp.</p></details>
         </section>
       )}
 
