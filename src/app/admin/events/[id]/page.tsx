@@ -1,4 +1,6 @@
 'use client';
+import { shortLink } from '@/lib/templates';
+import { resolveDesign } from '@/lib/defaults';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { supabaseBrowser } from '@/lib/supabase/client';
@@ -80,7 +82,7 @@ export default function Overview() {
   const names = useMemo(() => new Map(guests.map((g) => [g.id, g.family_name])), [guests]);
   // an answer is "new" when it is the family's first one: given within a minute of the family joining the list
   const firstOf = useMemo(() => { const born = new Map(guests.map((g) => [g.id, new Date(g.created_at).getTime()])); const m = new Map<string, string | number>(); for (const r of log) if (Math.abs(new Date(r.created_at).getTime() - (born.get(r.guest_id) ?? 0)) < 60000) m.set(r.guest_id, r.id); return m; }, [guests, log]);
-  const url = typeof window !== 'undefined' ? `${window.location.origin}/e/${event.slug}` : `/e/${event.slug}`;
+  const url = shortLink(resolveDesign(event.design).shortUrl) || (typeof window !== 'undefined' ? `${window.location.origin}/${event.slug}` : `/${event.slug}`);
   const seatsTotal = tables.reduce((n, t) => n + t.capacity, 0);
   const invitedSent = guests.filter((g) => g.invited_at).length;
   const start = eventStart(event);

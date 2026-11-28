@@ -33,6 +33,8 @@ export type Design = {
   geo: { lat: number; lng: number; place: string } | null;
   /** what a link shows inside WhatsApp; an empty field falls back to the event's own texts */
   share: { title: string; description: string };
+  /** a short address that leads to the invitation (from a link shortener): used wherever the general link is given out, and in messages */
+  shortUrl: string;
   /** the venue's own logo, shown in the "how to get there" card */
   venueLogo: string | null;
   /** the venue's name as drawn in its logo: shown in place of the typed name, which stays as the text a screen reader reads */

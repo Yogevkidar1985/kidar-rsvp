@@ -51,6 +51,7 @@ export const DEFAULT_DESIGN: Design = {
   extras: { sparkle: true, countdown: true },
   geo: null,
   share: { title: '', description: '' },
+  shortUrl: '',
   venueLogo: null,
   venueWordmark: null,
   textScale: 1.15,

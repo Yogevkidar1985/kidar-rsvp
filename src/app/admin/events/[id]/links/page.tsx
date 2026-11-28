@@ -5,7 +5,7 @@ import { useEvent } from '@/components/admin/EventContext';
 import { PageHead } from '@/components/admin/Shell';
 import { Field, dbError, useToast } from '@/components/admin/ui';
 import { resolveDesign } from '@/lib/defaults';
-import { inviteUrl } from '@/lib/templates';
+import { inviteUrl, shortLink } from '@/lib/templates';
 import { LINK_CODE, SLUG, randomCode } from '@/lib/links';
 import { refreshPublic } from '@/lib/refresh-public';
 import type { EventRow, Guest } from '@/lib/types';
@@ -21,6 +21,8 @@ export default function LinksPage() {
 
   const [slug, setSlug] = useState(event.slug);
   const [share, setShare] = useState(design.share);
+  const [short, setShort] = useState(design.shortUrl);
+  const shortNow = shortLink(design.shortUrl);
   const [busy, setBusy] = useState('');
   const [q, setQ] = useState('');
   const [edit, setEdit] = useState<{ id: string; code: string } | null>(null);
@@ -68,6 +70,16 @@ export default function LinksPage() {
           <button type="button" className="btn btn-sm" onClick={() => copy(`${origin}/${event.slug}`)}>העתקה</button>
           <a className="btn btn-ghost btn-sm" href={`${origin}/${event.slug}?test=1`} target="_blank" rel="noreferrer">פתיחה במצב בדיקה</a>
         </div>
+        <form className="mt-4 grid gap-2 border-t border-line pt-4" data-testid="short-form" onSubmit={(e) => { e.preventDefault(); const v = short.trim(); if (v && !shortLink(v)) return toast('קישור קצר מתחיל ב-https ואין בו רווחים או סימני שאלה.', true); void saveEvent({ design: { ...event.design, shortUrl: v } }, 'short', v ? 'הקישור הקצר נשמר' : 'הקישור הקצר הוסר'); }}>
+          <Field label="קישור קצר (לא חובה)" hint="קישור משירות קיצור שמוביל להזמנה. כשהוא מוגדר, הוא זה שמועתק מכאן ומהסקירה, והוא שנכנס להודעות WhatsApp במקום הקישור הארוך.">
+            <input className="field" dir="ltr" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="https://tinyurl.com/..." aria-label="קישור קצר" data-testid="short-url" disabled={!canEdit} maxLength={120} value={short} onChange={(e) => setShort(e.target.value)} />
+          </Field>
+          <div className="flex flex-wrap items-center gap-2">
+            <button className="btn btn-sm" disabled={!canEdit || busy === 'short' || short.trim() === design.shortUrl}>{busy === 'short' ? 'שומרים…' : 'שמירה'}</button>
+            {shortNow && <><a className="link-chip" dir="ltr" href={shortNow} target="_blank" rel="noreferrer" data-testid="short-now">{shortNow.replace(/^https:\/\//, '')}</a><button type="button" className="btn btn-ghost btn-sm" onClick={() => copy(shortNow, 'הקישור הקצר')}>העתקה</button></>}
+          </div>
+          {shortNow && <p className="text-xs text-muted">בהודעות WhatsApp כל המשפחות מקבלות את הקישור הקצר, ולכן הן מזוהות לפי מספר הטלפון שהן ממלאות ולא לפי קישור אישי. הודעת בדיקה נשלחת עם הקישור המלא, כי רק הוא נפתח במצב בדיקה.</p>}
+        </form>
         {!event.published && <p className="notice notice-warn mt-3">ההזמנה עדיין טיוטה, ולכן הקישור לא ייפתח לאורחים. מפרסמים במסך "עיצוב ההזמנה".</p>}
         <form className="mt-4 grid gap-2 border-t border-line pt-4 sm:grid-cols-[1fr_auto] sm:items-end" onSubmit={(e) => { e.preventDefault(); void saveSlug(); }}>
           <Field label="שינוי הכתובת" hint={slugOk ? 'אותיות קטנות באנגלית, ספרות ומקף. למשל kidar-brit.' : '3 עד 60 תווים: אותיות קטנות באנגלית, ספרות ומקף, בלי מקף בהתחלה.'}>

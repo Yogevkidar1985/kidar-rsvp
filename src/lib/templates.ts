@@ -281,8 +281,12 @@ export type EventForMessage = {
   slug: string; name: string; hosts: string | null; event_date: string | null; weekday_label: string | null; hebrew_date: string | null;
   reception_time: string | null; ceremony_time: string | null; venue_name: string | null; address: string | null;
   waze_url: string | null; gmaps_url: string | null;
+  design?: { shortUrl?: string } | null;
 };
 export type GuestForMessage = { family_name: string; contact_name?: string | null; invite_token?: string | null; link_code?: string | null };
+
+/** A short address is used only when it is a plain https link. */
+export const shortLink = (u: string | null | undefined): string => { const v = (u ?? '').trim(); return /^https:\/\/[a-z0-9.-]+\.[a-z]{2,}(\/[\w\-./~%]*)?$/i.test(v) && v.length <= 120 ? v : ''; };
 
 /** The address a guest receives: short when they have a code, the original form otherwise. `test` opens it in test mode. */
 export function inviteUrl(siteUrl: string, slug: string, guest?: { invite_token?: string | null; link_code?: string | null } | null, test = false): string {
@@ -301,7 +305,8 @@ export function variables(ev: EventForMessage, guest: GuestForMessage, siteUrl: 
     event_name: ev.name ?? '', hosts: ev.hosts ?? '', weekday: ev.weekday_label ?? '',
     event_date: d?.numeric ?? '', event_date_long: d ? `${d.day} ב${d.month} ${d.year}` : '', hebrew_date: ev.hebrew_date ?? '',
     event_time: ev.reception_time || ev.ceremony_time || '', venue_name: ev.venue_name ?? '', venue_address: ev.address ?? '',
-    invitation_url: inviteUrl(siteUrl, ev.slug, guest, test),
+    // the short address goes to everyone when one is set. A test message keeps the full address: only that one opens test mode, where nothing is saved.
+    invitation_url: (!test && shortLink(ev.design?.shortUrl)) || inviteUrl(siteUrl, ev.slug, guest, test),
     waze_url: safeHttpUrl(ev.waze_url) ?? (place ? `https://waze.com/ul?q=${encodeURIComponent(place)}&navigate=yes` : ''),
     maps_url: safeHttpUrl(ev.gmaps_url) ?? (place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}` : ''),
   };

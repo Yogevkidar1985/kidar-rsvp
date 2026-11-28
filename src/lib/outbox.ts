@@ -6,7 +6,7 @@ import { render, variables, variableLabel, type EventForMessage } from './templa
 import { greenCreds, type GreenCreds } from './green';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const EVENT_COLS = 'id,slug,name,hosts,published,event_date,weekday_label,hebrew_date,reception_time,ceremony_time,venue_name,address,waze_url,gmaps_url';
+const EVENT_COLS = 'id,slug,name,hosts,published,event_date,weekday_label,hebrew_date,reception_time,ceremony_time,venue_name,address,waze_url,gmaps_url,design';
 type EventRow = EventForMessage & { id: string; published: boolean };
 type Camp = { id: string; event_id: string; kind: 'invite' | 'reminder'; body: string; site_url: string; status: string };
 

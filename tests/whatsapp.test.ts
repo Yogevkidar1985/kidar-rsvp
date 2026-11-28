@@ -71,3 +71,22 @@ describe('the library groups', () => {
     for (const k of keys) expect(BUILTIN.some((t) => templateGroup(t) === k), k).toBe(true);
   });
 });
+
+import { variables as vars2, shortLink as short2, render as render2, BUILTIN as B2 } from '../src/lib/templates';
+describe('a short link', () => {
+  const ev = { slug: 'kidar-brit', name: 'מסיבת הברית', hosts: 'יוגב ואביה', event_date: '2026-12-02', weekday_label: 'יום רביעי', hebrew_date: 'כ״ב בכסלו', reception_time: '15:00', ceremony_time: null, venue_name: 'Tesoro', address: 'רמת השרון', waze_url: null, gmaps_url: null };
+  const g = { family_name: 'משפחת כהן', contact_name: 'דוד', link_code: 'cohen' };
+  it('is accepted only as a plain https address', () => {
+    expect(short2('https://tinyurl.com/kidar-brit')).toBe('https://tinyurl.com/kidar-brit');
+    for (const bad of ['http://tinyurl.com/x', 'javascript:alert(1)', 'https://tinyurl.com/x?y=1', 'tinyurl.com/x', 'https://a b.com', '']) expect(short2(bad)).toBe('');
+  });
+  it('replaces the long address in every message once it is set', () => {
+    expect(vars2(ev, g, 'https://site.example').invitation_url).toBe('https://site.example/kidar-brit/cohen');
+    const withShort = { ...ev, design: { shortUrl: 'https://tinyurl.com/kidar-brit' } };
+    expect(vars2(withShort, g, 'https://site.example').invitation_url).toBe('https://tinyurl.com/kidar-brit');
+    for (const t of B2) { const r = render2(t.body, vars2(withShort, g, 'https://site.example')); if (t.body.includes('{{invitation_url}}')) { expect(r.text).toContain('https://tinyurl.com/kidar-brit'); expect(r.text).not.toContain('site.example'); } }
+  });
+  it('a test message keeps the full address, which alone opens test mode', () => {
+    expect(vars2({ ...ev, design: { shortUrl: 'https://tinyurl.com/kidar-brit' } }, g, 'https://site.example', true).invitation_url).toContain('test=1');
+  });
+});

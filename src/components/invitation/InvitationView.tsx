@@ -1,4 +1,5 @@
 'use client';
+import { shortLink } from '@/lib/templates';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import type { PublicInvitation, TextStyle, Design } from '@/lib/types';
@@ -318,7 +319,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
   const flash = (t: string) => { setNote(t); window.setTimeout(() => setNote(''), 2200); };
   // What a guest passes on is the event's general link, never their own: a personal link lets its holder answer in the guest's name.
   const [shareUrl, setShareUrl] = useState('');
-  useEffect(() => { setShareUrl(`${window.location.origin}/${data.slug}`); }, [data.slug]);
+  useEffect(() => { setShareUrl(shortLink(d.shortUrl) || `${window.location.origin}/${data.slug}`); }, [data.slug, d.shortUrl]);
   const shareText = [data.name, data.weekday_label, dateParts(data.event_date)?.numeric, data.reception_time || data.ceremony_time].filter(Boolean).join(' · ');
   async function copyLink() {
     try { await navigator.clipboard.writeText(shareUrl); flash('הקישור הועתק'); } catch { flash('לא הצלחנו להעתיק את הקישור'); }
