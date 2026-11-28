@@ -12,7 +12,8 @@ import dynamic from 'next/dynamic';
 
 const VenueMap = dynamic(() => import('@/components/invitation/VenueMap'), { ssr: false });
 import InvitationView, { Emblem, EMBLEMS } from '@/components/invitation/InvitationView';
-import { HEBREW_FONTS, PALETTES, applyFont, applyPalette, resolveDesign } from '@/lib/defaults';
+import { DEFAULT_HERO, HEBREW_FONTS, PALETTES, applyFont, applyPalette, resolveDesign } from '@/lib/defaults';
+import { img } from '@/lib/img';
 import { hebrewDate, weekdayLabel } from '@/lib/hebrew-date';
 import MediaGrid from '@/components/admin/MediaGrid';
 import { refreshPublic } from '@/lib/refresh-public';
@@ -159,6 +160,11 @@ export default function EditorPage() {
   const [view, setView] = useState<'edit' | 'preview'>('edit');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [upCount, setUpCount] = useState<{ done: number; total: number } | null>(null);
+  // every main photo the event ever had: a replaced one stays in storage and can be taken back
+  const [heroes, setHeroes] = useState<string[]>([]);
+  const loadHeroes = useCallback(() => { fetch(`/api/admin/media?event=${event.id}`, { cache: 'no-store' }).then((r) => r.json()).then((j) => { if (j.ok) setHeroes(j.heroes); }).catch(() => {}); }, [event.id]);
+  useEffect(() => { loadHeroes(); }, [loadHeroes]);
   const [celebrate, setCelebrate] = useState(0);
   const [styleKey, setStyleKey] = useState<keyof Design['styles']>('headline');
   const pane = useRef<HTMLDivElement>(null);
@@ -333,7 +339,10 @@ export default function EditorPage() {
     setUploading(true);
     let next = Math.max(-1, ...media.map((m) => m.sort ?? 0)) + 1; // new photos go to the end, in the order they were picked
     try {
-      for (const f of Array.from(files).slice(0, kind === 'hero' ? 1 : 12)) {
+      const list = Array.from(files).slice(0, kind === 'hero' ? 1 : 12);
+      setUpCount({ done: 0, total: list.length });
+      for (const [n, f] of list.entries()) {
+        setUpCount({ done: n, total: list.length });
         if (f.size > 25 * 1024 * 1024) { toast('הקובץ גדול מדי (עד 25MB).', true); continue; }
         const blob = await shrink(f);
         const path = `${event.id}/${kind}-${crypto.randomUUID()}.jpg`;
@@ -350,8 +359,8 @@ export default function EditorPage() {
           if (error) toast(dbError(error), true);
         }
       }
-      await loadMedia(); void refreshPublic(event.id); toast('התמונות הועלו');
-    } finally { setUploading(false); }
+      await loadMedia(); loadHeroes(); void refreshPublic(event.id); toast(kind === 'hero' ? 'התמונה הראשית הוחלפה. הקודמת נשמרה ואפשר לחזור אליה.' : 'התמונות הועלו');
+    } finally { setUploading(false); setUpCount(null); }
   }
   /** The venue's logo is kept as it was drawn: a PNG keeps its transparent background. */
   async function uploadLogo(files: FileList | null, key: 'venueLogo' | 'venueWordmark' = 'venueLogo') {
@@ -383,8 +392,10 @@ export default function EditorPage() {
   const scale = Math.min(1, paneW / device.w);
   const st = design.styles[styleKey];
   const drop = (kind: 'hero' | 'gallery' | 'venue', label: string) => (
-    <label role="button" className={`btn btn-ghost w-full ${uploading ? 'pointer-events-none opacity-60' : ''}`}>
-      {uploading ? 'מעלים…' : label}
+    <label role="button" className={`ph-drop ${uploading ? 'pointer-events-none opacity-60' : ''}`}>
+      <Icon name="design" size={22} />
+      <b>{uploading ? (upCount && upCount.total > 1 ? `מעלים ${upCount.done + 1} מתוך ${upCount.total}…` : 'מעלים…') : label}</b>
+      <small>{kind === 'hero' ? 'מהגלריה של הטלפון או צילום חדש. התמונה הקודמת נשמרת.' : 'אפשר לבחור כמה תמונות יחד, עד 12 בכל פעם'}</small>
       <input type="file" accept="image/*" multiple={kind !== 'hero'} className="sr-only" disabled={uploading || !canEdit} onChange={(e) => { void upload(e.target.files, kind); e.target.value = ''; }} />
     </label>
   );
@@ -397,6 +408,19 @@ export default function EditorPage() {
     if (failed?.error) { setMedia(before); toast(dbError(failed.error), true); await loadMedia(); }
     void refreshPublic(event.id);
   }
+  /** Puts a photo the event already has in the main place. It waits for "save" like any edit, and undo takes it back. */
+  const pickHero = (url: string | null) => {
+    setDraft((d) => ({ ...d, hero_url: url, hero_pos: { ...d.hero_pos, x: 50, y: 50, zoom: 1, ratio: d.hero_pos?.ratio ?? '4/5' } }));
+    showPart('confetti'); toast(url ? 'התמונה הראשית הוחלפה. "בטל" מחזיר את הקודמת.' : 'חזרנו לתמונת ברירת המחדל. "בטל" מחזיר את הקודמת.');
+  };
+  const pastHeroes = heroes.filter((u) => u !== draft.hero_url);
+  const ownPhotos = media.filter((m) => m.url !== draft.hero_url);
+  const strip = (items: { url: string; label: string }[], id: string) => (
+    <div className="ph-strip" data-testid={id}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {items.map((x) => <button key={x.url} type="button" disabled={!canEdit} aria-label={x.label} onClick={() => pickHero(x.url)}><img src={img(x.url, 384)} alt="" loading="lazy" decoding="async" /></button>)}
+    </div>
+  );
   const thumbs = (kind: 'gallery' | 'venue') => (
     <MediaGrid name={kind} items={media.filter((m) => m.kind === kind)} disabled={!canEdit} onReorder={(ids) => reorder(kind, ids)} onRemove={removeMedia} />
   );
@@ -578,9 +602,17 @@ export default function EditorPage() {
               </div>
             </>}
             {tab === 'תמונות' && <>
-              <span className="label">תמונה ראשית</span>
-              {drop('hero', draft.hero_url ? 'החלפת התמונה הראשית' : 'העלאת תמונה ראשית')}
-              {!draft.hero_url && <p className="text-xs text-muted">עד שתעלו תמונה משלכם, ההזמנה מציגה את תמונת ברירת המחדל.</p>}
+              <section className="ph-card" data-testid="hero-card">
+                <div className="ph-now">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={draft.hero_url ? img(draft.hero_url, 384) : DEFAULT_HERO} alt="" />
+                  <div><b>תמונה ראשית</b><span>{draft.hero_url ? 'התמונה שנבחרה מוצגת בראש ההזמנה' : 'מוצגת תמונת ברירת המחדל, עד שתבחרו תמונה משלכם'}</span>
+                    {draft.hero_url && <button type="button" className="btn btn-ghost btn-sm justify-self-start" data-testid="hero-default" onClick={() => pickHero(null)}>חזרה לתמונת ברירת המחדל</button>}</div>
+                </div>
+                {drop('hero', draft.hero_url ? 'העלאת תמונה ראשית אחרת' : 'העלאת תמונה ראשית')}
+                {pastHeroes.length > 0 && <div><span className="label">תמונות ראשיות קודמות <small className="font-normal text-muted">· נגיעה מחזירה אותה</small></span>{strip(pastHeroes.map((u, i) => ({ url: u, label: `חזרה לתמונה ראשית קודמת ${i + 1}` })), 'hero-past')}</div>}
+                {ownPhotos.length > 0 && <div><span className="label">בחירה מתמונות הגלריה והמקום</span>{strip(ownPhotos.map((m, i) => ({ url: m.url, label: `שימוש בתמונה ${i + 1} מה${m.kind === 'gallery' ? 'גלריה' : 'מקום'} כתמונה ראשית` })), 'hero-own')}</div>}
+              </section>
               {draft.hero_url && <>
                 <Range label="זום" value={pos.zoom} min={1} max={2.5} step={0.05} onChange={(n) => set('hero_pos', { ...pos, zoom: n })} suffix="×" />
                 <Range label="מיקום אופקי" value={pos.x} min={0} max={100} step={1} onChange={(n) => set('hero_pos', { ...pos, x: n })} suffix="%" />
@@ -588,7 +620,6 @@ export default function EditorPage() {
                 <Range label="בהירות" value={pos.brightness} min={0.6} max={1.4} step={0.02} onChange={(n) => set('hero_pos', { ...pos, brightness: n })} />
                 <Range label="ניגודיות" value={pos.contrast} min={0.7} max={1.3} step={0.02} onChange={(n) => set('hero_pos', { ...pos, contrast: n })} />
                 <Range label="שכבת כהות מעל התמונה" value={pos.overlay} min={0} max={0.5} step={0.02} onChange={(n) => set('hero_pos', { ...pos, overlay: n })} />
-                <button type="button" className="btn btn-danger btn-sm justify-self-start" onClick={() => set('hero_url', null)}>הסרת התמונה</button>
               </>}
               <div className="grid grid-cols-2 gap-2">
                 <Field label="יחס התמונה"><select className="field" value={pos.ratio} onChange={(e) => set('hero_pos', { ...pos, ratio: e.target.value })}>

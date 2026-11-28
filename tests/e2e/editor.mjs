@@ -88,6 +88,7 @@ try {
       const before = await names(p);
       const box = async (i) => tiles.nth(i).boundingBox();
       if (tag === 'mouse') {
+        await tiles.first().evaluate((e) => e.scrollIntoView({ block: 'center' })); await sleep(400); // the photo section is longer now: the tiles start below the fold
         const a = await box(3), b = await box(0);
         await p.mouse.move(a.x + a.width / 2, a.y + a.height / 2); await p.mouse.down();
         await p.mouse.move(b.x + b.width / 2 + 20, b.y + b.height / 2, { steps: 12 }); await p.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 4 }); await p.mouse.up();

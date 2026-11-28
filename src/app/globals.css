@@ -733,3 +733,22 @@ li.is-picked { box-shadow: inset 0 0 0 1.5px var(--color-ink); }
 @media (max-width: 359px) { .ov-hero { padding: 16px; } .ov-ring { width: 88px; height: 88px; } .ov-ring b { font-size: 20px; } .ov-tile { padding: 10px 8px; } .ov-tile__num b { font-size: 26px; } }
 @media (prefers-reduced-motion: reduce) { .ov-ring circle + circle, .ov-tile { transition: none; } }
 @media (max-width: 479px) { .ov-seats { grid-template-columns: 1fr; } .ov-seats > div { grid-template-columns: 3.2ch minmax(0, 1fr); column-gap: 12px; align-items: center; } .ov-seats b { grid-row: 1 / span 2; text-align: center; } }
+
+/* Photos in the editor: what is shown now, a clear place to add, and every earlier choice one tap away. */
+.ph-card { display: grid; gap: 14px; }
+.ph-now { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 12px; align-items: center; padding: 10px; border: 1px solid var(--color-line); border-radius: 14px; background: var(--color-paper); }
+.ph-now img { width: 88px; height: 110px; border-radius: 10px; object-fit: cover; background: #e8ecf2; }
+.ph-now div { display: grid; gap: 4px; min-width: 0; }
+.ph-now b { font-size: 15px; }
+.ph-now span { font-size: 13px; line-height: 1.4; color: #566074; }
+.ph-drop { display: grid; justify-items: center; gap: 3px; padding: 16px 12px; border: 1.5px dashed #b9c2d2; border-radius: 14px; background: #fff; color: var(--color-ink); text-align: center; cursor: pointer; transition: border-color .15s, background-color .15s; }
+.ph-drop b { font-size: 15px; font-weight: 600; }
+.ph-drop small { font-size: 12.5px; color: #566074; }
+.ph-drop:focus-within { outline: 3px solid var(--color-ink); outline-offset: 2px; }
+@media (hover: hover) { .ph-drop:hover { border-color: var(--color-ink); background: var(--color-paper); } }
+.ph-strip { display: flex; gap: 8px; margin-top: 6px; padding-bottom: 4px; overflow-x: auto; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+.ph-strip button { flex: none; width: 76px; height: 96px; padding: 0; border: 2px solid transparent; border-radius: 10px; overflow: hidden; background: #e8ecf2; cursor: pointer; scroll-snap-align: start; transition: border-color .15s, transform .15s; }
+.ph-strip button:active { transform: scale(.96); }
+.ph-strip button:focus-visible { border-color: var(--color-ink); outline: none; }
+.ph-strip img { display: block; width: 100%; height: 100%; object-fit: cover; }
+@media (hover: hover) { .ph-strip button:hover:not(:disabled) { border-color: var(--color-ink); } }

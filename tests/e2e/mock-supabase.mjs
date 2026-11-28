@@ -111,6 +111,10 @@ export async function startMock(port, root) {
         const f = files.get(p.slice('/storage/v1/object/public/'.length));
         return f ? send(200, f.body, f.type) : send(404, { message: 'not found' });
       }
+      if (p.startsWith('/storage/v1/object/list/')) { // newest first, as the app asks
+        const bucket = p.slice('/storage/v1/object/list/'.length), prefix = `${bucket}/${JSON.parse(raw.toString() || '{}').prefix ?? ''}/`.replace(/\/+$/, '/');
+        return send(200, [...files.keys()].filter((k) => k.startsWith(prefix)).reverse().map((k) => ({ name: k.slice(prefix.length), id: k, created_at: new Date().toISOString() })));
+      }
       if (p.startsWith('/storage/v1/object/')) {
         const full = decodeURIComponent(p.slice('/storage/v1/object/'.length)); const [bucket, ...rest] = full.split('/'); const name = rest.join('/');
         if (req.method === 'DELETE') return send(200, []);
