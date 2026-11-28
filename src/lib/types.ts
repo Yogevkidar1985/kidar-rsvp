@@ -35,6 +35,8 @@ export type Design = {
   share: { title: string; description: string };
   /** the venue's own logo, shown in the "how to get there" card */
   venueLogo: string | null;
+  /** the venue's name as drawn in its logo: shown in place of the typed name, which stays as the text a screen reader reads */
+  venueWordmark: string | null;
   /** every text on the invitation is multiplied by this: one knob for "bigger" */
   textScale: number;
   /** the venue's own website, opened from the arrows beside its name */

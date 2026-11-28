@@ -320,6 +320,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
   const date = dateParts(data.event_date);
   const place = [data.venue_name, data.address].filter(Boolean).join(', ');
   const logo = safeHttpUrl(d.venueLogo);
+  const wordmark = safeHttpUrl(d.venueWordmark);
   const site = safeHttpUrl(d.venueUrl);
   // the venue's site starts loading before it is asked for: when a finger lands on its name, or (if the owner chose so) once the name is on screen
   const [siteWarm, setSiteWarm] = useState(false);
@@ -386,6 +387,8 @@ export default function InvitationView({ data, token = null, preview = false, ce
     data.reception_time && { t: data.reception_time, l: 'קבלת פנים' },
     data.ceremony_time && { t: data.ceremony_time, l: 'טקס' },
   ].filter(Boolean) as { t: string; l: string }[];
+  // eslint-disable-next-line @next/next/no-img-element
+  const venueName = wordmark ? <img className="inv-venue-word" src={img(wordmark, 640)} alt={data.venue_name ?? ''} decoding="async" /> : data.venue_name;
   const shots = [...gallery, ...venue];
   // the open photo's full-size version, and its two neighbours', are fetched as soon as it opens: turning the page never waits
   const shotKey = shots.map((s) => s.id).join();
@@ -497,8 +500,8 @@ export default function InvitationView({ data, token = null, preview = false, ce
                   {logo ? <img className="inv-venue-logo" src={img(logo, 384)} alt="" decoding="async" /> : <span className="inv-pin"><Icon name="pin" size={24} /></span>}
                   {data.venue_name && (site
                     ? <p style={css(d.styles.hosts)}><button ref={siteLink} type="button" className="inv-venue-link" data-testid="venue-site" onPointerDown={() => !preview && setSiteWarm(true)} onClick={() => !preview && setSheet('site')} aria-label={`האתר של ${data.venue_name}`}>
-                        <span data-line="venue" style={{ fontSize: lineSize('venue') }}>{data.venue_name}</span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m12 6-6 6 6 6" /><path d="m19 6-6 6 6 6" /></svg></button></p>
-                    : <p style={css(d.styles.hosts)}>{L('venue', data.venue_name)}</p>)}
+                        <span data-line="venue" style={{ fontSize: lineSize('venue') }}>{venueName}</span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m12 6-6 6 6 6" /><path d="m19 6-6 6 6 6" /></svg></button></p>
+                    : <p style={css(d.styles.hosts)}>{L('venue', venueName)}</p>)}
                   {data.address && !mapSrc && <p style={{ ...body, marginTop: 2 }}>{L('address', data.address)}</p>}
                 </>
               )}

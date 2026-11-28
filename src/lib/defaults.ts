@@ -52,6 +52,7 @@ export const DEFAULT_DESIGN: Design = {
   geo: null,
   share: { title: '', description: '' },
   venueLogo: null,
+  venueWordmark: null,
   textScale: 1.15,
   venueUrl: '',
   venuePreload: false,
