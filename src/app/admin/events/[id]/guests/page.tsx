@@ -10,6 +10,7 @@ import { inviteUrl } from '@/lib/templates';
 import { tableLoad } from '@/lib/stats';
 import { DuplicatesPanel, useDuplicates } from '@/components/admin/Duplicates';
 import { download, toCsv, toXlsx, guestRows, COLUMNS } from '@/lib/export';
+import { versions } from '@/lib/versions';
 
 type SortKey = 'family_name' | 'status' | 'responded_at' | 'total' | 'allocated_seats' | 'created_at';
 type Quick = '' | 'dups' | 'nophone' | 'notable' | 'today' | 'people';
@@ -117,9 +118,18 @@ export default function GuestsPage() {
   }
   async function remove() {
     if (!del) return;
-    const { error } = await db.from('guests').delete().eq('id', del.id);
-    if (error) toast(dbError(error), true); else { toast('המשפחה נמחקה'); await reload(); }
+    // a full copy is kept before the family goes, so the deletion can be taken back
+    const r = await versions.deleteGuest(event.id, del.id);
+    if (!r.ok) toast(r.message ?? 'המחיקה נכשלה.', true); else { setGone({ id: del.id, name: del.family_name }); await reload(); }
     setDel(null);
+  }
+  const [gone, setGone] = useState<{ id: string; name: string } | null>(null);
+  useEffect(() => { if (!gone) return; const id = window.setTimeout(() => setGone(null), 20000); return () => window.clearTimeout(id); }, [gone]);
+  async function bringBack() {
+    if (!gone) return;
+    const r = await versions.restoreGuest(event.id, gone.id);
+    if (!r.ok) return toast(r.message ?? 'לא הצלחנו להחזיר.', true);
+    toast(`${gone.name} חזרה לרשימה`); setGone(null); await reload();
   }
   const th = (key: SortKey, label: string) => (
     <th className="px-3 py-2.5 text-start font-semibold" aria-sort={sort.key === key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
@@ -394,6 +404,12 @@ export default function GuestsPage() {
             <div className="flex gap-2 sm:col-span-2"><button className="btn" disabled={busy}>{edit.id ? 'שמירת השינויים' : 'הוספת המשפחה'}</button><button type="button" className="btn btn-ghost" onClick={() => setEdit(null)}>ביטול</button></div>
           </form>
         </Modal>
+      )}
+      {gone && (
+        <div className="undo-bar no-print" role="status" data-testid="undo-delete">
+          <span>{gone.name} נמחקה</span>
+          <button type="button" onClick={bringBack}>ביטול המחיקה</button>
+        </div>
       )}
       {del && (
         <Modal title="מחיקת משפחה" onClose={() => setDel(null)}>

@@ -126,6 +126,149 @@ Waze:
 
 מחכים לראותכם,
 {{hosts}}`),
+  // ---- warmer texts, with a few emojis: enough to sound like a person, never a row of them ----
+  b('warm', 'invite', 'חמה עם אימוג׳י', `היי {{guest_name}} 😊
+
+בשעה טובה נולד לנו בן, ואנחנו מתרגשים להזמין אתכם לחגוג איתנו את מסיבת הברית!
+
+📅 {{weekday}}, {{event_date}}
+🕒 {{event_time}}
+📍 {{venue_name}}
+
+נשמח מאוד לראות אתכם ❤️
+
+לפרטים ולאישור הגעה:
+{{invitation_url}}
+
+{{hosts}}`),
+  b('close-family', 'invite', 'למשפחה הקרובה', `{{guest_name}} היקרים ❤️
+
+אתם חלק מהשמחה שלנו, ואין לנו ספק שנחגוג יחד.
+
+מסיבת הברית של בננו תתקיים ב{{weekday}}, {{event_date}} ({{hebrew_date}}), בשעה {{event_time}}, ב-{{venue_name}}.
+
+כדי שנדע להיערך, נשמח שתאשרו כאן כמה תגיעו:
+{{invitation_url}}
+
+אוהבים,
+{{hosts}}`),
+  b('friends', 'invite', 'לחברים', `היי {{guest_name}}! 🥳
+
+יש לנו בן, ויש לנו מסיבה.
+
+{{event_date}} · {{event_time}} · {{venue_name}}
+
+בואו לחגוג איתנו. כל הפרטים ואישור הגעה כאן:
+{{invitation_url}}
+
+מחכים לכם,
+{{hosts}}`),
+  b('colleagues', 'invite', 'לעמיתים לעבודה', `שלום {{guest_name}},
+
+שמחים לשתף שנולד לנו בן, ונשמח לראותך במסיבת הברית.
+
+📅 {{weekday}}, {{event_date}}
+🕒 {{event_time}}
+📍 {{venue_name}}, {{venue_address}}
+
+להזמנה ולאישור הגעה:
+{{invitation_url}}
+
+בברכה,
+{{hosts}}`),
+  b('with-directions', 'invite', 'עם ניווט למקום', `היי {{guest_name}} 😊
+
+מוזמנים למסיבת הברית של בננו!
+
+📅 {{weekday}}, {{event_date}} בשעה {{event_time}}
+📍 {{venue_name}}, {{venue_address}}
+
+ניווט ב-Waze:
+{{waze_url}}
+
+לאישור הגעה:
+{{invitation_url}}
+
+נתראה,
+{{hosts}}`),
+  b('nudge', 'invite', 'עוד לא ענו: בדיקה עדינה', `היי {{guest_name}} 😊
+
+רצינו לבדוק אם יצא לכם לראות את ההזמנה למסיבת הברית שלנו.
+
+נשמח לדעת אם נזכה לראות אתכם, כדי שנוכל להיערך.
+
+זה לוקח חצי דקה:
+{{invitation_url}}
+
+תודה ❤️
+{{hosts}}`),
+  b('last-call', 'invite', 'עוד לא ענו: תזכורת אחרונה', `היי {{guest_name}},
+
+אנחנו סוגרים בימים הקרובים את רשימת המוזמנים למסיבת הברית ({{event_date}}, {{event_time}}).
+
+נשמח לתשובה קצרה, גם אם לא תוכלו להגיע:
+{{invitation_url}}
+
+תודה רבה,
+{{hosts}}`),
+  b('update', 'invite', 'עדכון לפני האירוע', `היי {{guest_name}},
+
+עדכון קצר לקראת מסיבת הברית:
+
+📅 {{weekday}}, {{event_date}}
+🕒 {{event_time}}
+📍 {{venue_name}}, {{venue_address}}
+
+כל הפרטים המעודכנים נמצאים תמיד בהזמנה:
+{{invitation_url}}
+
+{{hosts}}`),
+  b('thanks', 'invite', 'תודה אחרי האירוע', `{{guest_name}} היקרים ❤️
+
+תודה שבאתם לחגוג איתנו. שמחנו והתרגשנו לראות אתכם, והייתם חלק מרגע שלא נשכח.
+
+באהבה,
+{{hosts}}`),
+  b('tomorrow-emoji', 'reminder', 'מחר נפגשים 🥳', `היי {{guest_name}}!
+
+מחר נפגשים וחוגגים 🥳
+
+📅 {{weekday}}, {{event_date}}
+🕒 {{event_time}}
+📍 {{venue_name}}
+
+ניווט:
+{{waze_url}}
+
+מחכים לראותכם ❤️
+{{hosts}}`),
+  b('today-emoji', 'reminder', 'היום, בעוד כמה שעות', `היי {{guest_name}} ❤️
+
+מחכים לראות אתכם היום!
+
+מתחילים בשעה {{event_time}}, ב-{{venue_name}}.
+
+Waze:
+{{waze_url}}
+
+Google Maps:
+{{maps_url}}
+
+נתראה ממש בקרוב 😊`),
+  b('directions', 'reminder', 'איך מגיעים', `היי {{guest_name}},
+
+כדי שיהיה קל להגיע אלינו היום:
+
+📍 {{venue_name}}, {{venue_address}}
+🕒 {{event_time}}
+
+Waze:
+{{waze_url}}
+
+Google Maps:
+{{maps_url}}
+
+נתראה 😊`),
 ];
 
 export type EventForMessage = {

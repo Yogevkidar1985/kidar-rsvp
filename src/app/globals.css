@@ -636,3 +636,16 @@ li.is-picked { box-shadow: inset 0 0 0 1.5px var(--color-ink); }
   .ed-tabs { position: static; box-shadow: none; }
   .ed-form { scroll-margin-top: calc(34dvh + 110px); }
 }
+
+/* ---- versions, undo ---- */
+.ver-keep { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.ver-keep .grow { flex: 1 1 180px; }
+.ver-list { display: grid; gap: 6px; max-height: 420px; overflow-y: auto; }
+.ver-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 9px 11px; border: 1px solid var(--color-line); border-radius: 12px; background: #fff; }
+.ver-what { flex: 1 1 170px; min-width: 0; display: grid; gap: 1px; }
+.ver-what b { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+.ver-what span { font-size: 12.5px; color: var(--color-muted); }
+.ver-acts { display: flex; gap: 4px; margin-inline-start: auto; }
+.undo-bar { position: fixed; inset-inline: 0; bottom: calc(78px + env(safe-area-inset-bottom)); z-index: 70; margin-inline: auto; width: max-content; max-width: calc(100vw - 24px); display: flex; align-items: center; gap: 14px; padding: 10px 12px 10px 16px; border-radius: 14px; background: var(--color-ink); color: #fff; font-size: 14px; font-weight: 600; box-shadow: 0 10px 30px rgb(0 0 0 / .22); }
+.undo-bar button { min-height: 36px; padding: 0 12px; border-radius: 10px; background: #fff; color: var(--color-ink); font-weight: 700; }
+@media (min-width: 1024px) { .undo-bar { bottom: 24px; } }

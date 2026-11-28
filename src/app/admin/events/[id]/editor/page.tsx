@@ -3,7 +3,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { useEvent } from '@/components/admin/EventContext';
 import { PageHead } from '@/components/admin/Shell';
-import { Field, dbError, useToast } from '@/components/admin/ui';
+import { Field, Modal, dbError, useToast } from '@/components/admin/ui';
+import { VersionsList } from '@/components/admin/Versions';
+import { EVENT_KEEP, versions } from '@/lib/versions';
 import { DateField, TimeField } from '@/components/admin/fields';
 import { Icon } from '@/components/admin/icons';
 import dynamic from 'next/dynamic';
@@ -225,9 +227,42 @@ export default function EditorPage() {
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
 
-  const saveRef = useRef<() => void>(() => {});
+  // ---- work that was never saved survives a closed tab: it waits on this device until it is saved or thrown away ----
+  const draftKey = `ed-draft:${event.id}`;
+  const [recover, setRecover] = useState<EventRow | null>(null);
+  const waiting = useRef(false);
   useEffect(() => {
-    const key = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveRef.current(); } };
+    try {
+      const kept = JSON.parse(window.localStorage.getItem(draftKey) ?? 'null') as { base: string; draft: EventRow } | null;
+      if (kept?.draft && kept.base === event.updated_at && JSON.stringify(kept.draft) !== JSON.stringify(event)) { waiting.current = true; setRecover(kept.draft); }
+      else window.localStorage.removeItem(draftKey);
+    } catch { /* private mode: nothing is kept, the editor works as before */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (waiting.current) return;
+    const id = window.setTimeout(() => {
+      try { if (dirty) window.localStorage.setItem(draftKey, JSON.stringify({ base: event.updated_at, draft })); else window.localStorage.removeItem(draftKey); } catch { /* storage full or blocked */ }
+    }, 700);
+    return () => window.clearTimeout(id);
+  }, [draft, dirty, draftKey, event.updated_at]);
+  const [showVersions, setShowVersions] = useState(false);
+  const [verStamp, setVerStamp] = useState(0);
+
+  const saveRef = useRef<() => void>(() => {});
+  const stepRef = useRef<(d: 'undo' | 'redo') => void>(() => {});
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const k = e.key.toLowerCase();
+      if (k === 's') { e.preventDefault(); saveRef.current(); return; }
+      // inside a text box the browser's own undo stays in charge of the typing
+      const el = e.target as HTMLElement | null;
+      const typing = !!el && (el.tagName === 'TEXTAREA' || el.isContentEditable || (el.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'color', 'button'].includes((el as HTMLInputElement).type)));
+      if (typing) return;
+      if (k === 'z') { e.preventDefault(); stepRef.current(e.shiftKey ? 'redo' : 'undo'); }
+      else if (k === 'y') { e.preventDefault(); stepRef.current('redo'); }
+    };
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
   }, []);
@@ -253,10 +288,14 @@ export default function EditorPage() {
       if (v && !/^https:\/\//i.test(v)) { setSaving(false); return toast('קישורים צריכים להתחיל ב-https://', true); }
       row[k] = v || null;
     }
+    // the version that is about to be replaced is kept first; an identical copy is not written twice
+    if (canEdit) await versions.snapshot(id, 'event', 'לפני שינוי');
     const { data, error } = await db.from('events').update(row).eq('id', id).select('*').single();
     setSaving(false);
     if (error || !data) return toast(error?.code === '23505' ? 'כתובת ההזמנה כבר תפוסה.' : dbError(error), true);
     setEvent(data as EventRow); setDraftRaw(data as EventRow); void refreshPublic(event.id, event.slug);
+    try { window.localStorage.removeItem(draftKey); } catch { /* nothing kept */ }
+    void versions.snapshot(id, 'event', publish === true ? 'פורסמה' : publish === false ? 'הפרסום בוטל' : 'נשמרה').then(() => setVerStamp((n) => n + 1));
     toast(publish === true ? 'ההזמנה פורסמה' : publish === false ? 'הפרסום בוטל' : 'השינויים נשמרו');
   }
 
@@ -308,7 +347,10 @@ export default function EditorPage() {
   }
 
   const pos = Object.assign({ x: 50, y: 50, zoom: 1, ratio: '4/5', brightness: 1, contrast: 1, overlay: 0 }, draft.hero_pos);
-  const previewData = useMemo(() => ({ ...draft, design, media }), [draft, design, media]);
+  // "before" shows the invitation as guests see it now, so a change can be judged against it
+  const [before, setBefore] = useState(false);
+  useEffect(() => { if (!dirty) setBefore(false); }, [dirty]);
+  const previewData = useMemo(() => (before ? { ...event, design: resolveDesign(event.design), media } : { ...draft, design, media }), [before, event, draft, design, media]);
   const scale = Math.min(1, paneW / device.w);
   const st = design.styles[styleKey];
   const drop = (kind: 'hero' | 'gallery' | 'venue', label: string) => (
@@ -331,6 +373,14 @@ export default function EditorPage() {
   );
 
   saveRef.current = () => { if (canEdit && dirty && !saving) void save(); };
+  stepRef.current = step;
+  /** Puts an older version into the editor. Nothing is saved until the person saves; one undo brings back what was there. */
+  const loadVersion = (data: Record<string, unknown>, label: string) => {
+    const patch: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(data)) if (!EVENT_KEEP.includes(k) && k in draft) patch[k] = v;
+    setDraft((d) => ({ ...d, ...patch } as EventRow)); setShowVersions(false); setView('preview');
+    toast(`הגרסה "${label}" מוצגת בתצוגה. שמרו כדי להחיל אותה, או לחצו ביטול כדי לחזור.`);
+  };
   // what an invitation needs before it goes out, each step pointing at the tab that fills it
   const venuePhotos = media.filter((m) => m.kind === 'venue').length;
   const steps: { label: string; ok: boolean; tab: Tab; optional?: boolean }[] = [
@@ -366,16 +416,31 @@ export default function EditorPage() {
       <PageHead title="עיצוב ההזמנה" sub={saving ? 'שומרים…' : dirty ? 'יש שינויים שלא נשמרו' : draft.published ? 'פורסמה · כל השינויים שמורים' : 'טיוטה · כל השינויים שמורים'}>
         <button className="btn btn-ghost btn-icon" aria-label="ביטול הפעולה האחרונה" title="ביטול" disabled={!hist.current.past.length} onClick={() => step('undo')}><Icon name="undo" /></button>
         <button className="btn btn-ghost btn-icon" aria-label="ביצוע מחדש" title="ביצוע מחדש" disabled={!hist.current.future.length} onClick={() => step('redo')}><Icon name="redo" /></button>
+        <button className="btn btn-ghost hidden lg:inline-flex" data-testid="open-versions" title="כל הגרסאות השמורות של ההזמנה" onClick={() => setShowVersions(true)}>גרסאות</button>
         {dirty && <button className="btn btn-ghost hidden lg:inline-flex" title="מחזיר את ההזמנה לגרסה השמורה האחרונה" onClick={() => setDraft(event)}>ביטול השינויים</button>}
         <button className="btn btn-ghost lg:hidden" onClick={() => setView(view === 'edit' ? 'preview' : 'edit')}><Icon name="eye" />{view === 'edit' ? 'תצוגה' : 'עריכה'}</button>
         <button className={draft.published ? 'btn btn-ghost' : 'btn'} disabled={!canEdit || saving} onClick={() => save(!draft.published)}>{draft.published ? 'ביטול פרסום' : 'שמירה ופרסום'}</button>
         <button className={`${draft.published ? 'btn' : 'btn btn-ghost'} hidden lg:inline-flex`} disabled={!canEdit || saving || !dirty} onClick={() => save()}>{saving ? 'שומרים…' : draft.published ? 'שמירת השינויים' : 'שמירת טיוטה'}</button>
       </PageHead>
 
+      {recover && (
+        <div className="notice mb-3 flex flex-wrap items-center gap-2" role="status" data-testid="ed-recover">
+          <span className="grow">נמצאו שינויים מהפעם הקודמת שלא נשמרו.</span>
+          <button type="button" className="btn btn-sm" onClick={() => { waiting.current = false; setDraft(recover); setRecover(null); toast('השינויים חזרו לעורך. שמרו כדי להחיל אותם.'); }}>החזרת השינויים</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => { waiting.current = false; setRecover(null); try { window.localStorage.removeItem(draftKey); } catch { /* nothing kept */ } }}>מחיקה</button>
+        </div>
+      )}
+      {showVersions && (
+        <Modal title="גרסאות ההזמנה" wide onClose={() => setShowVersions(false)}>
+          <p className="mb-3 text-sm text-muted">גרסה נשמרת לבד בכל שמירה. "הצגה בתצוגה" מראה גרסה ישנה בלי לשמור: אם היא מתאימה שומרים, ואם לא לוחצים ביטול.</p>
+          <VersionsList eventId={event.id} kind="event" canEdit={canEdit} stamp={verStamp} onLoad={(data, v) => loadVersion(data, v.label || 'גרסה')} />
+        </Modal>
+      )}
       <section className={`card ed-steps ${view === 'preview' ? 'hidden lg:block' : ''}`} data-testid="ed-steps" aria-label="מה נשאר להזמנה">
         <div className="ed-steps__head">
           <b>{mustDone === must.length ? (draft.published ? 'ההזמנה מוכנה ומפורסמת' : 'הכול מלא. נשאר רק לפרסם') : `נשארו ${must.length - mustDone} שלבים להשלמה`}</b>
           <span className="ed-steps__bar" aria-hidden="true"><i style={{ width: `${(steps.filter((s) => s.ok).length / steps.length) * 100}%` }} /></span>
+          <button type="button" className="btn btn-ghost btn-sm lg:hidden" onClick={() => setShowVersions(true)}>גרסאות</button>
         </div>
         <ul>
           {steps.map((s) => (
@@ -627,6 +692,7 @@ export default function EditorPage() {
           <div className="ed-preview-head flex items-center justify-between border-b border-line px-3 py-2">
             <span className="text-sm font-medium text-muted">תצוגה מקדימה <a className="ed-open ms-2 underline" href={`/${event.slug}?test=1`} target="_blank" rel="noreferrer">פתיחה בחלון</a></span>
             <div className="tabs ed-devices">{DEVICES.map((d) => <button key={d.key} onClick={() => setDevice(d)} aria-pressed={device.key === d.key}>{d.label}</button>)}</div>
+            {dirty && <div className="tabs ed-compare" data-testid="ed-compare" role="group" aria-label="השוואה לגרסה השמורה"><button type="button" aria-pressed={before} onClick={() => setBefore(true)}>לפני</button><button type="button" aria-pressed={!before} onClick={() => setBefore(false)}>אחרי</button></div>}
             <button type="button" className="ed-dock-toggle btn btn-ghost btn-sm" aria-expanded={dock} onClick={() => setDock(!dock)}>{dock ? 'הסתרה' : 'הצגה'}</button>
           </div>
           <div ref={pane} className="ed-pane overflow-hidden bg-[#eef1f5]" data-testid="preview-pane">

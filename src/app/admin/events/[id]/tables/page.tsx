@@ -1,10 +1,13 @@
 'use client';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { useEvent } from '@/components/admin/EventContext';
 import { PageHead } from '@/components/admin/Shell';
 import { Empty, Field, Modal, StatusPill, dbError, useToast } from '@/components/admin/ui';
 import { seats, tableLoad } from '@/lib/stats';
+import { Icon } from '@/components/admin/icons';
+import { VersionsList } from '@/components/admin/Versions';
+import { versions } from '@/lib/versions';
 import { download, seatingRows, toXlsx } from '@/lib/export';
 import { STATUS_LABEL, type Guest, type GuestStatus, type TableRow } from '@/lib/types';
 
@@ -59,6 +62,40 @@ export default function TablesPage() {
   const [over, setOver] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<{ table: TableRow; list: Guest[]; need: number; free: number } | null>(null);
+  // ---- every change to the plan can be taken back: the plan is kept before it, and a restore keeps what it replaces ----
+  const [undo, setUndo] = useState<number[]>([]);
+  const [redo, setRedo] = useState<number[]>([]);
+  const [showVersions, setShowVersions] = useState(false);
+  const [verStamp, setVerStamp] = useState(0);
+  const mark = async (label: string) => {
+    if (!canEdit) return;
+    const r = await versions.snapshot(event.id, 'seating', label);
+    if (r.ok && r.id) { setUndo((u) => (u[u.length - 1] === r.id ? u : [...u.slice(-29), r.id as number])); setRedo([]); setVerStamp((n) => n + 1); }
+  };
+  const back = async (dir: 'undo' | 'redo') => {
+    const from = dir === 'undo' ? undo : redo;
+    const id = from[from.length - 1];
+    if (!id || busy) return;
+    setBusy(true);
+    const r = await versions.restore(event.id, id);
+    setBusy(false);
+    if (!r.ok) return toast(r.message ?? 'הביטול נכשל.', true);
+    if (dir === 'undo') { setUndo(undo.slice(0, -1)); if (r.before) setRedo([...redo, r.before]); } else { setRedo(redo.slice(0, -1)); if (r.before) setUndo([...undo, r.before]); }
+    setPicked(new Set()); setVerStamp((n) => n + 1); await reload();
+    toast(dir === 'undo' ? 'הפעולה האחרונה בוטלה' : 'הפעולה בוצעה מחדש');
+  };
+  const backRef = useRef(back); backRef.current = back;
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) return;
+      const k = e.key.toLowerCase();
+      if (k === 'z') { e.preventDefault(); void backRef.current(e.shiftKey ? 'redo' : 'undo'); } else if (k === 'y') { e.preventDefault(); void backRef.current('redo'); }
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, []);
   const hall = useRef<HTMLDivElement>(null);
   const moved = useRef(false);
 
@@ -103,6 +140,7 @@ export default function TablesPage() {
     if (!form) return;
     const row = { name: form.name.trim(), capacity: form.capacity, shape: form.shape };
     const spot = gridSpot(tables.length, tables.length + 1, 5);
+    await mark(form.id ? `לפני עדכון ${row.name}` : `לפני הוספת ${row.name}`);
     const { error } = form.id ? await db.from('tables').update(row).eq('id', form.id) : await db.from('tables').insert({ ...row, event_id: event.id, pos_x: spot.x, pos_y: spot.y });
     if (error) return toast(error.message.includes('TABLE_FULL') ? 'יושבים בשולחן יותר אנשים מהקיבולת החדשה. העבירו משפחות לפני ההקטנה.' : dbError(error), true);
     toast(form.id ? 'השולחן עודכן' : 'השולחן נוסף'); setForm(null); await reload();
@@ -111,6 +149,7 @@ export default function TablesPage() {
     e.preventDefault();
     if (!wizard) return;
     setBusy(true);
+    await mark(`לפני יצירת ${wizard.count} שולחנות`);
     const total = tables.length + wizard.count;
     // the hall is laid out again as one grid, the tables that exist first: a new batch never lands on top of an old one
     const rows = Array.from({ length: wizard.count }, (_, i) => ({ event_id: event.id, name: `שולחן ${wizard.start + i}`, capacity: wizard.capacity, shape: wizard.shape, ...(({ x, y }) => ({ pos_x: x, pos_y: y }))(gridSpot(tables.length + i, total, wizard.cols)) }));
@@ -122,17 +161,19 @@ export default function TablesPage() {
   }
   async function tidy() {
     const cols = tables.length <= 6 ? 3 : tables.length <= 12 ? 4 : 5;
+    await mark('לפני סידור בשורות');
     await Promise.all(sorted.map((t, i) => { const s = gridSpot(i, tables.length, cols); return db.from('tables').update({ pos_x: s.x, pos_y: s.y }).eq('id', t.id); }));
     await reload(); toast('השולחנות סודרו בשורות לפי המספר');
   }
   async function removeTable(t: TableRow) {
     const l = loads.get(t.id)!;
     if (l.guests.length && !window.confirm(`בשולחן יושבות ${l.guests.length} משפחות (${l.used} מקומות). אם תמחקו אותו הן יחזרו לרשימת הממתינים. למחוק?`)) return;
+    await mark(`לפני מחיקת ${t.name}`);
     const { error } = await db.from('tables').delete().eq('id', t.id);
     if (error) return toast(dbError(error), true);
     toast(l.guests.length ? 'השולחן נמחק, והמשפחות חזרו לרשימת הממתינים' : 'השולחן נמחק'); setSel(null); await reload();
   }
-  const assign = async (gid: string, tid: string | null) => { if (await updateGuest(gid, { table_id: tid })) toast(tid ? 'המשפחה שובצה' : 'המשפחה הוסרה מהשולחן'); };
+  const assign = async (gid: string, tid: string | null) => { await mark(tid ? 'לפני שיבוץ משפחה' : 'לפני הסרת משפחה משולחן'); if (await updateGuest(gid, { table_id: tid })) toast(tid ? 'המשפחה שובצה' : 'המשפחה הוסרה מהשולחן'); };
 
   /** Seats several families at one table. The database refuses a seat too many; this checks first so the message is clear. */
   async function seatMany(list: Guest[], table: TableRow, grow = false) {
@@ -140,6 +181,7 @@ export default function TablesPage() {
     if (!list.length) return;
     if (needs > l.free && !grow) { setConfirm({ table, list, need: needs, free: l.free }); return; }
     setBusy(true);
+    await mark(`לפני שיבוץ ${list.length === 1 ? list[0].family_name : `${list.length} משפחות`} ל${table.name}`);
     if (grow) {
       const { error } = await db.from('tables').update({ capacity: l.used + needs }).eq('id', table.id);
       if (error) { setBusy(false); return toast(dbError(error), true); }
@@ -159,6 +201,7 @@ export default function TablesPage() {
   }
   async function unseat(list: Guest[]) {
     setBusy(true);
+    await mark(`לפני הסרת ${list.length} משפחות מהשולחנות`);
     const { error } = await db.from('guests').update({ table_id: null }).in('id', list.map((g) => g.id)).eq('event_id', event.id);
     setBusy(false);
     if (error) return toast(dbError(error), true);
@@ -175,6 +218,7 @@ export default function TablesPage() {
     if (!drag) return;
     const d = drag; setDrag(null);
     if (!moved.current) return;
+    await mark('לפני הזזת שולחן');
     const { error } = await db.from('tables').update({ pos_x: d.x, pos_y: d.y }).eq('id', d.id);
     if (error) toast(dbError(error), true);
     await reload();
@@ -194,12 +238,21 @@ export default function TablesPage() {
   return (
     <>
       <PageHead title="סידור שולחנות" sub={tables.length ? `${seatedConfirmed + seatedTentative} מתוך ${totalCap} מקומות תפוסים · ${waiting.length} משפחות ממתינות לשיבוץ` : 'יוצרים שולחנות, בוחרים משפחות ומשבצים'}>
+        {canEdit && <button className="btn btn-ghost btn-icon no-print" data-testid="seat-undo" aria-label="ביטול הפעולה האחרונה" title="ביטול (Ctrl+Z)" disabled={!undo.length || busy} onClick={() => back('undo')}><Icon name="undo" /></button>}
+        {canEdit && <button className="btn btn-ghost btn-icon no-print" data-testid="seat-redo" aria-label="ביצוע מחדש" title="ביצוע מחדש" disabled={!redo.length || busy} onClick={() => back('redo')}><Icon name="redo" /></button>}
+        <button className="btn btn-ghost no-print" data-testid="seat-versions" onClick={() => setShowVersions(true)}>גרסאות</button>
         {tables.length > 0 && <button className="btn btn-ghost no-print" onClick={() => window.print()}>הדפסה</button>}
         <button className="btn btn-ghost no-print" onClick={exportXlsx} disabled={!tables.length}>ייצוא ל-Excel</button>
         {canEdit && <button className="btn btn-ghost no-print" onClick={() => setForm({ id: null, name: `שולחן ${nextNumber}`, capacity: 10, shape: 'round' })}>שולחן בודד</button>}
         {canEdit && <button className="btn no-print" data-testid="open-wizard" onClick={openWizard}>יצירת שולחנות</button>}
       </PageHead>
 
+      {showVersions && (
+        <Modal title="גרסאות סידור ההושבה" wide onClose={() => setShowVersions(false)}>
+          <p className="mb-3 text-sm text-muted">לפני כל שינוי בסידור נשמרת גרסה. אפשר לחזור לכל אחת מהן, וגם לשמור נקודת שחזור בשם משלכם.</p>
+          <VersionsList eventId={event.id} kind="seating" canEdit={canEdit} stamp={verStamp} onRestored={() => { setUndo([]); setRedo([]); setShowVersions(false); void reload(); }} />
+        </Modal>
+      )}
       {!tables.length ? (
         <Empty title="עדיין אין שולחנות">
           יוצרים את כל השולחנות בבת אחת, למשל 15 שולחנות של 10 מקומות, ורואים אותם מיד על תרשים האולם. אחר כך בוחרים משפחות ומשבצים אותן.

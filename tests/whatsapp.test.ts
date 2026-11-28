@@ -26,16 +26,18 @@ describe('event time in Israel', () => {
 describe('message templates', () => {
   const ev = { slug: 'kidar-brit', name: 'מסיבת הברית', hosts: 'יוגב ואביה קידר', event_date: '2026-12-02', weekday_label: 'יום רביעי', hebrew_date: 'כ״ב בכסלו התשפ״ז',
     reception_time: '15:00', ceremony_time: null, venue_name: null, address: null, waze_url: null, gmaps_url: null };
-  it('has five invitations and three reminders ready', () => {
-    expect(BUILTIN.filter((t) => t.kind === 'invite')).toHaveLength(5);
-    expect(BUILTIN.filter((t) => t.kind === 'reminder')).toHaveLength(3);
+  it('has fourteen invitations and six reminders ready, each under its own name', () => {
+    expect(BUILTIN.filter((t) => t.kind === 'invite')).toHaveLength(14);
+    expect(BUILTIN.filter((t) => t.kind === 'reminder')).toHaveLength(6);
+    expect(new Set(BUILTIN.map((t) => t.id)).size).toBe(BUILTIN.length); expect(new Set(BUILTIN.map((t) => t.name)).size).toBe(BUILTIN.length);
   });
   it('fills every built-in invitation from the event and the guest', () => {
     const v = variables(ev, { family_name: 'משפחת לוי', contact_name: 'דנה', invite_token: 'abc123' }, 'https://example.com/');
+    const full = variables({ ...ev, venue_name: 'Tesoro', address: 'משה סנה 199, רמת השרון' } as never, { family_name: 'משפחת לוי', contact_name: 'דנה', invite_token: 'abc123' }, 'https://example.com/');
     for (const t of BUILTIN.filter((x) => x.kind === 'invite')) {
-      const r = render(t.body, v);
+      const r = render(t.body, full);
       expect(r.missing).toEqual([]);
-      expect(r.text).toContain('https://example.com/e/kidar-brit?g=abc123');
+      if (t.id !== 'builtin:thanks') expect(r.text).toContain('https://example.com/e/kidar-brit?g=abc123');
       expect(r.text.includes('{{') || r.text.includes('undefined')).toBe(false);
     }
     expect(render(BUILTIN[0].body, v).text).toContain('שלום דנה,');
@@ -46,5 +48,18 @@ describe('message templates', () => {
     expect(render('ניווט: {{waze_url}} {{nope}}', v).missing).toEqual(['waze_url', 'nope']);
     expect(render(BUILTIN.find((t) => t.id === 'builtin:day-before')!.body, v).missing).toEqual(['waze_url']);
     expect(variables({ ...ev, venue_name: 'אולם', address: 'הרצל 1' }, { family_name: 'x' }, 'https://example.com').waze_url).toContain('waze.com/ul?q=');
+  });
+});
+
+describe('the warmer templates', () => {
+  it('use a few emojis, never a crowd of them', () => {
+    const emoji = /\p{Extended_Pictographic}/gu;
+    for (const t of BUILTIN) expect((t.body.match(emoji) ?? []).length, t.name).toBeLessThanOrEqual(6);
+    expect(BUILTIN.filter((t) => emoji.test(t.body)).length).toBeGreaterThanOrEqual(9);
+  });
+  it('refuse to go out while the venue they mention is missing', () => {
+    const bare = { id: 'e', slug: 'kidar-brit', name: 'ברית', hosts: 'יוגב ואביה', event_date: '2026-12-02', weekday_label: 'יום רביעי', hebrew_date: 'כ״ב בכסלו', reception_time: '15:00', ceremony_time: null, venue_name: null, address: null, waze_url: null, gmaps_url: null };
+    const r = render(BUILTIN.find((t) => t.id === 'builtin:warm')!.body, variables(bare as never, { family_name: 'לוי', contact_name: 'דנה' }, 'https://example.com'));
+    expect(r.missing).toEqual(['venue_name']);
   });
 });

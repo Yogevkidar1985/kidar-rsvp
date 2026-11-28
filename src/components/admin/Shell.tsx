@@ -22,6 +22,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
   ] },
   { title: 'ניהול', items: [
     { href: '/export', label: 'ייצוא לאקסל', icon: 'download' },
+    { href: '/backup', label: 'גרסאות וגיבוי', icon: 'undo' },
     { href: '/connections', label: 'התראות וחיבורים', icon: 'bell', owner: true },
     { href: '/team', label: 'צוות והרשאות', icon: 'shield', owner: true },
   ] },
