@@ -855,3 +855,10 @@ li.is-picked { box-shadow: inset 0 0 0 1.5px var(--color-ink); }
 .kpi.ok { border-top-color: #1e9a6c; background: linear-gradient(#f3faf6, #fff 70%); }
 .kpi.warn { border-top-color: #d99a2b; background: linear-gradient(#fdf8ee, #fff 70%); }
 .kpi.no { border-top-color: #d94a4a; background: linear-gradient(#fdf3f3, #fff 70%); }
+
+.gcard__facts .is-self { background: #e9f3fb; border-color: transparent; color: #1f5f8f; }
+.gcard__facts .is-ours { background: #f1f0ec; border-color: transparent; color: #5a5446; }
+.gcard__facts .is-upd { background: #fff4e0; border-color: #f2dfb8; color: #8a5a10; font-weight: 600; }
+.ov-log__tag { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.ov-log__tag.is-new { background: #e7f4ee; color: #12694a; }
+.ov-log__tag.is-upd { background: #fff4e0; color: #8a5a10; }

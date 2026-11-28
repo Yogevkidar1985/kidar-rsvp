@@ -36,6 +36,8 @@ export default function GuestsPage() {
   const [fGroup, setFGroup] = useState('');
   const [fTable, setFTable] = useState('');
   const [vipOnly, setVipOnly] = useState(false);
+  // who put the family on the list: the family itself through the invitation, or the hosts by hand
+  const [fSource, setFSource] = useState<'' | 'public' | 'admin'>('');
   const [quick, setQuick] = useState<Quick>('');
   const [view, setView] = useState<'list' | 'dups'>('list');
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -57,20 +59,22 @@ export default function GuestsPage() {
   const groups = useMemo(() => [...new Set(guests.map((g) => g.group_name).filter(Boolean))] as string[], [guests]);
   const tname = useMemo(() => new Map(tables.map((t) => [t.id, t.name])), [tables]);
   const total = (g: Guest) => g.adults + g.children + g.babies;
+  /** The family answered again after its first answer (or after the hosts added it): the answer on file is an update. */
+  const changed = (g: Guest) => !!g.responded_at && new Date(g.responded_at).getTime() - new Date(g.created_at).getTime() > 60000;
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const digits = needle.replace(/\D/g, '');
     const list = guests.filter((g) =>
       (!needle || [g.family_name, g.contact_name, g.group_name].some((v) => v?.toLowerCase().includes(needle)) || (digits.length > 2 && (g.phone ?? '').replace(/\D/g, '').includes(digits)))
       && (!fStatus || g.status === fStatus) && (!fGroup || g.group_name === fGroup)
-      && (!fTable || (fTable === 'none' ? !g.table_id : g.table_id === fTable)) && (!vipOnly || g.is_vip)
+      && (!fTable || (fTable === 'none' ? !g.table_id : g.table_id === fTable)) && (!vipOnly || g.is_vip) && (!fSource || g.source === fSource)
       && (quick === '' || quick === 'people' || (quick === 'dups' ? dups.ids.has(g.id) : quick === 'nophone' ? !g.phone : quick === 'notable' ? !g.table_id && g.status !== 'declined' : dayOf(g.created_at) === today)));
     const val = (g: Guest) => sort.key === 'total' ? total(g) : sort.key === 'status' ? STATUSES.indexOf(g.status) : sort.key === 'allocated_seats' ? g.allocated_seats ?? -1 : g[sort.key] ?? '';
     return list.sort((a, b) => {
       const x = val(a), y = val(b);
       return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), 'he')) * sort.dir;
     });
-  }, [guests, q, fStatus, fGroup, fTable, vipOnly, sort, quick, dups.ids, today]);
+  }, [guests, q, fStatus, fGroup, fTable, vipOnly, fSource, sort, quick, dups.ids, today]);
 
   useEffect(() => {
     setHistory([]);
@@ -141,7 +145,7 @@ export default function GuestsPage() {
   );
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setEdit((s) => s && { ...s, draft: { ...s.draft, [k]: v } });
   const current = edit?.id ? guests.find((g) => g.id === edit.id) ?? null : null;
-  const clearFilters = () => { setQ(''); setFStatus(''); setFGroup(''); setFTable(''); setVipOnly(false); setQuick(''); };
+  const clearFilters = () => { setQ(''); setFStatus(''); setFGroup(''); setFTable(''); setVipOnly(false); setFSource(''); setQuick(''); };
   const toggle = (id: string) => setPicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const chosen = guests.filter((g) => picked.has(g.id));
   const only = (status: GuestStatus | '', quickTo: Quick = '') => { setView('list'); setQ(''); setFGroup(''); setFTable(''); setVipOnly(false); setFStatus(status); setQuick(quickTo); };
@@ -217,11 +221,14 @@ export default function GuestsPage() {
         <select className="field" aria-label="סינון לפי שולחן" value={fTable} onChange={(e) => setFTable(e.target.value)}>
           <option value="">כל השולחנות</option><option value="none">ללא שולחן</option>{tables.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
+        <select className="field" aria-label="סינון לפי מקור" data-testid="f-source" value={fSource} onChange={(e) => setFSource(e.target.value as '' | 'public' | 'admin')}>
+          <option value="">כל המקורות</option><option value="public">נרשמו דרך ההזמנה ({guests.filter((g) => g.source === 'public').length})</option><option value="admin">הוספנו בעצמנו ({guests.filter((g) => g.source !== 'public').length})</option>
+        </select>
         <label className="flex items-center gap-2 px-2 text-sm font-semibold"><input type="checkbox" checked={vipOnly} onChange={(e) => setVipOnly(e.target.checked)} />VIP בלבד</label>
       </div>
       <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
         <span className="text-muted">מוצגות {rows.length} מתוך {guests.length}</span>
-        {(q || fStatus || fGroup || fTable || vipOnly || quick) && <button type="button" className="btn btn-ghost btn-sm" onClick={clearFilters}>ניקוי הסינון</button>}
+        {(q || fStatus || fGroup || fTable || vipOnly || fSource || quick) && <button type="button" className="btn btn-ghost btn-sm" onClick={clearFilters}>ניקוי הסינון</button>}
         <select className="field !w-auto !min-h-10 !py-1 lg:hidden" aria-label="מיון" value={`${sort.key}:${sort.dir}`} onChange={(e) => { const [key, dir] = e.target.value.split(':'); setSort({ key: key as SortKey, dir: Number(dir) as 1 | -1 }); }}>
           <option value="family_name:1">לפי שם</option><option value="created_at:-1">נרשמו אחרונים</option><option value="created_at:1">נרשמו ראשונים</option><option value="status:1">לפי סטטוס</option><option value="total:-1">לפי מספר משתתפים</option>
         </select>
@@ -282,6 +289,8 @@ export default function GuestsPage() {
                 {g.table_id && <li className="is-table">{tname.get(g.table_id)}</li>}
                 {g.arrived && <li className="is-ok">הגיעו: <b>{g.arrived_count ?? total(g)}</b></li>}
                 {hasWa && <li className={g.opted_out ? 'is-off' : g.invited_at ? 'is-ok' : 'is-wait'}>{g.opted_out ? 'לא לשלוח הודעות' : g.invited_at ? 'הזמנה נשלחה' : 'טרם הוזמנו'}</li>}
+                <li className={g.source === 'public' ? 'is-self' : 'is-ours'}>{g.source === 'public' ? 'נרשמו דרך ההזמנה' : 'הוספנו בעצמנו'}</li>
+                {changed(g) && <li className="is-upd">עדכנו תשובה · <span dir="ltr">{stamp(g.responded_at)?.date.slice(0, 5)} {stamp(g.responded_at)?.time}</span></li>}
                 {(g.preferences ?? '').split(',').map((x) => x.trim()).filter(Boolean).map((x) => <li key={x} className="is-pref">{x}</li>)}
               </ul>
               {[g.notes, g.admin_notes].some(Boolean) && <p className="gcard__note">{[g.notes, g.admin_notes].filter(Boolean).join(' · ')}</p>}

@@ -78,6 +78,8 @@ export default function Overview() {
     };
   }, [visits, guests]);
   const names = useMemo(() => new Map(guests.map((g) => [g.id, g.family_name])), [guests]);
+  // an answer is "new" when it is the family's first one: given within a minute of the family joining the list
+  const firstOf = useMemo(() => { const born = new Map(guests.map((g) => [g.id, new Date(g.created_at).getTime()])); const m = new Map<string, string | number>(); for (const r of log) if (Math.abs(new Date(r.created_at).getTime() - (born.get(r.guest_id) ?? 0)) < 60000) m.set(r.guest_id, r.id); return m; }, [guests, log]);
   const url = typeof window !== 'undefined' ? `${window.location.origin}/e/${event.slug}` : `/e/${event.slug}`;
   const seatsTotal = tables.reduce((n, t) => n + t.capacity, 0);
   const invitedSent = guests.filter((g) => g.invited_at).length;
@@ -302,7 +304,7 @@ export default function Overview() {
                 <b>{names.get(r.guest_id) ?? 'משפחה שנמחקה'}</b>
                 <span className="ov-log__pills"><StatusPill status={r.status} />{r.arrived && <span className="pill pill-attending">הגיעו</span>}</span>
                 <span className="ov-log__who">{r.status !== 'declined' && people(r)}</span>
-                <span className="ov-log__when">{SOURCE[r.source] ?? r.source} · <span dir="ltr">{fmtDateTime(r.created_at)}</span></span>
+                <span className="ov-log__when"><span className={`ov-log__tag ${firstOf.get(r.guest_id) === r.id ? 'is-new' : 'is-upd'}`}>{firstOf.get(r.guest_id) === r.id ? 'אישור חדש' : 'עדכון'}</span> {SOURCE[r.source] ?? r.source} · <span dir="ltr">{fmtDateTime(r.created_at)}</span></span>
               </li>
             ))}
           </ul>

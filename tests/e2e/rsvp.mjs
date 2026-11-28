@@ -56,6 +56,33 @@ try {
   await answer('משפחת אולי', 'עדיין לא בטוחים', 'עדיין לא בטוחים', { phone: '0502223344', adults: 2 });
   await answer('משפחת לא', 'לא מגיעים', 'עדכנתם שלא תגיעו', {});
   const rows = await sql(`select family_name, status, adults, children, babies, phone, preferences, source, responded_at is not null r from guests order by created_at`);
+  { // a family that answers again is updated, never written twice
+    const fill = async (p, { name, phone, adults }) => { await p.waitForSelector('.sheet form'); await p.locator('[data-testid=rsvp-status] button', { hasText: /^מגיעים$/ }).click(); if (name !== undefined) await p.fill('input[name=name]', name); if (phone !== undefined) await p.fill('input[name=phone]', phone); const now = +(await p.locator('[data-testid=rsvp-count] output').first().innerText()); for (let i = now; i < adults; i++) await p.locator('[data-testid=rsvp-count] button[aria-label^="עוד"]').first().click(); await p.click('[data-testid=rsvp-send]'); await p.waitForSelector('[data-testid=rsvp-success]', { timeout: 8000 }); await sleep(600); };
+    const of = (ph) => sql(`select family_name, status, adults, (select count(*)::int from rsvp_responses r where r.guest_id = g.id) answers from guests g where phone like $1`, [ph]);
+    const one = await browser.newContext({ ...devices['iPhone 13'], locale: 'he-IL' }); const p = await one.newPage();
+    await p.goto(APP + '/kidar-brit', { waitUntil: 'networkidle' }); await sleep(500);
+    await p.locator('button.inv-pick', { hasText: 'מגיעים' }).first().click(); await fill(p, { name: 'משפחת חוזרים', phone: '0509990001', adults: 2 });
+    await p.reload({ waitUntil: 'networkidle' }); await sleep(600);
+    const arrow = await p.locator('[data-testid=to-rsvp]').count();
+    await p.evaluate(() => scrollTo(0, 300)); await sleep(700);
+    const float = p.locator('[data-testid=rsvp-float]');
+    check('a guest who already answered still gets the arrow and the floating button, now offering an update', arrow === 1 && (await float.innerText()).includes('עדכון') && await float.evaluate((b) => b.closest('.inv-sticky').classList.contains('show')));
+    await float.click(); await p.waitForSelector('.sheet form');
+    check('the form opens with what they gave before', (await p.inputValue('input[name=name]')) === 'משפחת חוזרים' && (await p.inputValue('input[name=phone]')).replace(/\D/g, '') === '0509990001');
+    await fill(p, { adults: 4 });
+    let r = await of('%9990001');
+    check('answering again from the same phone updates the one record', r.length === 1 && r[0].adults === 4 && r[0].answers === 2, JSON.stringify(r));
+    await one.close();
+    // the same family from another device, recognised by its phone number
+    const two = await browser.newContext({ ...devices['Pixel 7'], locale: 'he-IL' }); const q = await two.newPage();
+    await q.goto(APP + '/kidar-brit', { waitUntil: 'networkidle' }); await sleep(500);
+    await q.locator('button.inv-pick', { hasText: 'מגיעים' }).first().click(); await fill(q, { name: 'חוזרים מהטאבלט', phone: '050-999-0001', adults: 3 });
+    r = await of('%9990001');
+    const all = (await sql(`select count(*)::int n from guests where family_name like '%חוזרים%'`))[0].n;
+    check('answering from another device with the same phone number updates it too, with no second record', r.length === 1 && all === 1 && r[0].adults === 3 && r[0].answers === 3, JSON.stringify({ r, all }));
+    await two.close();
+    await sql(`delete from rsvp_responses where guest_id in (select id from guests where phone like '%9990001')`); await sql(`delete from guests where phone like '%9990001'`);
+  }
   { // two families, one phone: the second answer is saved beside the first, not over it
     const ctx = await browser.newContext({ ...devices['iPhone 13'], locale: 'he-IL' }); const p = await ctx.newPage();
     const send = async (name, phone) => { await p.waitForSelector('.sheet form'); await p.fill('input[name=name]', name); await p.fill('input[name=phone]', phone); await p.click('[data-testid=rsvp-send]'); await p.waitForSelector('[data-testid=rsvp-success]', { timeout: 8000 }); await sleep(600); };
