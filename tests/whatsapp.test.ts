@@ -86,7 +86,8 @@ describe('a short link', () => {
     expect(vars2(withShort, g, 'https://site.example').invitation_url).toBe('https://tinyurl.com/kidar-brit');
     for (const t of B2) { const r = render2(t.body, vars2(withShort, g, 'https://site.example')); if (t.body.includes('{{invitation_url}}')) { expect(r.text).toContain('https://tinyurl.com/kidar-brit'); expect(r.text).not.toContain('site.example'); } }
   });
-  it('a test message keeps the full address, which alone opens test mode', () => {
-    expect(vars2({ ...ev, design: { shortUrl: 'https://tinyurl.com/kidar-brit' } }, g, 'https://site.example', true).invitation_url).toContain('test=1');
+  it('a test message carries the same short address guests get', () => {
+    expect(vars2({ ...ev, design: { shortUrl: 'https://tinyurl.com/kidar-brit' } }, g, 'https://site.example', true).invitation_url).toBe('https://tinyurl.com/kidar-brit');
+    expect(vars2(ev, g, 'https://site.example', true).invitation_url).toContain('test=1'); // with no short address the test link still opens test mode
   });
 });

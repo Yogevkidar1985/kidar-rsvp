@@ -78,7 +78,7 @@ export default function LinksPage() {
             <button className="btn btn-sm" disabled={!canEdit || busy === 'short' || short.trim() === design.shortUrl}>{busy === 'short' ? 'שומרים…' : 'שמירה'}</button>
             {shortNow && <><a className="link-chip" dir="ltr" href={shortNow} target="_blank" rel="noreferrer" data-testid="short-now">{shortNow.replace(/^https:\/\//, '')}</a><button type="button" className="btn btn-ghost btn-sm" onClick={() => copy(shortNow, 'הקישור הקצר')}>העתקה</button></>}
           </div>
-          {shortNow && <p className="text-xs text-muted">בהודעות WhatsApp כל המשפחות מקבלות את הקישור הקצר, ולכן הן מזוהות לפי מספר הטלפון שהן ממלאות ולא לפי קישור אישי. הודעת בדיקה נשלחת עם הקישור המלא, כי רק הוא נפתח במצב בדיקה.</p>}
+          {shortNow && <p className="text-xs text-muted">בהודעות WhatsApp כל המשפחות מקבלות את הקישור הקצר, ולכן הן מזוהות לפי מספר הטלפון שהן ממלאות ולא לפי קישור אישי. גם הודעת בדיקה נשלחת עם הקישור הקצר, בדיוק כמו שהאורחים יקבלו: תשובה שתמלאו דרכה נשמרת כתשובה אמיתית. כדי לנסות בלי לשמור, פתחו את ההזמנה מ״פתיחה במצב בדיקה״ למעלה.</p>}
         </form>
         {!event.published && <p className="notice notice-warn mt-3">ההזמנה עדיין טיוטה, ולכן הקישור לא ייפתח לאורחים. מפרסמים במסך "עיצוב ההזמנה".</p>}
         <form className="mt-4 grid gap-2 border-t border-line pt-4 sm:grid-cols-[1fr_auto] sm:items-end" onSubmit={(e) => { e.preventDefault(); void saveSlug(); }}>

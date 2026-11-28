@@ -204,7 +204,7 @@ export default function WhatsAppPage() {
                 <div className="phone"><iframe title="תצוגה מקדימה של ההזמנה" src={`/${event.slug}?test=1`} loading="lazy" /></div>
                 <div className="grid content-start gap-3">
                   <a className="btn btn-ghost w-fit" href={`/${event.slug}?test=1`} target="_blank" rel="noopener noreferrer">פתיחה במסך מלא</a>
-                  <Field label="שליחת הודעת בדיקה ב-WhatsApp" hint="עד שלושה מספרים, מופרדים בפסיק. בלי מספר, הבדיקה נשלחת למספרי המארחים. הקישור בהודעה נפתח במצב בדיקה.">
+                  <Field label="שליחת הודעת בדיקה ב-WhatsApp" hint="עד שלושה מספרים, מופרדים בפסיק. בלי מספר, הבדיקה נשלחת למספרי המארחים. כשמוגדר קישור קצר, ההודעה נשלחת איתו בדיוק כמו לאורחים, ותשובה דרכו נשמרת כתשובה אמיתית.">
                     <input className="field" dir="ltr" inputMode="tel" placeholder="050-0000000" value={testPhones} onChange={(e) => setTestPhones(e.target.value)} /></Field>
                   <button type="button" className="btn btn-ghost w-fit" disabled={!!missing.length || !body.trim()} onClick={test}>שליחת הודעת בדיקה</button>
                   {tested && <p className="text-sm font-medium text-ok">הודעת בדיקה נשלחה. פתחו אותה בטלפון ועברו על ההזמנה.</p>}

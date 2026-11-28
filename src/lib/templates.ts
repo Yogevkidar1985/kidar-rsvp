@@ -305,8 +305,8 @@ export function variables(ev: EventForMessage, guest: GuestForMessage, siteUrl: 
     event_name: ev.name ?? '', hosts: ev.hosts ?? '', weekday: ev.weekday_label ?? '',
     event_date: d?.numeric ?? '', event_date_long: d ? `${d.day} ב${d.month} ${d.year}` : '', hebrew_date: ev.hebrew_date ?? '',
     event_time: ev.reception_time || ev.ceremony_time || '', venue_name: ev.venue_name ?? '', venue_address: ev.address ?? '',
-    // the short address goes to everyone when one is set. A test message keeps the full address: only that one opens test mode, where nothing is saved.
-    invitation_url: (!test && shortLink(ev.design?.shortUrl)) || inviteUrl(siteUrl, ev.slug, guest, test),
+    // the short address goes into every message when one is set, the test message included: the owner sees exactly what guests get
+    invitation_url: shortLink(ev.design?.shortUrl) || inviteUrl(siteUrl, ev.slug, guest, test),
     waze_url: safeHttpUrl(ev.waze_url) ?? (place ? `https://waze.com/ul?q=${encodeURIComponent(place)}&navigate=yes` : ''),
     maps_url: safeHttpUrl(ev.gmaps_url) ?? (place ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}` : ''),
   };

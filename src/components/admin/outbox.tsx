@@ -2,7 +2,7 @@
 import { resolveDesign } from '@/lib/defaults';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase/client';
-import { BUILTIN, VARIABLES, render, variables, variableLabel, type Template, type TemplateKind } from '@/lib/templates';
+import { BUILTIN, VARIABLES, render, variables, variableLabel, type Template, type TemplateKind, shortLink } from '@/lib/templates';
 import type { Campaign, EventRow, Guest, MessageRow } from '@/lib/types';
 import { fmtWhen } from '@/lib/when';
 import { download, toCsv } from '@/lib/export';
@@ -144,7 +144,7 @@ export function MessageEditor({ kind, templates, body, setBody, templateId, setT
               <div className="wa-card wa-card--in" data-testid="wa-link-card">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={`/og/${event.slug}?v=${event.updated_at}`} alt="" loading="lazy" />
-                <div><b>{card.title}</b><span>{card.description}</span><small dir="ltr">{typeof window === 'undefined' ? '' : window.location.host}</small></div>
+                <div><b>{card.title}</b><span>{card.description}</span><small dir="ltr">{shortLink((event as { design?: { shortUrl?: string } }).design?.shortUrl).replace(/^https:\/\//, '').split('/')[0] || (typeof window === 'undefined' ? '' : window.location.host)}</small></div>
               </div>
             )}
             <div className="whitespace-pre-wrap px-1.5 pb-0.5 pt-1 [overflow-wrap:anywhere]" dir="auto">{text || '…'}</div>
