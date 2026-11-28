@@ -87,6 +87,10 @@ try {
     for (const s of ['', 'guests', 'editor', 'whatsapp', 'tables', 'links', 'reminders', 'backup', 'connections', 'team', 'export']) {
       await p.goto(`${APP}/admin/events/${id}/${s}`, { waitUntil: 'networkidle' }).catch(() => {}); await sleep(900);
       await shot(s || 'dashboard');
+      if (s === 'editor') { // every tab of the editor, not only the one it opens on
+        const n = await p.locator('.tabs > button').count();
+        for (let i = 1; i < n; i++) { const t = p.locator('.tabs > button').nth(i); const name = (await t.innerText()).trim(); await t.evaluate((b) => { b.scrollIntoView({ block: 'center', inline: 'center' }); b.click(); }); await sleep(700); const r = await p.evaluate(measure); report(dev, `editor-${name} (width)`, { ...r, small: [], tiny: [], contrast: [], zoom: [], unlabeled: [], img: [] }, []); errs = []; }
+      }
     }
     await ctx.close();
   }

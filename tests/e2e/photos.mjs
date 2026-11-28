@@ -54,6 +54,11 @@ try {
   await p.locator('button[aria-label="ביטול הפעולה האחרונה"]').click(); await sleep(600);
   const back = decodeURIComponent(await shown());
   check('"back to the default photo" works and can be undone', !dflt.includes('storage') && back.includes(g.url.split('/').pop()), `${dflt.slice(-40)} → ${back.slice(-50)}`);
+  // many photos: the strips scroll inside themselves, the page never moves sideways
+  for (const kind of ['הוספת תמונות לגלריה', 'הוספת תמונות של המקום']) { await p.locator('label.ph-drop', { hasText: kind }).locator('input[type=file]').setInputFiles(['a.jpg', 'b.jpg', 'c.jpg', 'd.jpg'].map((f) => path.join(pics, f))); await sleep(7000); }
+  for (const f of ['c.jpg', 'd.jpg', 'a.jpg']) await up(f);
+  const wide = await p.evaluate(() => ({ page: document.documentElement.scrollWidth, view: innerWidth, own: document.querySelectorAll('[data-testid=hero-own] button').length, past: document.querySelectorAll('[data-testid=hero-past] button').length, strip: (() => { const e = document.querySelector('[data-testid=hero-own]'); return [e.scrollWidth, e.clientWidth]; })() }));
+  check('with many photos the page is still exactly as wide as the phone', wide.page <= 391 && wide.view <= 391 && wide.own >= 9 && wide.strip[0] > wide.strip[1] && wide.strip[1] <= wide.view, JSON.stringify(wide));
   check('the photos tab fits the phone, no errors', (await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)) && !errs.length, errs.join('|'));
   await sleep(4500); await p.locator('.ed-dock-toggle').evaluate((b) => b.click()); await card.evaluate((c) => c.scrollIntoView({ block: 'start' })); await p.evaluate(() => scrollBy(0, -90)); await sleep(600); await p.screenshot({ path: path.join(out, 'photos.png') });
   await ctx.close();

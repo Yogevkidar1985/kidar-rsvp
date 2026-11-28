@@ -688,7 +688,8 @@ li.is-picked { box-shadow: inset 0 0 0 1.5px var(--color-ink); }
 @media (prefers-reduced-motion: reduce) { .seg button { transition: none; } .seg button[aria-pressed="true"] { animation: none; } .seg button:not([aria-pressed="true"]):hover, .seg button:active { transform: none; } }
 
 /* Photos in the editor: what is shown now, a clear place to add, and every earlier choice one tap away. */
-.ph-card { display: grid; gap: 14px; }
+.ph-card { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; max-width: 100%; }
+.ph-card > * { min-width: 0; max-width: 100%; }
 .ph-now { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 12px; align-items: center; padding: 10px; border: 1px solid var(--color-line); border-radius: 14px; background: var(--color-paper); }
 .ph-now img { width: 88px; height: 110px; border-radius: 10px; object-fit: cover; background: #e8ecf2; }
 .ph-now div { display: grid; gap: 4px; min-width: 0; }
@@ -699,7 +700,7 @@ li.is-picked { box-shadow: inset 0 0 0 1.5px var(--color-ink); }
 .ph-drop small { font-size: 12.5px; color: #566074; }
 .ph-drop:focus-within { outline: 3px solid var(--color-ink); outline-offset: 2px; }
 @media (hover: hover) { .ph-drop:hover { border-color: var(--color-ink); background: var(--color-paper); } }
-.ph-strip { display: flex; gap: 8px; margin-top: 6px; padding-bottom: 4px; overflow-x: auto; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+.ph-strip { min-width: 0; max-width: 100%; overscroll-behavior-x: contain; display: flex; gap: 8px; margin-top: 6px; padding-bottom: 4px; overflow-x: auto; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
 .ph-strip button { flex: none; width: 76px; height: 96px; padding: 0; border: 2px solid transparent; border-radius: 10px; overflow: hidden; background: #e8ecf2; cursor: pointer; scroll-snap-align: start; transition: border-color .15s, transform .15s; }
 .ph-strip button:active { transform: scale(.96); }
 .ph-strip button:focus-visible { border-color: var(--color-ink); outline: none; }
@@ -802,3 +803,9 @@ li.is-picked { box-shadow: inset 0 0 0 1.5px var(--color-ink); }
 }
 @media (min-width: 1024px) { .ov-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; } .ov-wide { grid-column: span 2; } }
 @media (prefers-reduced-motion: reduce) { .ov-ring circle + circle, .ov-tile { transition: none; } }
+
+/* The editor on a phone: nothing in a panel may be wider than the panel, and a tick box is tapped by its whole row. */
+@media (pointer: coarse), (max-width: 767px) {
+  .card label:has(> input[type="checkbox"]), .card label:has(> input[type="radio"]) { min-height: 40px; align-items: center; }
+  .rng output small { font-size: 12px; }
+}
