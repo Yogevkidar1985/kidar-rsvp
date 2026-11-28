@@ -148,7 +148,7 @@ input[type="range"] { accent-color: var(--color-ink); }
 .inv-veil { position: absolute; inset: 0; background: var(--inv-ink); pointer-events: none; }
 .inv-hero-empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 2rem; color: var(--inv-dim); font-size: 15px;
   background: linear-gradient(180deg, var(--inv-soft), var(--inv-surface)); }
-.inv-scroll { position: absolute; left: 50%; bottom: 14px; z-index: 3; display: grid; place-items: center; width: 44px; height: 44px; margin-left: -22px; scale: var(--sz-arrow, 1); transform-origin: 50% 100%; border-radius: 50%; background: rgb(255 255 255 / .88); color: var(--inv-ink); box-shadow: 0 10px 24px -10px rgb(0 0 0 / .45); animation: inv-nudge 1.7s ease-in-out infinite; }
+.inv-scroll { appearance: none; padding: 0; border: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; position: absolute; left: 50%; bottom: 14px; z-index: 3; display: grid; place-items: center; width: 44px; height: 44px; margin-left: -22px; scale: var(--sz-arrow, 1); transform-origin: 50% 100%; border-radius: 50%; background: rgb(255 255 255 / .88); color: var(--inv-ink); box-shadow: 0 10px 24px -10px rgb(0 0 0 / .45); animation: inv-nudge 1.7s ease-in-out infinite; }
 .inv-scroll svg { position: relative; }
 /* a ring opens around the arrow and fades: something is waiting below */
 .inv-scroll i { position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgb(255 255 255 / .9); animation: inv-ring 1.7s ease-out infinite; }

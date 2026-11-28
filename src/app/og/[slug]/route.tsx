@@ -48,20 +48,20 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
       <div style={{ width: W, height: H, display: 'flex', background: c.surface, color: c.ink, fontFamily: 'Heebo' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {hero && <img src={hero} alt="" width={W - textW} height={H} style={{ objectFit: 'cover' }} />}
-        <div style={{ width: textW, height: H, display: 'flex', padding: n(28) }}>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${c.line}`, padding: `0 ${n(40)}px` }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: n(26) }}>
+        <div style={{ width: textW, height: H, display: 'flex', padding: n(18) }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: `1.5px solid ${c.line}`, padding: `0 ${n(22)}px` }}>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: n(18) }}>
               <div style={{ width: n(70), height: 1.5, background: c.accent }} />
               <div style={{ width: n(11), height: n(11), background: c.accent, transform: 'rotate(45deg)', margin: `0 ${n(16)}px` }} />
               <div style={{ width: n(70), height: 1.5, background: c.accent }} />
             </div>
-            {d.latin ? <div style={{ fontSize: n(19), letterSpacing: n(7), color: c.muted, marginBottom: n(12) }}>{d.latin.toUpperCase()}</div> : null}
-            {ev.hosts ? <div style={{ fontSize: n(hero ? 58 : 68), fontWeight: 500, lineHeight: 1.15, textAlign: 'center' }}>{visual(ev.hosts)}</div> : null}
-            <div style={{ fontSize: n(28), fontWeight: 300, color: c.muted, marginTop: n(10), textAlign: 'center' }}>{visual(ev.headline || ev.name)}</div>
-            <div style={{ width: n(320), height: 1.5, background: c.line, margin: `${n(30)}px 0 ${n(26)}px` }} />
-            {date ? <div style={{ fontSize: n(hero ? 60 : 70), fontWeight: 300, letterSpacing: n(3), lineHeight: 1 }}>{date.numeric}</div> : null}
-            {line2 ? <div style={{ fontSize: n(26), fontWeight: 300, color: c.muted, marginTop: n(14) }}>{visual(line2)}</div> : null}
-            {time ? <div style={{ fontSize: n(34), fontWeight: 500, marginTop: n(12), letterSpacing: n(1) }}>{time}</div> : null}
+            {d.latin ? <div style={{ fontSize: n(23), letterSpacing: n(6), color: c.muted, marginBottom: n(10) }}>{d.latin.toUpperCase()}</div> : null}
+            {ev.hosts ? <div style={{ fontSize: n(hero ? 70 : 78), fontWeight: 500, lineHeight: 1.15, textAlign: 'center' }}>{visual(ev.hosts)}</div> : null}
+            <div style={{ fontSize: n(40), fontWeight: 500, color: c.muted, marginTop: n(8), textAlign: 'center' }}>{visual(ev.headline || ev.name)}</div>
+            <div style={{ width: n(320), height: 1.5, background: c.line, margin: `${n(22)}px 0 ${n(22)}px` }} />
+            {date ? <div style={{ fontSize: n(hero ? 78 : 86), fontWeight: 500, letterSpacing: n(2), lineHeight: 1 }}>{date.numeric}</div> : null}
+            {line2 ? <div style={{ fontSize: n(34), fontWeight: 500, color: c.muted, marginTop: n(12) }}>{visual(line2)}</div> : null}
+            {time ? <div style={{ fontSize: n(46), fontWeight: 500, marginTop: n(8), letterSpacing: n(1) }}>{time}</div> : null}
           </div>
         </div>
       </div>

@@ -41,6 +41,17 @@ try {
     check(`${label}: a return visit remembers the answer`, again.includes('עדכון התשובה') && again.includes(seen), again.slice(-160).replace(/\n/g, ' '));
     await ctx.close();
   };
+  { // the arrow on the photo takes a guest straight to the answer buttons
+    const ctx = await browser.newContext({ ...devices['iPhone 13'], locale: 'he-IL' }); const p = await ctx.newPage();
+    await p.goto(APP + '/kidar-brit', { waitUntil: 'networkidle' }); await sleep(600);
+    const has = await p.locator('[data-testid=to-rsvp]').count();
+    const top = has ? await p.evaluate(() => { const b = document.querySelector('[data-testid=to-rsvp]'), r = b.getBoundingClientRect(); const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return b.contains(e) ? 'ok' : (e?.className || e?.tagName); }) : 'missing';
+    check('nothing covers the arrow', top === 'ok', String(top));
+    if (has) { const r = await p.locator('[data-testid=to-rsvp]').boundingBox(); await p.touchscreen.tap(r.x + r.width / 2, r.y + r.height / 2); await sleep(1800); } // it never stops moving, so a real tap at its place
+    const at = await p.evaluate(() => { const r = document.getElementById('rsvp').getBoundingClientRect(); return [Math.round(r.top), innerHeight, [...document.querySelectorAll('button.inv-pick')].every((b) => { const x = b.getBoundingClientRect(); return x.top >= 0 && x.bottom <= innerHeight; })]; });
+    check('the arrow on the photo scrolls to the answer buttons', !!has && at[0] < at[1] * 0.4 && at[2], JSON.stringify(at));
+    await ctx.close();
+  }
   await answer('משפחת מגיעים', 'מגיעים', 'אישרתם הגעה · 3 משתתפים', { phone: '050-1112233', adults: 3, pref: 'צמחוני' });
   await answer('משפחת אולי', 'עדיין לא בטוחים', 'עדיין לא בטוחים', { phone: '0502223344', adults: 2 });
   await answer('משפחת לא', 'לא מגיעים', 'עדכנתם שלא תגיעו', {});
