@@ -86,7 +86,36 @@ export default function Overview() {
     { label: 'מגיעים', value: s.attendingFamilies, color: TONE.ok }, { label: 'עדיין לא בטוחים', value: s.maybeFamilies, color: TONE.warn },
     { label: 'לא מגיעים', value: s.declinedFamilies, color: TONE.no }, { label: 'טרם השיבו', value: s.pendingFamilies, color: TONE.idle },
   ];
-  const maxSeats = Math.max(s.allocatedSeats, s.confirmedSeats, seatsTotal, 1);
+  const maxSeats = Math.max(s.confirmedSeats, seatsTotal, 1);
+  const maybes = guests.filter((g) => g.status === 'maybe');
+  const maybeSeats = maybes.reduce((n, g) => n + (g.adults + g.children || g.allocated_seats || 1), 0);
+  const tiles = [
+    { label: 'עדיין לא בטוחים', families: s.maybeFamilies, sub: s.maybeFamilies ? `עד ${maybeSeats} אנשים` : 'אין כרגע', color: TONE.warn },
+    { label: 'לא מגיעים', families: s.declinedFamilies, sub: s.declinedFamilies ? `${s.declinedPeople} אנשים שהוזמנו` : 'אין כרגע', color: TONE.no },
+    { label: 'טרם השיבו', families: s.pendingFamilies, sub: s.pendingFamilies ? `${s.pendingPeople} אנשים שהוזמנו` : s.families ? 'כולם השיבו' : 'הרשימה ריקה', color: '#8a94a6' },
+  ];
+  // the clock is read after the page is on screen, so the server's page and the browser's agree
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => { setNow(new Date()); }, [stamp]);
+  const days = now && start ? Math.ceil((new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime() - new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) / 86400000) : null;
+  const prefs = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const g of guests) if (g.status === 'attending' || g.status === 'maybe') for (const x of (g.preferences ?? '').split(',').map((t) => t.trim()).filter(Boolean)) m.set(x, (m.get(x) ?? 0) + 1);
+    return [...m].sort((a, b) => b[1] - a[1]);
+  }, [guests]);
+  const report = [
+    `${event.name} · דוח אישורי הגעה`,
+    [start ? fmtWhen(start) : '', event.venue_name].filter(Boolean).join(' · '),
+    now ? `מעודכן ל-${now.toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : '',
+    '',
+    `✅ מגיעים: ${s.attendingPeople} אנשים (${s.attendingFamilies} משפחות)`,
+    `     מבוגרים ${s.adults} · ילדים ${s.children} · תינוקות ${s.babies}`,
+    `🪑 כיסאות נדרשים: ${s.confirmedSeats}`,
+    `🤔 עדיין לא בטוחים: ${s.maybeFamilies} משפחות${s.maybeFamilies ? ` (עד ${maybeSeats} אנשים)` : ''}`,
+    `❌ לא מגיעים: ${s.declinedFamilies} משפחות`,
+    `⏳ טרם השיבו: ${s.pendingFamilies} משפחות${s.pendingFamilies ? ` (${s.pendingPeople} מוזמנים)` : ''}`,
+    ...(prefs.length ? [`🍽 בקשות מיוחדות: ${prefs.map(([k, n]) => `${k} ${n}`).join(' · ')}`] : []),
+  ].filter((l, i) => l || i === 3).join('\n');
   const dups = useDuplicates(event.id, guests);
   const ready: { ok: boolean; label: string; fix: string; href?: string }[] = [
     { ok: event.published, label: 'ההזמנה מפורסמת', fix: 'אורחים לא יכולים לפתוח אותה', href: `${base}/editor` },
@@ -113,15 +142,79 @@ export default function Overview() {
         {event.published && <a className="btn" href={`/e/${event.slug}`} target="_blank" rel="noopener noreferrer"><Icon name="eye" size={16} />פתיחת ההזמנה</a>}
       </PageHead>
 
+      <section className="ov-hero" data-testid="kpis">
+        <div className="ov-hero__main">
+          <span className="ov-hero__label">מגיעים לאירוע</span>
+          <div className="ov-hero__num"><b>{s.attendingPeople}</b><span>אנשים</span></div>
+          <p className="ov-hero__sub">{s.families ? `${s.attendingFamilies} משפחות אישרו הגעה · הוזמנו ${s.invitedTotal} אנשים ב-${s.families} משפחות` : 'המספרים יתמלאו כשתוסיפו מוזמנים והם ישיבו'}</p>
+          <ul className="ov-split" aria-label="פירוט המגיעים">
+            <li><b>{s.adults}</b> <span>מבוגרים</span></li>
+            <li><b>{s.children}</b> <span>ילדים</span></li>
+            <li><b>{s.babies}</b> <span>תינוקות</span></li>
+            <li className="is-key"><b>{s.confirmedSeats}</b> <span>כיסאות</span></li>
+          </ul>
+        </div>
+        <div className="ov-hero__side">
+          <div className="ov-ring" role="img" aria-label={`${s.responseRate}% מהמשפחות השיבו`}>
+            <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="50" />{s.responseRate > 0 && <circle cx="60" cy="60" r="50" pathLength="100" strokeDasharray={`${s.responseRate} 100`} />}</svg>
+            <div><b>{s.responseRate}%</b><span>השיבו</span></div>
+          </div>
+          <p className="ov-hero__when">{s.families ? `${s.families - s.pendingFamilies} מתוך ${s.families} משפחות` : 'עוד אין מוזמנים ברשימה'}{days !== null && <><br /><b>{days > 1 ? `עוד ${days} ימים לאירוע` : days === 1 ? 'האירוע מחר' : days === 0 ? 'האירוע היום' : 'האירוע עבר'}</b></>}</p>
+        </div>
+        <div className="ov-tiles">
+          {tiles.map((t) => (
+            <Link key={t.label} href={`${base}/guests`} className="ov-tile" style={{ '--tone': t.color } as React.CSSProperties}>
+              <span className="ov-tile__label"><i aria-hidden="true" />{t.label}</span>
+              <span className="ov-tile__num"><b>{t.families}</b> <span>משפחות</span></span>
+              <span className="ov-tile__sub">{t.sub}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <div className="mt-3 grid gap-3 lg:grid-cols-3">
+        <section className="card p-5 lg:col-span-2">
+          <h2 className="text-[17px] font-semibold">תשובות לפי משפחות</h2>
+          <div className="mt-4 flex h-4 overflow-hidden rounded-full bg-paper" role="img" aria-label={parts.map((p) => `${p.label}: ${p.value}`).join(', ')}>
+            {parts.filter((p) => p.value > 0).map((p) => <div key={p.label} style={{ width: `${(p.value / Math.max(s.families, 1)) * 100}%`, background: p.color }} />)}
+          </div>
+          <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-sm">
+            {parts.map((p) => <li key={p.label} className="flex items-center gap-1.5"><i className="size-2.5 rounded-full" style={{ background: p.color }} /><span className="text-muted">{p.label}</span><b className="font-semibold tabular-nums">{p.value}</b></li>)}
+          </ul>
+          <div className="mt-5 border-t border-line pt-4" data-testid="seats-card">
+            <h3 className="text-[15px] font-semibold">מקומות ישיבה</h3>
+            <div className="ov-seats">
+              <div><b>{s.confirmedSeats}</b><span>כיסאות נדרשים</span><small>מבוגרים וילדים שאישרו{maybeSeats ? ` · עוד עד ${maybeSeats} אם הלא-בטוחים יגיעו` : ''}</small></div>
+              <div><b>{seatsTotal}</b><span>מקומות בשולחנות</span><small>{tables.length} שולחנות</small></div>
+              {!seatsTotal ? <div><b>—</b><span>מקומות פנויים</span><small><Link className="font-medium text-ink underline" href={`${base}/tables`}>עוד לא הוגדרו שולחנות</Link></small></div>
+                : <div className={seatsTotal - s.confirmedSeats < 0 ? 'is-short' : 'is-free'}><b>{Math.abs(seatsTotal - s.confirmedSeats)}</b><span>{seatsTotal - s.confirmedSeats < 0 ? 'מקומות חסרים' : 'מקומות פנויים'}</span><small>{Math.min(100, Math.round((s.confirmedSeats / seatsTotal) * 100))}% מהמקומות תפוסים</small></div>}
+            </div>
+            {seatsTotal > 0 && <div className="mt-3 flex h-2.5 overflow-hidden rounded-full bg-paper" aria-hidden="true">
+              <div style={{ width: `${(s.confirmedSeats / maxSeats) * 100}%`, background: TONE.ok }} /><div style={{ width: `${(Math.min(maybeSeats, Math.max(maxSeats - s.confirmedSeats, 0)) / maxSeats) * 100}%`, background: TONE.warn, opacity: 0.45 }} />
+            </div>}
+          </div>
+        </section>
+
+        <section className="card grid content-start gap-3 p-5" data-testid="owner-report">
+          <div><h2 className="text-[17px] font-semibold">דוח לבעל האירוע</h2><p className="text-sm text-muted">המספרים לפי אישורי ההגעה, מוכנים לשליחה למקום או לקייטרינג.</p></div>
+          <pre className="ov-report" dir="rtl">{report}</pre>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn btn-sm" data-testid="report-copy" onClick={() => navigator.clipboard.writeText(report).then(() => toast('הדוח הועתק'), () => toast('לא הצלחנו להעתיק', true))}><Icon name="copy" size={15} />העתקת הדוח</button>
+            <a className="btn btn-ghost btn-sm" data-testid="report-wa" href={`https://wa.me/?text=${encodeURIComponent(report)}`} target="_blank" rel="noopener noreferrer">שליחה ב-WhatsApp</a>
+          </div>
+          <p className="text-xs text-muted">הכפתור פותח את WhatsApp שלכם עם הדוח, ואתם בוחרים למי לשלוח. שום דבר לא נשלח לבד.</p>
+        </section>
+      </div>
+
       {next && missing === 0 && (
-        <div className="card mb-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <div className="card mt-3 flex flex-wrap items-center justify-between gap-3 px-4 py-3">
           <p className="text-sm"><b className="font-semibold">הצעד הבא: </b>{next.text}</p>
           <Link className="btn btn-sm" href={next.href}>{next.cta}</Link>
         </div>
       )}
 
       {missing > 0 && (
-        <section className="card mb-4 p-4" data-testid="readiness">
+        <section className="card mt-3 p-4" data-testid="readiness">
           <h2 className="text-[17px] font-semibold">מוכנות האירוע <span className="text-sm font-normal text-muted">· {ready.length - missing} מתוך {ready.length}</span></h2>
           <ul className="mt-3 grid gap-x-6 gap-y-2 sm:grid-cols-2">
             {ready.map((r) => (
@@ -134,34 +227,7 @@ export default function Overview() {
         </section>
       )}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-testid="kpis">
-        <Stat label="סך המוזמנים" value={s.invitedTotal} sub={`${s.families} משפחות`} href={`${base}/guests`} />
-        <Stat label="אישרו הגעה" value={s.attendingPeople} sub={`${s.attendingFamilies} משפחות · ${s.adults} מבוגרים, ${s.children} ילדים, ${s.babies} תינוקות`} tone={TONE.ok} />
-        <Stat label="טרם השיבו" value={s.pendingPeople} sub={`${s.pendingFamilies} משפחות · ${s.responseRate}% השיבו`} />
-        <Stat label="לא מגיעים" value={s.declinedPeople} sub={`${s.declinedFamilies} משפחות${s.maybeFamilies ? ` · ${s.maybeFamilies} עדיין לא בטוחים` : ''}`} tone={s.declinedPeople ? TONE.no : undefined} />
-      </div>
-
       <div className="mt-3 grid gap-3 lg:grid-cols-3">
-        <section className="card p-5 lg:col-span-2">
-          <h2 className="text-[17px] font-semibold">תשובות לפי משפחות</h2>
-          <div className="mt-4 flex h-3 overflow-hidden rounded-full bg-paper" role="img" aria-label={parts.map((p) => `${p.label}: ${p.value}`).join(', ')}>
-            {parts.filter((p) => p.value > 0).map((p) => <div key={p.label} style={{ width: `${(p.value / Math.max(s.families, 1)) * 100}%`, background: p.color }} />)}
-          </div>
-          <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
-            {parts.map((p) => (
-              <li key={p.label}>
-                <div className="flex items-center gap-1.5 text-xs text-muted"><i className="size-2 rounded-full" style={{ background: p.color }} />{p.label}</div>
-                <div className="mt-0.5 text-xl font-semibold tabular-nums">{p.value}</div>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-5 grid gap-3 border-t border-line pt-4 text-sm">
-            <Bar label="מקומות שהוקצו למשפחות" value={s.allocatedSeats} max={maxSeats} color={TONE.idle} />
-            <Bar label="כיסאות שאושרו (מבוגרים וילדים)" value={s.confirmedSeats} max={maxSeats} color={TONE.ok} />
-            <Bar label={`מקומות בשולחנות (${tables.length} שולחנות)`} value={seatsTotal} max={maxSeats} color={TONE.ink} />
-          </div>
-        </section>
-
         <section className="card grid content-start gap-4 p-5">
           <h2 className="text-[17px] font-semibold">הזמנות ותזכורות</h2>
           {wa ? (
@@ -174,10 +240,8 @@ export default function Overview() {
           ) : <p className="text-sm text-muted">שליחת הזמנות ותזכורות ב-WhatsApp תהיה זמינה אחרי עדכון מסד הנתונים.</p>}
           <div className="border-t border-line pt-4"><Row label="הגיעו בפועל" value={`${s.arrivedPeople} אנשים · ${s.arrivedFamilies} משפחות`} /></div>
         </section>
-      </div>
-
       {funnel && (
-        <section className="card mt-3 p-5" data-testid="funnel">
+        <section className="card p-5 lg:col-span-2 lg:order-first" data-testid="funnel">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-[17px] font-semibold">מסלול ההזמנה</h2>
             <span className="text-xs text-muted">{funnel.views} צפיות בסך הכול{funnel.anon ? ` · ${funnel.anon} מבקרים דרך הקישור הכללי` : ''}</span>
@@ -197,6 +261,8 @@ export default function Overview() {
           <p className="mt-3 text-xs text-muted">האחוזים הם מתוך כל המשפחות ברשימה. הספירה היא של משפחות, לא של אנשים: {s.attendingFamilies} משפחות שאישרו הן {s.attendingPeople} משתתפים. "פתחו" נספר רק כשההזמנה נטענה בדפדפן של אדם, לא בתצוגת קישור של WhatsApp.</p>
         </section>
       )}
+
+      </div>
 
       <section className="card mt-3 p-5">
         <h2 className="text-[17px] font-semibold">תשובות אחרונות</h2>
