@@ -56,6 +56,20 @@ try {
   await answer('משפחת אולי', 'עדיין לא בטוחים', 'עדיין לא בטוחים', { phone: '0502223344', adults: 2 });
   await answer('משפחת לא', 'לא מגיעים', 'עדכנתם שלא תגיעו', {});
   const rows = await sql(`select family_name, status, adults, children, babies, phone, preferences, source, responded_at is not null r from guests order by created_at`);
+  { // two families, one phone: the second answer is saved beside the first, not over it
+    const ctx = await browser.newContext({ ...devices['iPhone 13'], locale: 'he-IL' }); const p = await ctx.newPage();
+    const send = async (name, phone) => { await p.waitForSelector('.sheet form'); await p.fill('input[name=name]', name); await p.fill('input[name=phone]', phone); await p.click('[data-testid=rsvp-send]'); await p.waitForSelector('[data-testid=rsvp-success]', { timeout: 8000 }); await sleep(600); };
+    await p.goto(APP + '/kidar-brit', { waitUntil: 'networkidle' }); await sleep(500);
+    await p.locator('button.inv-pick', { hasText: 'מגיעים' }).first().click(); await send('משפחה ראשונה בטלפון', '0507770001');
+    await p.reload({ waitUntil: 'networkidle' }); await sleep(500);
+    await p.locator('[data-testid=rsvp-another]').click();
+    check('"another family from this phone" opens an empty form', (await p.inputValue('input[name=name]')) === '' && (await p.inputValue('input[name=phone]')) === '');
+    await send('משפחה שנייה בטלפון', '0507770002');
+    const two = await sql(`select family_name, status, phone from guests where family_name like '%בטלפון' order by created_at`);
+    check('both families are saved, each with its own answer', two.length === 2 && two[0].family_name === 'משפחה ראשונה בטלפון' && two[1].family_name === 'משפחה שנייה בטלפון' && two[0].phone !== two[1].phone, JSON.stringify(two));
+    await sql(`delete from rsvp_responses where guest_id in (select id from guests where family_name like '%בטלפון')`); await sql(`delete from guests where family_name like '%בטלפון'`);
+    await ctx.close();
+  }
   check('"מגיעים" is saved with its people, phone and preference', rows[0]?.status === 'attending' && rows[0].adults === 3 && rows[0].preferences?.includes('צמחוני') && !!rows[0].phone && rows[0].source === 'public' && rows[0].r, JSON.stringify(rows[0]));
   check('"אולי" is saved as its own status', rows[1]?.status === 'maybe' && rows[1].adults === 2, JSON.stringify(rows[1]));
   check('"לא מגיעים" is saved with nobody counted, and without a phone', rows[2]?.status === 'declined' && rows[2].adults + rows[2].children + rows[2].babies === 0 && !rows[2].phone, JSON.stringify(rows[2]));

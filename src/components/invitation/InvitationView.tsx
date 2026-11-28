@@ -298,6 +298,11 @@ export default function InvitationView({ data, token = null, preview = false, ce
       if (r && ['attending', 'maybe', 'declined'].includes(r.status)) setMine((cur) => cur ?? r);
     } catch { /* storage unavailable: the page simply asks again */ }
   }, [mineKey, preview, test]);
+  /** A second family answering on a phone that already answered: the phone forgets the first answer (the answer itself stays saved), so the form opens empty and a new answer is recorded beside it. */
+  const anotherFamily = () => {
+    try { const k = `rsvp:${data.slug}:`; localStorage.removeItem(k); localStorage.removeItem(`${k}:own`); localStorage.removeItem(mineKey); } catch { /* ignore */ }
+    setMine(null); openRsvp('attending');
+  };
   const onSaved = useCallback((r: RsvpResult) => {
     setMine(r);
     if (!preview && !test) { try { localStorage.setItem(mineKey, JSON.stringify({ status: r.status, adults: r.adults, children: r.children, babies: r.babies })); } catch { /* ignore */ } }
@@ -569,6 +574,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
                 <>
                   <p style={{ ...body, marginTop: 14 }}>{ANSWERED[status]}{status !== 'declined' && mine ? ` · ${mine.adults + mine.children + mine.babies} משתתפים` : ''}</p>
                   <button type="button" className="inv-btn ghost" style={{ marginTop: 20 }} data-testid="rsvp-open" onClick={() => openRsvp(status)}>עדכון התשובה</button>
+                  {!token && mine && !preview && <button type="button" className="inv-another" data-testid="rsvp-another" onClick={anotherFamily}>אישור הגעה למשפחה נוספת מהטלפון הזה</button>}
                 </>
               ) : (
                 <>
