@@ -876,3 +876,7 @@ li.is-picked { box-shadow: inset 0 0 0 1.5px var(--color-ink); }
 .ov-log__tag { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
 .ov-log__tag.is-new { background: #e7f4ee; color: #12694a; }
 .ov-log__tag.is-upd { background: #fff4e0; color: #8a5a10; }
+
+/* five actions under a guest: two even rows on a phone, delete at the end in its own colour */
+@media (max-width: 479px) { .gcard__actions { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 359px) { .gcard__actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

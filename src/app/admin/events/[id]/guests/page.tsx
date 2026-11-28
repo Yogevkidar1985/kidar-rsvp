@@ -121,20 +121,26 @@ export default function GuestsPage() {
     setBusy(false);
     if (ok) { toast(edit.id ? 'השינויים נשמרו' : 'המשפחה נוספה'); setEdit(null); }
   }
-  async function remove() {
-    if (!del) return;
-    // a full copy is kept before the family goes, so the deletion can be taken back
-    const r = await versions.deleteGuest(event.id, del.id);
-    if (!r.ok) toast(r.message ?? 'המחיקה נכשלה.', true); else { setGone({ id: del.id, name: del.family_name }); await reload(); }
-    setDel(null);
+  // Every deletion keeps a full copy first (the archive), so it can be taken back: one family or many at once.
+  const [gone, setGone] = useState<{ ids: string[]; label: string } | null>(null);
+  const [delMany, setDelMany] = useState(false);
+  useEffect(() => { if (!gone) return; const id = window.setTimeout(() => setGone(null), 25000); return () => window.clearTimeout(id); }, [gone]);
+  async function removeIds(list: Guest[]) {
+    setBusy(true);
+    const done: string[] = []; let failed = '';
+    for (const g of list) { const r = await versions.deleteGuest(event.id, g.id); if (r.ok) done.push(g.id); else failed = r.message ?? 'המחיקה נכשלה.'; }
+    setBusy(false);
+    if (failed) toast(done.length ? `${done.length} נמחקו, ${list.length - done.length} לא: ${failed}` : failed, true);
+    if (done.length) { setGone({ ids: done, label: done.length === 1 ? `${list.find((g) => g.id === done[0])?.family_name ?? 'המשפחה'} נמחקה` : `${done.length} משפחות נמחקו` }); setPicked(new Set()); await reload(); }
   }
-  const [gone, setGone] = useState<{ id: string; name: string } | null>(null);
-  useEffect(() => { if (!gone) return; const id = window.setTimeout(() => setGone(null), 20000); return () => window.clearTimeout(id); }, [gone]);
+  async function remove() { if (!del) return; const g = del; setDel(null); await removeIds([g]); }
+  async function removeChosen() { setDelMany(false); await removeIds(chosen); }
   async function bringBack() {
     if (!gone) return;
-    const r = await versions.restoreGuest(event.id, gone.id);
-    if (!r.ok) return toast(r.message ?? 'לא הצלחנו להחזיר.', true);
-    toast(`${gone.name} חזרה לרשימה`); setGone(null); await reload();
+    let back = 0;
+    for (const id of gone.ids) { const r = await versions.restoreGuest(event.id, id); if (r.ok) back++; }
+    if (!back) return toast('לא הצלחנו להחזיר.', true);
+    toast(back === 1 ? 'המשפחה חזרה לרשימה' : `${back} משפחות חזרו לרשימה`); setGone(null); await reload();
   }
   const th = (key: SortKey, label: string) => (
     <th className="px-3 py-2.5 text-start font-semibold" aria-sort={sort.key === key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
@@ -252,6 +258,7 @@ export default function GuestsPage() {
             <select className="field !w-auto !min-h-9 !py-1" aria-label="סטטוס לכל הנבחרים" value="" onChange={(e) => e.target.value && bulkSet({ status: e.target.value as GuestStatus }, 'הסטטוס עודכן')}>
               <option value="">שינוי סטטוס…</option>{STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}</select>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPicked(new Set())}>ביטול הבחירה</button>
+            <button type="button" className="btn btn-danger btn-sm" data-testid="bulk-delete" disabled={busy} onClick={() => setDelMany(true)}>מחיקת הנבחרים ({picked.size})</button>
           </div>}
           <datalist id="groups">{groups.map((g) => <option key={g} value={g} />)}</datalist>
         </div>
@@ -301,6 +308,7 @@ export default function GuestsPage() {
                 {canEdit && <>
                   <button className={`btn btn-ghost btn-sm ${g.arrived ? 'is-arrived' : ''}`} onClick={() => g.arrived ? updateGuest(g.id, { arrived: false }) : setArrive({ g, n: total(g) || g.allocated_seats || 1 })}><Icon name="check" size={15} />{g.arrived ? 'ביטול הגעה' : 'הגיעו'}</button>
                   <button className="btn btn-ghost btn-sm" onClick={() => openEdit(g)}>עריכה</button>
+                  <button className="btn btn-danger btn-sm" data-testid="card-delete" aria-label={`מחיקת ${g.family_name}`} onClick={() => setDel(g)}>מחיקה</button>
                 </>}
               </div>
             </li>
@@ -424,9 +432,16 @@ export default function GuestsPage() {
       )}
       {gone && (
         <div className="undo-bar no-print" role="status" data-testid="undo-delete">
-          <span>{gone.name} נמחקה</span>
+          <span>{gone.label}</span>
           <button type="button" onClick={bringBack}>ביטול המחיקה</button>
         </div>
+      )}
+      {delMany && (
+        <Modal title={`מחיקת ${chosen.length === 1 ? 'משפחה אחת' : `${chosen.length} משפחות`}`} onClose={() => setDelMany(false)}>
+          <p className="text-sm">{chosen.slice(0, 6).map((g) => g.family_name).join(', ')}{chosen.length > 6 ? ` ועוד ${chosen.length - 6}` : ''}</p>
+          <p className="mt-2 text-sm text-muted">המשפחות והתשובות שלהן יוסרו מהרשימה ומהספירות. עותק מלא נשמר בארכיון (במסך "גרסאות וגיבוי"), ואפשר לבטל את המחיקה מיד אחריה.</p>
+          <div className="mt-4 flex gap-2"><button className="btn btn-danger" data-testid="bulk-delete-yes" disabled={busy} onClick={removeChosen}>מחיקת הנבחרים</button><button className="btn btn-ghost" onClick={() => setDelMany(false)}>ביטול</button></div>
+        </Modal>
       )}
       {del && (
         <Modal title="מחיקת משפחה" onClose={() => setDel(null)}>
