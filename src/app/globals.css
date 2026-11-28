@@ -671,3 +671,15 @@ li.is-picked { box-shadow: inset 0 0 0 1.5px var(--color-ink); }
 .em-pick .inv-emblem * { animation: none; }
 .em-pick i { display: grid; place-items: center; width: 40px; height: 40px; font-style: normal; font-size: 24px; color: #8a94a6; }
 .em-pick small { font-size: 12px; font-weight: 500; }
+
+/* Marking an answer is the point of the page: each answer button responds to the pointer and to the finger. */
+@media (hover: hover) {
+  .inv-pick.ghost:hover:not(:disabled) { background: var(--inv-button); color: var(--inv-button-text); border-color: var(--inv-button); box-shadow: 0 16px 28px -16px color-mix(in srgb, var(--inv-button) 75%, transparent); }
+  .seg button:not([aria-pressed="true"]):hover { background: color-mix(in srgb, var(--inv-button) 16%, var(--inv-surface, #fff)); box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--inv-button) 55%, transparent) inset; transform: translateY(-1px); }
+}
+.inv-pick.ghost:active:not(:disabled) { background: var(--inv-button); color: var(--inv-button-text); border-color: var(--inv-button); }
+.seg button { transition: background .18s, color .18s, box-shadow .18s, transform .18s cubic-bezier(.2, .8, .2, 1); }
+.seg button:active { transform: scale(.95); background: color-mix(in srgb, var(--inv-button) 22%, transparent); }
+.seg button[aria-pressed="true"] { animation: seg-pop .32s cubic-bezier(.2, .8, .2, 1); }
+@keyframes seg-pop { 0% { transform: scale(.92); } 60% { transform: scale(1.05); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .seg button { transition: none; } .seg button[aria-pressed="true"] { animation: none; } .seg button:not([aria-pressed="true"]):hover, .seg button:active { transform: none; } }
