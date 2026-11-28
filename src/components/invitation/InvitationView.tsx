@@ -479,8 +479,8 @@ export default function InvitationView({ data, token = null, preview = false, ce
                   {date && <div className="inv-datenum" dir="ltr">{date.numeric}</div>}
                   {(data.weekday_label || data.hebrew_date) && <div className="inv-dateline">{L('dateline', [data.weekday_label, data.hebrew_date].filter(Boolean).join(' – '))}</div>}
                   {times.length > 0 && (
-                    <div className="inv-times">
-                      {times.map((x) => <div key={x.l}><b dir="ltr">{x.t}</b><Icon name="clock" size={18} />{times.length > 1 && <small>{x.l}</small>}</div>)}
+                    <div className={`inv-times${times.length === 1 ? ' inv-times--one' : ''}`} data-line="times" style={{ fontSize: lineSize('times') }}>
+                      {times.map((x) => <div key={x.l}>{times.length === 1 && <span className="inv-times-l">{x.l}</span>}<b dir="ltr">{x.t}</b><Icon name="clock" size={18} />{times.length > 1 && <small>{x.l}</small>}</div>)}
                     </div>
                   )}
                 </div>

@@ -171,6 +171,8 @@ input[type="range"] { accent-color: var(--color-ink); }
 .inv-times { display: flex; justify-content: center; gap: 32px; margin-top: 10px; }
 .inv-times > div { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; color: var(--inv-accent-ink); }
 .inv-times b { font-size: 1.5em; font-weight: 500; letter-spacing: .03em; line-height: 1.1; color: var(--inv-ink); }
+.inv-times-l { font-size: 1.5em; font-weight: 500; line-height: 1.1; color: var(--inv-ink); }
+.inv-times--one > div { flex-wrap: nowrap; white-space: nowrap; gap: 10px; }
 .inv-times small { flex-basis: 100%; font-size: .82em; color: var(--inv-dim); }
 
 .inv-quick { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; margin-top: 12px; }

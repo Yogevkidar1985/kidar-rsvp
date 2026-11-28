@@ -61,7 +61,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
             <div style={{ width: n(320), height: 1.5, background: c.line, margin: `${n(22)}px 0 ${n(22)}px` }} />
             {date ? <div style={{ fontSize: n(hero ? 78 : 86), fontWeight: 500, letterSpacing: n(2), lineHeight: 1 }}>{date.numeric}</div> : null}
             {line2 ? <div style={{ fontSize: n(34), fontWeight: 500, color: c.muted, marginTop: n(12) }}>{visual(line2)}</div> : null}
-            {time ? <div style={{ fontSize: n(46), fontWeight: 500, marginTop: n(8), letterSpacing: n(1) }}>{time}</div> : null}
+            {time ? <div style={{ fontSize: n(46), fontWeight: 500, marginTop: n(8), letterSpacing: n(1) }}>{ev.reception_time ? visual(`קבלת פנים ${time}`) : time}</div> : null}
           </div>
         </div>
       </div>

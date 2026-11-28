@@ -222,7 +222,7 @@ export default function EditorPage() {
     const many = (key: string, what: string, t?: string | null) => { if (t) t.split('\n').forEach((row, i) => { if (row.trim()) out.push({ key: `${key}.${i}`, label: `${what}: ${cut(row.trim())}` }); }); };
     one('latin', 'שורה באנגלית', design.latin); one('names', 'שמות בראש', draft.hosts); one('kicker', 'שם האירוע', draft.name);
     many('headline', 'כותרת', draft.headline); many('intro', 'פתיחה', draft.intro_text); many('closing', 'סיום', draft.closing_text); one('sign', 'חתימה', draft.hosts);
-    one('dateline', 'יום ותאריך עברי', [draft.weekday_label, draft.hebrew_date].filter(Boolean).join(' – ')); one('venue', 'שם המקום', draft.venue_name); one('address', 'כתובת', draft.address);
+    one('dateline', 'יום ותאריך עברי', [draft.weekday_label, draft.hebrew_date].filter(Boolean).join(' – ')); one('times', 'שעה', [draft.reception_time && !draft.ceremony_time ? 'קבלת פנים' : '', draft.reception_time, draft.ceremony_time].filter(Boolean).join(' ')); one('venue', 'שם המקום', draft.venue_name); one('address', 'כתובת', draft.address);
     one('rsvpTitle', 'כותרת אישור ההגעה', design.labels.rsvpTitle); out.push({ key: 'rsvpHint', label: 'אישור הגעה: אנא סמנו את סטטוס ההגעה' });
     return out;
   }, [draft, design]);

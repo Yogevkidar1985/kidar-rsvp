@@ -34,7 +34,7 @@ export const BUILTIN: Template[] = [
 
 {{weekday}}, {{event_date}}
 {{hebrew_date}}
-בשעה {{event_time}}
+קבלת פנים בשעה {{event_time}}
 
 {{hosts}}
 
@@ -44,16 +44,16 @@ export const BUILTIN: Template[] = [
 מחכים לראותכם!`),
   b('friendly', 'invite', 'קצרה וחברית', `היי {{guest_name}},
 
-אנחנו מתרגשים להזמין אתכם למסיבת הברית של בננו!
+אנחנו מתרגשים להזמין אתכם למסיבת הברית של בננו! 🎉
 
 {{event_date}} | {{weekday}}
 {{hebrew_date}}
-{{event_time}}
+קבלת פנים בשעה {{event_time}}
 
 כל הפרטים ואישור הגעה בקישור:
 {{invitation_url}}
 
-מחכים לחגוג איתכם,
+מחכים לחגוג איתכם 😊
 {{hosts}}`),
   b('family', 'invite', 'אישית למשפחה', `{{guest_name}} היקרים,
 
@@ -63,12 +63,12 @@ export const BUILTIN: Template[] = [
 
 {{weekday}} | {{event_date}}
 {{hebrew_date}}
-{{event_time}}
+קבלת פנים בשעה {{event_time}}
 
 לפרטים נוספים ולאישור הגעה:
 {{invitation_url}}
 
-באהבה,
+באהבה ❤️
 {{hosts}}`),
   b('formal', 'invite', 'רשמית', `הנכם מוזמנים באהבה למסיבת הברית של בננו.
 
@@ -76,7 +76,7 @@ export const BUILTIN: Template[] = [
 
 {{weekday}}, {{event_date_long}}
 {{hebrew_date}}
-בשעה {{event_time}}
+קבלת פנים בשעה {{event_time}}
 
 לצפייה בהזמנה ולאישור הגעה:
 {{invitation_url}}
@@ -86,7 +86,7 @@ export const BUILTIN: Template[] = [
 
 אנחנו מזמינים אתכם לחגוג איתנו את מסיבת הברית של בננו.
 
-{{event_date}} בשעה {{event_time}}
+{{event_date}}, קבלת פנים בשעה {{event_time}}
 
 כל הפרטים ואישור הגעה:
 {{invitation_url}}
@@ -95,12 +95,12 @@ export const BUILTIN: Template[] = [
 {{hosts}}`),
   b('day-before', 'reminder', 'יום לפני', `היי {{guest_name}}!
 
-מחר נפגשים!
+מחר נפגשים! 🎉
 
 אנחנו מתרגשים להזכיר לכם שמחר נחגוג יחד את מסיבת הברית של בננו.
 
 {{weekday}}, {{event_date}}
-בשעה {{event_time}}
+קבלת פנים בשעה {{event_time}}
 
 לפרטי האירוע והגעה:
 {{invitation_url}}
@@ -113,10 +113,10 @@ export const BUILTIN: Template[] = [
 {{hosts}}`),
   b('hours-before', 'reminder', 'כמה שעות לפני', `היי {{guest_name}}!
 
-תזכורת קטנה שאנחנו נפגשים היום!
+תזכורת קטנה שאנחנו נפגשים היום! ⏰
 
 מסיבת הברית של בננו
-היום בשעה {{event_time}}
+היום, קבלת פנים בשעה {{event_time}}
 
 כל הפרטים והניווט:
 {{invitation_url}}
@@ -128,9 +128,9 @@ Waze:
 {{hosts}}`),
   b('brief', 'reminder', 'תזכורת קצרה', `היי {{guest_name}},
 
-רק מזכירים שהיום נפגשים במסיבת הברית שלנו!
+רק מזכירים שהיום נפגשים במסיבת הברית שלנו! 😊
 
-בשעה {{event_time}}.
+קבלת פנים בשעה {{event_time}}.
 
 לניווט ולפרטים:
 {{invitation_url}}
@@ -143,7 +143,7 @@ Waze:
 בשעה טובה נולד לנו בן, ואנחנו מתרגשים להזמין אתכם לחגוג איתנו את מסיבת הברית!
 
 📅 {{weekday}}, {{event_date}}
-🕒 {{event_time}}
+🕒 קבלת פנים בשעה {{event_time}}
 📍 {{venue_name}}
 
 נשמח מאוד לראות אתכם ❤️
@@ -156,7 +156,7 @@ Waze:
 
 אתם חלק מהשמחה שלנו, ואין לנו ספק שנחגוג יחד.
 
-מסיבת הברית של בננו תתקיים ב{{weekday}}, {{event_date}} ({{hebrew_date}}), בשעה {{event_time}}, ב-{{venue_name}}.
+מסיבת הברית של בננו תתקיים ב{{weekday}}, {{event_date}} ({{hebrew_date}}), קבלת פנים בשעה {{event_time}}, ב-{{venue_name}}.
 
 כדי שנדע להיערך, נשמח שתאשרו כאן כמה תגיעו:
 {{invitation_url}}
@@ -167,7 +167,7 @@ Waze:
 
 יש לנו בן, ויש לנו מסיבה.
 
-{{event_date}} · {{event_time}} · {{venue_name}}
+{{event_date}} · קבלת פנים {{event_time}} · {{venue_name}}
 
 בואו לחגוג איתנו. כל הפרטים ואישור הגעה כאן:
 {{invitation_url}}
@@ -179,7 +179,7 @@ Waze:
 שמחים לשתף שנולד לנו בן, ונשמח לראותך במסיבת הברית.
 
 📅 {{weekday}}, {{event_date}}
-🕒 {{event_time}}
+🕒 קבלת פנים בשעה {{event_time}}
 📍 {{venue_name}}, {{venue_address}}
 
 להזמנה ולאישור הגעה:
@@ -191,7 +191,8 @@ Waze:
 
 מוזמנים למסיבת הברית של בננו!
 
-📅 {{weekday}}, {{event_date}} בשעה {{event_time}}
+📅 {{weekday}}, {{event_date}}
+🕒 קבלת פנים בשעה {{event_time}}
 📍 {{venue_name}}, {{venue_address}}
 
 ניווט ב-Waze:
@@ -215,7 +216,7 @@ Waze:
 {{hosts}}`),
   b('last-call', 'invite', 'עוד לא ענו: תזכורת אחרונה', `היי {{guest_name}},
 
-אנחנו סוגרים בימים הקרובים את רשימת המוזמנים למסיבת הברית ({{event_date}}, {{event_time}}).
+אנחנו סוגרים בימים הקרובים את רשימת המוזמנים למסיבת הברית ({{event_date}}, קבלת פנים בשעה {{event_time}}).
 
 נשמח לתשובה קצרה, גם אם לא תוכלו להגיע:
 {{invitation_url}}
@@ -227,7 +228,7 @@ Waze:
 עדכון קצר לקראת מסיבת הברית:
 
 📅 {{weekday}}, {{event_date}}
-🕒 {{event_time}}
+🕒 קבלת פנים בשעה {{event_time}}
 📍 {{venue_name}}, {{venue_address}}
 
 כל הפרטים המעודכנים נמצאים תמיד בהזמנה:
@@ -239,7 +240,7 @@ Waze:
 מחר נפגשים וחוגגים 🥳
 
 📅 {{weekday}}, {{event_date}}
-🕒 {{event_time}}
+🕒 קבלת פנים בשעה {{event_time}}
 📍 {{venue_name}}
 
 ניווט:
@@ -251,7 +252,7 @@ Waze:
 
 מחכים לראות אתכם היום!
 
-מתחילים בשעה {{event_time}}, ב-{{venue_name}}.
+קבלת פנים בשעה {{event_time}}, ב-{{venue_name}}.
 
 Waze:
 {{waze_url}}
@@ -265,7 +266,7 @@ Google Maps:
 כדי שיהיה קל להגיע אלינו היום:
 
 📍 {{venue_name}}, {{venue_address}}
-🕒 {{event_time}}
+🕒 קבלת פנים בשעה {{event_time}}
 
 Waze:
 {{waze_url}}
