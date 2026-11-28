@@ -185,7 +185,7 @@ export default function WhatsAppPage() {
               {!one.guestId && <>
                 <Field label="שם הנמען"><input className="field" maxLength={80} value={one.name} onChange={(e) => setOne({ ...one, name: e.target.value })} /></Field>
                 <Field label="טלפון נייד"><input className="field" dir="ltr" type="tel" inputMode="tel" maxLength={20} value={one.phone} onChange={(e) => setOne({ ...one, phone: e.target.value })} /></Field>
-                <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={one.save} onChange={(e) => setOne({ ...one, save: e.target.checked })} />להוסיף לרשימת המוזמנים (מקבל קישור אישי)</label>
+                <label className="flex min-h-10 items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={one.save} onChange={(e) => setOne({ ...one, save: e.target.checked })} />להוסיף לרשימת המוזמנים (מקבל קישור אישי)</label>
               </>}
               {oneGuest && !normPhone(oneGuest.phone) && <p className="text-sm font-semibold text-no sm:col-span-2">לאורח הזה אין מספר טלפון תקין.</p>}
             </section>
@@ -216,7 +216,7 @@ export default function WhatsAppPage() {
           <section className="card grid gap-3 p-4">
             <h2 className="font-display text-lg font-medium">4. שליחה</h2>
             <Field label="שם הקמפיין (לשימוש פנימי)"><input className="field sm:max-w-md" maxLength={120} value={name} onChange={(e) => setName(e.target.value)} /></Field>
-            <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={resend} onChange={(e) => setResend(e.target.checked)} />שליחה חוזרת גם למי שכבר קיבל הזמנה</label>
+            <label className="flex min-h-10 items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={resend} onChange={(e) => setResend(e.target.checked)} />שליחה חוזרת גם למי שכבר קיבל הזמנה</label>
             {mode === 'bulk' && (
               <dl className="grid grid-cols-2 gap-2 text-center text-sm sm:grid-cols-4" data-testid="send-summary">
                 {([['מסומנים', chosen.length], ['יקבלו הודעה', sums.eligible], ['כבר הוזמנו', sums.invited], ['לא יישלח', sums.noPhone + sums.opted]] as const).map(([l, v]) => (
@@ -284,7 +284,7 @@ export default function WhatsAppPage() {
           {mode === 'bulk' && sums.noPhone + sums.opted > 0 && <p className="mt-1 text-sm text-muted">{sums.noPhone + sums.opted} בלי טלפון תקין או שביקשו לא לקבל הודעות.</p>}
           <p className="mt-2 text-sm text-muted">תבנית: {templates.find((t) => t.id === templateId)?.name}. אי אפשר לבטל הודעה שכבר נשלחה.</p>
           <div className="mt-3 grid gap-2 border-t border-line pt-3">
-            {CHECKS.map((c, i) => <label key={c} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={checks[i]} onChange={(e) => setChecks((l) => l.map((x, j) => (j === i ? e.target.checked : x)))} />{c}</label>)}
+            {CHECKS.map((c, i) => <label key={c} className="flex min-h-10 items-center gap-2 text-sm"><input type="checkbox" checked={checks[i]} onChange={(e) => setChecks((l) => l.map((x, j) => (j === i ? e.target.checked : x)))} />{c}</label>)}
             <p className="text-xs text-muted">{tested ? 'נשלחה הודעת בדיקה בסשן הזה.' : 'עדיין לא נשלחה הודעת בדיקה. מומלץ לשלוח אחת לפני השליחה לכולם.'}</p>
           </div>
           <div className="mt-4 flex gap-2"><button className="btn" disabled={sending || checks.some((x) => !x)} onClick={send}>{sending ? 'מכינים…' : 'שליחה עכשיו'}</button><button className="btn btn-ghost" onClick={() => setConfirm(false)}>ביטול</button></div>
@@ -295,7 +295,7 @@ export default function WhatsAppPage() {
           <form onSubmit={saveTemplate} className="grid gap-3">
             <Field label="שם התבנית"><input className="field" required maxLength={80} value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></Field>
             <MessageEditor kind={edit.kind} templates={[]} body={edit.body} setBody={(b) => setEdit((s) => s && { ...s, body: b })} templateId="" setTemplateId={() => {}} />
-            <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={edit.is_default} onChange={(e) => setEdit({ ...edit, is_default: e.target.checked })} />ברירת המחדל {edit.kind === 'invite' ? 'להזמנות' : 'לתזכורות'}</label>
+            <label className="flex min-h-10 items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={edit.is_default} onChange={(e) => setEdit({ ...edit, is_default: e.target.checked })} />ברירת המחדל {edit.kind === 'invite' ? 'להזמנות' : 'לתזכורות'}</label>
             {rr(edit.body).missing.length > 0 && <p className="text-xs text-muted">שימו לב: {rr(edit.body).missing.map(variableLabel).join(', ')} עדיין בלי ערך באירוע.</p>}
             <div className="flex gap-2"><button className="btn" disabled={!edit.name.trim() || !edit.body.trim()}>שמירת התבנית</button><button type="button" className="btn btn-ghost" onClick={() => setEdit(null)}>ביטול</button></div>
           </form>

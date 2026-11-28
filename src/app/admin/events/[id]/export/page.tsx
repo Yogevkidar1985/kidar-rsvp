@@ -35,7 +35,7 @@ export default function ExportPage() {
         {what === 'guests' && (
           <fieldset><legend className="label">עמודות</legend>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-3 lg:grid-cols-4">
-              {COLUMNS.map((c) => <label key={c.key} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={cols.includes(c.key)} onChange={(e) => setCols((l) => e.target.checked ? [...l, c.key] : l.filter((k) => k !== c.key))} />{c.label}</label>)}
+              {COLUMNS.map((c) => <label key={c.key} className="flex min-h-10 items-center gap-2 text-sm"><input type="checkbox" checked={cols.includes(c.key)} onChange={(e) => setCols((l) => e.target.checked ? [...l, c.key] : l.filter((k) => k !== c.key))} />{c.label}</label>)}
             </div></fieldset>
         )}
         <div className="flex flex-wrap gap-2">

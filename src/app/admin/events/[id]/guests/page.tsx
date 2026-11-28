@@ -221,7 +221,7 @@ export default function GuestsPage() {
       <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
         <span className="text-muted">מוצגות {rows.length} מתוך {guests.length}</span>
         {(q || fStatus || fGroup || fTable || vipOnly || quick) && <button type="button" className="btn btn-ghost btn-sm" onClick={clearFilters}>ניקוי הסינון</button>}
-        <select className="field !w-auto !min-h-9 !py-1 lg:hidden" aria-label="מיון" value={`${sort.key}:${sort.dir}`} onChange={(e) => { const [key, dir] = e.target.value.split(':'); setSort({ key: key as SortKey, dir: Number(dir) as 1 | -1 }); }}>
+        <select className="field !w-auto !min-h-10 !py-1 lg:hidden" aria-label="מיון" value={`${sort.key}:${sort.dir}`} onChange={(e) => { const [key, dir] = e.target.value.split(':'); setSort({ key: key as SortKey, dir: Number(dir) as 1 | -1 }); }}>
           <option value="family_name:1">לפי שם</option><option value="created_at:-1">נרשמו אחרונים</option><option value="created_at:1">נרשמו ראשונים</option><option value="status:1">לפי סטטוס</option><option value="total:-1">לפי מספר משתתפים</option>
         </select>
         <span className="ms-auto flex flex-wrap gap-2">
@@ -256,15 +256,15 @@ export default function GuestsPage() {
         <ul className="grid gap-2 lg:hidden" data-testid="guests-cards">
           {rows.map((g) => (
             <li key={g.id} className={`card p-3.5 ${picked.has(g.id) ? 'is-picked' : ''}`}>
-              <div className="flex items-start justify-between gap-3">
-                <input type="checkbox" className="mt-1 !h-5 !w-5" aria-label={`בחירת ${g.family_name}`} checked={picked.has(g.id)} onChange={() => toggle(g.id)} />
-                <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+                <label className="-m-2.5 flex-none p-2.5"><input type="checkbox" className="mt-1 !h-5 !w-5" aria-label={`בחירת ${g.family_name}`} checked={picked.has(g.id)} onChange={() => toggle(g.id)} /></label>
+                <div className="min-w-[9.5rem] flex-1">
                   <div className="truncate font-semibold">{g.is_vip && <span className="me-1 rounded bg-brass px-1.5 py-0.5 text-[11px] font-bold text-white">VIP</span>}{g.family_name}</div>
                   <div className="text-sm text-muted"><span dir="ltr">{g.phone || 'אין טלפון'}</span>{g.group_name ? ` · ${g.group_name}` : ''}</div>
                   <div className="text-xs text-muted" data-testid="registered">נרשם <span dir="ltr">{stamp(g.created_at)?.date} {stamp(g.created_at)?.time}</span>{dups.ids.has(g.id) && <button type="button" className="pill pill-maybe ms-2 !text-[11px]" onClick={() => setView('dups')}>כפילות אפשרית</button>}</div>
                 </div>
                 {canEdit ? (
-                  <select className={`pill pill-${g.status} min-h-9 flex-none border-0 !text-[13px]`} aria-label={`סטטוס של ${g.family_name}`} value={g.status}
+                  <select className={`pill pill-${g.status} ms-auto min-h-10 flex-none border-0 !text-base`} aria-label={`סטטוס של ${g.family_name}`} value={g.status}
                     onChange={(e) => updateGuest(g.id, { status: e.target.value as GuestStatus }).then((ok) => ok && toast('הסטטוס עודכן'))}>
                     {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
                   </select>

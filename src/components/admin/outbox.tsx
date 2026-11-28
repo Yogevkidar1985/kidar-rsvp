@@ -132,7 +132,7 @@ export function MessageEditor({ kind, templates, body, setBody, templateId, setT
           <textarea ref={area} className="field min-h-56 leading-relaxed" data-testid="body" maxLength={2000} value={body} onChange={(e) => setBody(e.target.value)} />
         </Field>
         <div className="flex flex-wrap gap-1.5" aria-label="הוספת משתנה">
-          {VARIABLES.map((v) => <button key={v.key} type="button" className="min-h-9 rounded-full border border-line bg-white px-3 py-1 text-[13px] font-semibold hover:bg-paper" onClick={() => insert(v.key)}>{v.label}</button>)}
+          {VARIABLES.map((v) => <button key={v.key} type="button" className="min-h-10 rounded-full border border-line bg-white px-3 py-1 text-[13px] font-semibold hover:bg-paper" onClick={() => insert(v.key)}>{v.label}</button>)}
         </div>
       </div>
       <div className="min-w-0">
@@ -148,7 +148,7 @@ export function MessageEditor({ kind, templates, body, setBody, templateId, setT
               </div>
             )}
             <div className="whitespace-pre-wrap px-1.5 pb-0.5 pt-1 [overflow-wrap:anywhere]" dir="auto">{text || '…'}</div>
-            <div className="px-1.5 text-end text-[11px] text-[#667781]" aria-hidden="true" dir="ltr">{new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} ✓✓</div>
+            <div className="px-1.5 text-end text-xs text-[#54656f]" aria-hidden="true" dir="ltr">{new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} ✓✓</div>
           </div>
         </div>
         {missing.length > 0 && <p role="alert" className="notice notice-bad mt-2">חסר ערך עבור: {missing.map(variableLabel).join(', ')}. ההודעה לא תישלח כך.</p>}
