@@ -59,6 +59,40 @@ try {
   for (const f of ['c.jpg', 'd.jpg', 'a.jpg']) await up(f);
   const wide = await p.evaluate(() => ({ page: document.documentElement.scrollWidth, view: innerWidth, own: document.querySelectorAll('[data-testid=hero-own] button').length, past: document.querySelectorAll('[data-testid=hero-past] button').length, strip: (() => { const e = document.querySelector('[data-testid=hero-own]'); return [e.scrollWidth, e.clientWidth]; })() }));
   check('with many photos the page is still exactly as wide as the phone', wide.page <= 391 && wide.view <= 391 && wide.own >= 9 && wide.strip[0] > wide.strip[1] && wide.strip[1] <= wide.view, JSON.stringify(wide));
+  // ---- the gallery grid on a phone: swap by two taps, drag by holding, a quick swipe only scrolls ----
+  {
+    const grid = '[data-testid=media-gallery]';
+    const order = () => p.$$eval(`${grid} li`, (ls) => ls.map((l) => l.dataset.mediaId));
+    const saved = async () => (await sql(`select id from media_assets where event_id = $1 and kind = 'gallery' order by sort`, [id])).map((r) => r.id);
+    const mid = async (i) => { const b = await p.locator(`${grid} li`).nth(i).locator('.media-pic').boundingBox(); return [b.x + b.width / 2, b.y + b.height / 2]; };
+    if ((await p.locator('.ed-dock-toggle').innerText()).includes('הסתרה')) await p.locator('.ed-dock-toggle').evaluate((b) => b.click()); // the live strip folds away, as a person does to see the photos
+    await sleep(500); await p.locator(`${grid} li`).nth(1).evaluate((e) => e.scrollIntoView({ block: 'center' })); await sleep(700);
+    const under = await p.evaluate((g) => [0, 1, 2, 3].map((i) => { const pic = document.querySelectorAll(`${g} li`)[i].querySelector('.media-pic'), r = pic.getBoundingClientRect(); const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return pic.contains(e) ? 'ok' : (e?.className || e?.tagName); }), grid);
+    if (under.some((u) => u !== 'ok')) console.log('   covered:', under.join(' | '));
+    const o0 = await order();
+    const clear = await p.evaluate((g) => [...document.querySelectorAll(`${g} li`)].every((li) => { const pic = li.querySelector('.media-pic').getBoundingClientRect(), bar = li.querySelector('.media-bar').getBoundingClientRect(); return bar.top >= pic.bottom - 1 && [...li.querySelectorAll('.media-bar button')].every((b) => b.getBoundingClientRect().height >= 40 && b.getBoundingClientRect().width >= 40); }), grid);
+    check('the picture is left clear: its move controls sit under it, each big enough for a finger', clear && o0.length >= 4);
+    let [x, y] = await mid(0); await p.touchscreen.tap(x, y); await sleep(300);
+    check('a tap marks a photo and says what to do next', (await p.locator(`${grid} li.is-sel`).count()) === 1 && (await p.locator('.media-hint').first().innerText()).includes('נבחרה'));
+    [x, y] = await mid(2); await p.touchscreen.tap(x, y); await sleep(1200);
+    const o1 = await order();
+    check('a tap on another photo swaps the two, and the order is saved', o1[0] === o0[2] && o1[2] === o0[0] && o1[1] === o0[1] && (await saved()).join() === o1.join(), `${o0.map((v) => v.slice(0, 4))} -> ${o1.map((v) => v.slice(0, 4))}`);
+    const cdp = await ctx.newCDPSession(p); const pt = (px, py) => [{ x: Math.round(px), y: Math.round(py) }];
+    const [ax, ay] = await mid(1), [bx, by] = await mid(3);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pt(ax, ay) }); await sleep(450); // the hold
+    for (let i = 1; i <= 10; i++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: pt(ax + (bx - ax) * i / 10, ay + (by - ay) * i / 10) }); await sleep(20); }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await sleep(1200);
+    const o2 = await order();
+    check('holding a photo and dragging it moves it there, and the order is saved', o2[3] === o1[1] && o2.join() !== o1.join() && (await saved()).join() === o2.join(), `${o1.map((v) => v.slice(0, 4))} -> ${o2.map((v) => v.slice(0, 4))}`);
+    const [cx, cy] = await mid(0);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pt(cx, cy) });
+    for (let i = 1; i <= 6; i++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: pt(cx, cy - i * 12) }); await sleep(15); }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await sleep(700);
+    check('a quick swipe over a photo moves nothing and marks nothing', (await order()).join() === o2.join() && (await p.locator(`${grid} li.is-sel`).count()) === 0);
+    await p.locator(`${grid} li`).first().evaluate((e) => e.scrollIntoView({ block: 'center' })); await sleep(500);
+    await p.locator(`${grid} li`).first().screenshot({ path: path.join(out, 'media-tile.png') }).catch(() => {});
+    await p.locator(grid).screenshot({ path: path.join(out, 'media-grid.png') }).catch(() => {});
+  }
   check('the photos tab fits the phone, no errors', (await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)) && !errs.length, errs.join('|'));
   await sleep(4500); await p.locator('.ed-dock-toggle').evaluate((b) => b.click()); await card.evaluate((c) => c.scrollIntoView({ block: 'start' })); await p.evaluate(() => scrollBy(0, -90)); await sleep(600); await p.screenshot({ path: path.join(out, 'photos.png') });
   await ctx.close();
