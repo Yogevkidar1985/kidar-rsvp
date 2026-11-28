@@ -104,18 +104,22 @@ export default function Overview() {
     return [...m].sort((a, b) => b[1] - a[1]);
   }, [guests]);
   const report = [
-    `${event.name} · דוח אישורי הגעה`,
+    event.name,
+    'דוח אישורי הגעה',
     [start ? fmtWhen(start) : '', event.venue_name].filter(Boolean).join(' · '),
     now ? `מעודכן ל-${now.toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : '',
     '',
     `✅ מגיעים: ${s.attendingPeople} אנשים (${s.attendingFamilies} משפחות)`,
-    `     מבוגרים ${s.adults} · ילדים ${s.children} · תינוקות ${s.babies}`,
+    `מבוגרים ${s.adults} · ילדים ${s.children} · תינוקות ${s.babies}`,
     `🪑 כיסאות נדרשים: ${s.confirmedSeats}`,
-    `🤔 עדיין לא בטוחים: ${s.maybeFamilies} משפחות${s.maybeFamilies ? ` (עד ${maybeSeats} אנשים)` : ''}`,
+    '',
+    `🤔 עדיין לא בטוחים: ${s.maybeFamilies} משפחות`,
+    ...(s.maybeFamilies ? [`עד ${maybeSeats} אנשים נוספים`] : []),
     `❌ לא מגיעים: ${s.declinedFamilies} משפחות`,
-    `⏳ טרם השיבו: ${s.pendingFamilies} משפחות${s.pendingFamilies ? ` (${s.pendingPeople} מוזמנים)` : ''}`,
-    ...(prefs.length ? [`🍽 בקשות מיוחדות: ${prefs.map(([k, n]) => `${k} ${n}`).join(' · ')}`] : []),
-  ].filter((l, i) => l || i === 3).join('\n');
+    `⏳ טרם השיבו: ${s.pendingFamilies} משפחות`,
+    ...(s.pendingFamilies ? [`${s.pendingPeople} מוזמנים`] : []),
+    ...(prefs.length ? ['', '🍽 בקשות מיוחדות:', ...prefs.map(([k, n]) => `${k}: ${n}`)] : []),
+  ].join('\n').replace(/\n{3,}/g, '\n\n');
   const dups = useDuplicates(event.id, guests);
   const ready: { ok: boolean; label: string; fix: string; href?: string }[] = [
     { ok: event.published, label: 'ההזמנה מפורסמת', fix: 'אורחים לא יכולים לפתוח אותה', href: `${base}/editor` },
@@ -135,18 +139,26 @@ export default function Overview() {
     : wa && !wa.next && s.attendingFamilies > 0 && start && start.getTime() > Date.now() ? { text: 'לא תוזמנה תזכורת למי שאישרו הגעה.', cta: 'תזמון תזכורת', href: `${base}/reminders` }
     : null;
 
+  const actions = (
+    <>
+      <button className="btn btn-ghost" onClick={() => navigator.clipboard.writeText(url).then(() => toast('הקישור הועתק'), () => toast('לא הצלחנו להעתיק', true))}><Icon name="copy" size={16} />העתקת הקישור</button>
+      {event.published && <a className="btn" href={`/e/${event.slug}`} target="_blank" rel="noopener noreferrer"><Icon name="eye" size={16} />פתיחת ההזמנה</a>}
+    </>
+  );
+  const people = (r: { adults: number; children: number; babies: number }) => [r.adults && `${r.adults} מבוגרים`, r.children && `${r.children} ילדים`, r.babies && `${r.babies} תינוקות`].filter(Boolean).join(' · ');
+
   return (
     <>
       <PageHead title="סקירה" sub={start ? `האירוע ב-${fmtWhen(start)}` : 'הנתונים מתעדכנים מיד כשאורח שולח תשובה'}>
-        <button className="btn btn-ghost" onClick={() => navigator.clipboard.writeText(url).then(() => toast('הקישור הועתק'), () => toast('לא הצלחנו להעתיק', true))}><Icon name="copy" size={16} />העתקת הקישור</button>
-        {event.published && <a className="btn" href={`/e/${event.slug}`} target="_blank" rel="noopener noreferrer"><Icon name="eye" size={16} />פתיחת ההזמנה</a>}
+        <div className="hidden gap-2 sm:flex">{actions}</div>
       </PageHead>
+      <div className="ov-actions sm:hidden">{actions}</div>
 
       <section className="ov-hero" data-testid="kpis">
         <div className="ov-hero__main">
           <span className="ov-hero__label">מגיעים לאירוע</span>
           <div className="ov-hero__num"><b>{s.attendingPeople}</b><span>אנשים</span></div>
-          <p className="ov-hero__sub">{s.families ? `${s.attendingFamilies} משפחות אישרו הגעה · הוזמנו ${s.invitedTotal} אנשים ב-${s.families} משפחות` : 'המספרים יתמלאו כשתוסיפו מוזמנים והם ישיבו'}</p>
+          <p className="ov-hero__sub">{s.families ? `${s.attendingFamilies} משפחות אישרו · מתוך ${s.invitedTotal} מוזמנים` : 'המספרים יתמלאו כשתוסיפו מוזמנים והם ישיבו'}</p>
           <ul className="ov-split" aria-label="פירוט המגיעים">
             <li><b>{s.adults}</b> <span>מבוגרים</span></li>
             <li><b>{s.children}</b> <span>ילדים</span></li>
@@ -173,7 +185,7 @@ export default function Overview() {
       </section>
 
       <div className="mt-3 grid gap-3 lg:grid-cols-3">
-        <section className="card p-5 lg:col-span-2">
+        <section className="card p-4 sm:p-5 lg:col-span-2">
           <h2 className="text-[17px] font-semibold">תשובות לפי משפחות</h2>
           <div className="mt-4 flex h-4 overflow-hidden rounded-full bg-paper" role="img" aria-label={parts.map((p) => `${p.label}: ${p.value}`).join(', ')}>
             {parts.filter((p) => p.value > 0).map((p) => <div key={p.label} style={{ width: `${(p.value / Math.max(s.families, 1)) * 100}%`, background: p.color }} />)}
@@ -184,7 +196,7 @@ export default function Overview() {
           <div className="mt-5 border-t border-line pt-4" data-testid="seats-card">
             <h3 className="text-[15px] font-semibold">מקומות ישיבה</h3>
             <div className="ov-seats">
-              <div><b>{s.confirmedSeats}</b><span>כיסאות נדרשים</span><small>מבוגרים וילדים שאישרו{maybeSeats ? ` · עוד עד ${maybeSeats} אם הלא-בטוחים יגיעו` : ''}</small></div>
+              <div><b>{s.confirmedSeats}</b><span>כיסאות נדרשים</span><small>מבוגרים וילדים שאישרו{maybeSeats ? `, ועוד עד ${maybeSeats} מהלא-בטוחים` : ''}</small></div>
               <div><b>{seatsTotal}</b><span>מקומות בשולחנות</span><small>{tables.length} שולחנות</small></div>
               {!seatsTotal ? <div><b>—</b><span>מקומות פנויים</span><small><Link className="font-medium text-ink underline" href={`${base}/tables`}>עוד לא הוגדרו שולחנות</Link></small></div>
                 : <div className={seatsTotal - s.confirmedSeats < 0 ? 'is-short' : 'is-free'}><b>{Math.abs(seatsTotal - s.confirmedSeats)}</b><span>{seatsTotal - s.confirmedSeats < 0 ? 'מקומות חסרים' : 'מקומות פנויים'}</span><small>{Math.min(100, Math.round((s.confirmedSeats / seatsTotal) * 100))}% מהמקומות תפוסים</small></div>}
@@ -195,10 +207,10 @@ export default function Overview() {
           </div>
         </section>
 
-        <section className="card grid content-start gap-3 p-5" data-testid="owner-report">
+        <section className="card grid content-start gap-3 p-4 sm:p-5" data-testid="owner-report">
           <div><h2 className="text-[17px] font-semibold">דוח לבעל האירוע</h2><p className="text-sm text-muted">המספרים לפי אישורי ההגעה, מוכנים לשליחה למקום או לקייטרינג.</p></div>
           <pre className="ov-report" dir="rtl">{report}</pre>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button type="button" className="btn btn-sm" data-testid="report-copy" onClick={() => navigator.clipboard.writeText(report).then(() => toast('הדוח הועתק'), () => toast('לא הצלחנו להעתיק', true))}><Icon name="copy" size={15} />העתקת הדוח</button>
             <a className="btn btn-ghost btn-sm" data-testid="report-wa" href={`https://wa.me/?text=${encodeURIComponent(report)}`} target="_blank" rel="noopener noreferrer">שליחה ב-WhatsApp</a>
           </div>
@@ -216,19 +228,21 @@ export default function Overview() {
       {missing > 0 && (
         <section className="card mt-3 p-4" data-testid="readiness">
           <h2 className="text-[17px] font-semibold">מוכנות האירוע <span className="text-sm font-normal text-muted">· {ready.length - missing} מתוך {ready.length}</span></h2>
-          <ul className="mt-3 grid gap-x-6 gap-y-2 sm:grid-cols-2">
-            {ready.map((r) => (
-              <li key={r.label} className="flex items-start gap-2 text-sm">
-                <span className={`mt-0.5 grid size-5 flex-none place-items-center rounded-full ${r.ok ? 'bg-[#e7f4ee] text-ok' : 'bg-[#fbeaea] text-no'}`}><Icon name={r.ok ? 'check' : 'close'} size={13} /></span>
-                <span className="min-w-0"><b className="font-medium">{r.label}</b>{!r.ok && <span className="block text-muted">{r.fix}{r.href && <> · <Link className="font-medium text-ink underline" href={r.href}>לתיקון</Link></>}</span>}</span>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+            {ready.filter((r) => !r.ok).map((r) => (
+              <li key={r.label} className="ov-todo">
+                <span className="grid size-6 flex-none place-items-center rounded-full bg-[#fbeaea] text-no"><Icon name="close" size={14} /></span>
+                <span className="min-w-0 flex-1"><b className="block font-semibold">{r.label}</b><span className="block text-[13px] text-muted">{r.fix}</span></span>
+                {r.href && <Link className="btn btn-ghost btn-sm flex-none" href={r.href}>לתיקון</Link>}
               </li>
             ))}
           </ul>
+          <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">{ready.filter((r) => r.ok).map((r) => <span key={r.label} className="inline-flex items-center gap-1"><span className="text-ok"><Icon name="check" size={13} /></span>{r.label}</span>)}</p>
         </section>
       )}
 
       <div className="mt-3 grid gap-3 lg:grid-cols-3">
-        <section className="card grid content-start gap-4 p-5">
+        <section className="card grid content-start gap-4 p-4 sm:p-5">
           <h2 className="text-[17px] font-semibold">הזמנות ותזכורות</h2>
           {wa ? (
             <>
@@ -241,7 +255,7 @@ export default function Overview() {
           <div className="border-t border-line pt-4"><Row label="הגיעו בפועל" value={`${s.arrivedPeople} אנשים · ${s.arrivedFamilies} משפחות`} /></div>
         </section>
       {funnel && (
-        <section className="card p-5 lg:col-span-2 lg:order-first" data-testid="funnel">
+        <section className="card p-4 sm:p-5 lg:col-span-2 lg:order-first" data-testid="funnel">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-[17px] font-semibold">מסלול ההזמנה</h2>
             <span className="text-xs text-muted">{funnel.views} צפיות בסך הכול{funnel.anon ? ` · ${funnel.anon} מבקרים דרך הקישור הכללי` : ''}</span>
@@ -258,23 +272,22 @@ export default function Overview() {
               );
             })}
           </ol>
-          <p className="mt-3 text-xs text-muted">האחוזים הם מתוך כל המשפחות ברשימה. הספירה היא של משפחות, לא של אנשים: {s.attendingFamilies} משפחות שאישרו הן {s.attendingPeople} משתתפים. "פתחו" נספר רק כשההזמנה נטענה בדפדפן של אדם, לא בתצוגת קישור של WhatsApp.</p>
+          <details className="mt-3 text-xs text-muted"><summary className="cursor-pointer py-1 font-medium text-ink">איך המספרים נספרים?</summary><p className="mt-1">האחוזים הם מתוך כל המשפחות ברשימה. הספירה היא של משפחות, לא של אנשים: {s.attendingFamilies} משפחות שאישרו הן {s.attendingPeople} משתתפים. "פתחו" נספר רק כשההזמנה נטענה בדפדפן של אדם, לא בתצוגת קישור של WhatsApp.</p></details>
         </section>
       )}
 
       </div>
 
-      <section className="card mt-3 p-5">
+      <section className="card mt-3 p-4 sm:p-5">
         <h2 className="text-[17px] font-semibold">תשובות אחרונות</h2>
         {!log.length ? <p className="mt-2 text-sm text-muted">עדיין לא התקבלו תשובות. כל אישור ושינוי יופיעו כאן.</p> : (
           <ul className="mt-2 divide-y divide-line text-sm">
             {log.map((r) => (
-              <li key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
-                <b className="min-w-28 font-semibold">{names.get(r.guest_id) ?? 'משפחה שנמחקה'}</b>
-                <StatusPill status={r.status} />
-                {r.status !== 'declined' && <span className="text-muted">{r.adults} מבוגרים, {r.children} ילדים, {r.babies} תינוקות</span>}
-                {r.arrived && <span className="pill pill-attending">הגיעו</span>}
-                <span className="ms-auto text-xs text-muted">{SOURCE[r.source] ?? r.source} · <span dir="ltr">{fmtDateTime(r.created_at)}</span></span>
+              <li key={r.id} className="ov-log">
+                <b>{names.get(r.guest_id) ?? 'משפחה שנמחקה'}</b>
+                <span className="ov-log__pills"><StatusPill status={r.status} />{r.arrived && <span className="pill pill-attending">הגיעו</span>}</span>
+                <span className="ov-log__who">{r.status !== 'declined' && people(r)}</span>
+                <span className="ov-log__when">{SOURCE[r.source] ?? r.source} · <span dir="ltr">{fmtDateTime(r.created_at)}</span></span>
               </li>
             ))}
           </ul>

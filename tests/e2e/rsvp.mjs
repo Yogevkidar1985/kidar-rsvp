@@ -67,7 +67,7 @@ try {
   const kpis = await p.locator('[data-testid=kpis]').innerText(); const flat = kpis.replace(/\s+/g, ' ');
   check('the dashboard counts one family of each answer and 3 people coming', /(^| )3 אנשים/.test(flat) && flat.includes('3 מבוגרים') && flat.includes('3 כיסאות') && flat.includes('עדיין לא בטוחים 1 משפחות') && flat.includes('לא מגיעים 1 משפחות') && flat.includes('100% השיבו'), flat);
   const rep = await p.locator('[data-testid=owner-report] pre').innerText();
-  check('the report for the event owner carries the same numbers', rep.includes('מגיעים: 3 אנשים (1 משפחות)') && rep.includes('כיסאות נדרשים: 3') && rep.includes('עדיין לא בטוחים: 1 משפחות') && rep.includes('לא מגיעים: 1 משפחות') && rep.includes('טרם השיבו: 0 משפחות') && rep.includes('צמחוני 1'), rep.replace(/\n/g, ' | '));
+  check('the report for the event owner carries the same numbers', rep.includes('מגיעים: 3 אנשים (1 משפחות)') && rep.includes('כיסאות נדרשים: 3') && rep.includes('עדיין לא בטוחים: 1 משפחות') && rep.includes('לא מגיעים: 1 משפחות') && rep.includes('טרם השיבו: 0 משפחות') && rep.includes('צמחוני: 1'), rep.replace(/\n/g, ' | '));
   check('the report opens WhatsApp with its text, for the owner to choose whom to send to', decodeURIComponent((await p.locator('[data-testid=report-wa]').getAttribute('href')) ?? '').includes('כיסאות נדרשים: 3'));
   await p.screenshot({ path: path.join(out, 'rsvp-dashboard.png'), fullPage: true });
   await p.goto(`${APP}/admin/events/${id}/guests`, { waitUntil: 'networkidle' }); await sleep(600);
