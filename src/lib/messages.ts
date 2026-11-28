@@ -19,7 +19,7 @@ export function buildMessage(kind: NotifyKind, eventName: string, g: GuestSnapsh
   prev: Partial<GuestSnapshot> | null, totals: Totals | null): string {
   if (kind === 'test' || !g) return `🔔 ${eventName}\nהודעת בדיקה: ההתראות פועלות.`;
   const lines = [`${kind === 'arrived' ? '🎉' : ICON[g.status]} ${TITLES[kind]} · ${eventName}`, ''];
-  lines.push(`משפחה: ${g.family_name}${g.contact_name && g.contact_name !== g.family_name ? ` (${g.contact_name})` : ''}`);
+  lines.push(`שם האורח: ${g.family_name}${g.contact_name && g.contact_name !== g.family_name ? ` (${g.contact_name})` : ''}`);
   if (g.phone) lines.push(`טלפון: ${g.phone}`);
   if (kind === 'arrived') {
     lines.push(`הגיעו בפועל: ${g.arrived_count ?? g.adults + g.children + g.babies}`);
@@ -34,6 +34,7 @@ export function buildMessage(kind: NotifyKind, eventName: string, g: GuestSnapsh
     if (g.preferences) lines.push(`העדפות: ${g.preferences}`);
     if (g.notes) lines.push(`הערות: ${g.notes}`);
   }
-  if (totals) lines.push('', `סה״כ מגיעים עד כה: ${totals.attendingPeople} אנשים, ${totals.attendingFamilies} משפחות`);
+  const one = (n: number, single: string, many: string) => (n === 1 ? single : `${n} ${many}`);
+  if (totals) lines.push('', `סה״כ מגיעים עד כה: ${one(totals.attendingPeople, 'אדם אחד', 'אנשים')}, ${one(totals.attendingFamilies, 'אישור אחד', 'אישורים')}`);
   return lines.join('\n');
 }

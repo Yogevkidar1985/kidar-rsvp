@@ -105,6 +105,8 @@ describe('notifications and calendar', () => {
   it('describes a count change', () => {
     const m = buildMessage('count_change', 'ברית', { family_name: 'לוי', status: 'attending', adults: 3, children: 0, babies: 0 }, { status: 'attending', adults: 2, children: 0, babies: 0 }, { attendingPeople: 30, attendingFamilies: 9 });
     expect(m).toContain('שינוי בכמות המשתתפים'); expect(m).toContain('קודם: מבוגרים 2'); expect(m).toContain('30 אנשים');
+    expect(m).toContain('שם האורח: לוי'); expect(m).not.toContain('משפחה:'); expect(m).toContain('30 אנשים, 9 אישורים');
+    expect(buildMessage('rsvp_new', 'ברית', { family_name: 'Yogev Kidar', status: 'attending', adults: 1, children: 0, babies: 0 }, null, { attendingPeople: 1, attendingFamilies: 1 })).toContain('סה״כ מגיעים עד כה: אדם אחד, אישור אחד');
   });
   const ev = { id: 'id', name: 'ברית', event_date: '2026-12-02', reception_time: '15:00', ceremony_time: null, end_time: null, venue_name: 'אולם', address: 'רחוב 1; עיר' } as EventContent;
   it('builds calendar entries in Israel time', () => {
