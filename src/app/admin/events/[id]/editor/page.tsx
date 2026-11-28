@@ -11,7 +11,7 @@ import { Icon } from '@/components/admin/icons';
 import dynamic from 'next/dynamic';
 
 const VenueMap = dynamic(() => import('@/components/invitation/VenueMap'), { ssr: false });
-import InvitationView from '@/components/invitation/InvitationView';
+import InvitationView, { Emblem, EMBLEMS } from '@/components/invitation/InvitationView';
 import { HEBREW_FONTS, PALETTES, applyFont, applyPalette, resolveDesign } from '@/lib/defaults';
 import { hebrewDate, weekdayLabel } from '@/lib/hebrew-date';
 import MediaGrid from '@/components/admin/MediaGrid';
@@ -668,8 +668,13 @@ export default function EditorPage() {
               <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={design.entrance} onChange={(e) => setDesign({ entrance: e.target.checked })} />כניסה הדרגתית של התמונה והטקסטים</label>
               <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={design.extras.sparkle} onChange={(e) => setDesign({ extras: { ...design.extras, sparkle: e.target.checked } })} />נצנוצים ליד השמות וקו מפריד שמצייר את עצמו</label>
               <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={design.extras.countdown} onChange={(e) => setDesign({ extras: { ...design.extras, countdown: e.target.checked } })} />ספירה לאחור עד האירוע</label>
-              <Field label="האייקון שבין התמונה לשמות"><select className="field" data-testid="emblem-pick" value={design.emblem} onChange={(e) => setDesign({ emblem: e.target.value as Design['emblem'] })}>
-                <option value="pacifier">מוצץ</option><option value="stroller">עגלת תינוק</option><option value="heart">לב</option><option value="star">כוכב</option><option value="none">בלי אייקון</option></select></Field>
+              <div className="grid gap-2">
+                <span className="label !mb-0">האייקון שבין התמונה לשמות</span>
+                <div className="em-pick" data-testid="emblem-pick" role="group" aria-label="בחירת אייקון">
+                  {EMBLEMS.map((x) => <button key={x.key} type="button" aria-pressed={design.emblem === x.key} onClick={() => { setDesign({ emblem: x.key }); showPart('emblem'); }}>{x.key === 'none' ? <i aria-hidden="true">∅</i> : <Emblem kind={x.key} />}<small>{x.label}</small></button>)}
+                </div>
+                {design.emblem !== 'none' && <Range part="emblem" label="גודל האייקון" value={design.sizes.emblem} min={0.5} max={2.5} step={0.05} onChange={(n) => setDesign({ sizes: { ...design.sizes, emblem: n } })} suffix="×" />}
+              </div>
               <div className="grid gap-3 border-t border-line pt-3" data-testid="fall-controls">
                 <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={design.fall.enabled} onChange={(e) => setDesign({ fall: { ...design.fall, enabled: e.target.checked } })} />קונפטי שנופל מהתמונה</label>
                 {design.fall.enabled && <>

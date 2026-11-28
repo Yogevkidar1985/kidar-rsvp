@@ -42,7 +42,7 @@ export type Design = {
   /** start loading the venue's site as soon as its name is on screen, so a tap opens it at once (uses the guest's data) */
   venuePreload: boolean;
   /** the small moving picture between the photo and the names */
-  emblem: 'pacifier' | 'stroller' | 'heart' | 'star' | 'none';
+  emblem: 'pacifier' | 'stroller' | 'bottle' | 'balloon' | 'crown' | 'moon' | 'gift' | 'heart' | 'star' | 'none';
   /** how large each part is drawn, as a multiple of its designed size */
   sizes: { date: number; countdown: number; emblem: number; logo: number; arrow: number; buttons: number; gallery: number };
   /** a size of its own for one line of text, as a multiple of the size its style gives it. Keys: 'headline', 'intro.0', 'closing.1'… */

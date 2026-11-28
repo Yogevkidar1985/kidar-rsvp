@@ -79,9 +79,15 @@ function SitePanel({ src, title, open, onClose }: { src: string; title: string; 
 }
 
 /** The small picture between the photo and the names. Drawn in the invitation's own colour, and it moves a little. */
-function Emblem({ kind }: { kind: Design['emblem'] }) {
+export const EMBLEMS: { key: Design['emblem']; label: string }[] = [
+  { key: 'pacifier', label: 'מוצץ' }, { key: 'stroller', label: 'עגלה' }, { key: 'bottle', label: 'בקבוק' }, { key: 'balloon', label: 'בלון' }, { key: 'crown', label: 'כתר' },
+  { key: 'moon', label: 'ירח' }, { key: 'gift', label: 'מתנה' }, { key: 'heart', label: 'לב' }, { key: 'star', label: 'כוכב' }, { key: 'none', label: 'בלי' },
+];
+/** Each drawing fills its square to the same degree, so one size means the same for all of them. */
+const EMBLEM_BOX: Partial<Record<Design['emblem'], string>> = { pacifier: '7 5 50 54', stroller: '6 6 52 52', bottle: '5 4 54 54', balloon: '5 5 54 54', gift: '4 5 56 56' };
+export function Emblem({ kind }: { kind: Design['emblem'] }) {
   if (kind === 'none') return null;
-  const common = { width: 64, height: 64, viewBox: '0 0 64 64', fill: 'none', stroke: 'currentColor', strokeWidth: 2.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  const common = { width: 64, height: 64, viewBox: EMBLEM_BOX[kind] ?? '0 0 64 64', fill: 'none', stroke: 'currentColor', strokeWidth: 2.6, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
   return (
     <span className={`inv-emblem inv-emblem--${kind}`} aria-hidden="true" data-testid="emblem">
       {kind === 'pacifier' && (
@@ -96,6 +102,25 @@ function Emblem({ kind }: { kind: Design['emblem'] }) {
         <svg {...common}>
           <path d="M12 14h6l6 22h22" /><path d="M24 36a16 16 0 0 0 28-10H21" fill="currentColor" fillOpacity=".14" /><path d="M36 26V10a16 16 0 0 1 16 16" />
           <g className="em-wheel"><circle cx="27" cy="50" r="5" /></g><g className="em-wheel"><circle cx="47" cy="50" r="5" /></g>
+        </svg>
+      )}
+      {kind === 'bottle' && (
+        <svg {...common}>
+          <path d="M28 14c0-4 2-7 4-7s4 3 4 7" /><path d="M24 14h16v6H24z" fill="currentColor" fillOpacity=".14" />
+          <path d="M25 20h14c3 3 4 6 4 10v20a5 5 0 0 1-5 5H26a5 5 0 0 1-5-5V30c0-4 1-7 4-10Z" fill="currentColor" fillOpacity=".14" /><path d="M21 35h7M21 43h7" />
+        </svg>
+      )}
+      {kind === 'balloon' && (
+        <svg {...common}>
+          <path d="M32 8c9 0 15 7 15 16s-7 18-15 18-15-9-15-18S23 8 32 8Z" fill="currentColor" fillOpacity=".14" /><path d="m29 42 3 4 3-4" /><path d="M32 46c-3 4 3 6 0 11" /><path d="M25 19c1-3 3-5 6-5" />
+        </svg>
+      )}
+      {kind === 'crown' && <svg {...common}><path d="M12 46 9 22l12 10 11-16 11 16 12-10-3 24Z" fill="currentColor" fillOpacity=".16" /><path d="M13 53h38" /></svg>}
+      {kind === 'moon' && <svg {...common}><path d="M36 9a23 23 0 1 0 19 33A19 19 0 0 1 36 9Z" fill="currentColor" fillOpacity=".16" /><path d="m48 12 1.8 4.2 4.5.4-3.4 3 1 4.4-3.9-2.3-3.9 2.3 1-4.4-3.4-3 4.5-.4Z" fill="currentColor" fillOpacity=".3" strokeWidth="1.8" /></svg>}
+      {kind === 'gift' && (
+        <svg {...common}>
+          <path d="M12 28h40v26H12z" fill="currentColor" fillOpacity=".14" /><path d="M9 20h46v8H9z" /><path d="M32 20v34" />
+          <path d="M32 20c-4-9-15-9-13-2 1 3 8 2 13 2Zm0 0c4-9 15-9 13-2-1 3-8 2-13 2Z" fill="currentColor" fillOpacity=".14" />
         </svg>
       )}
       {kind === 'heart' && <svg {...common}><path d="M32 52S10 39 10 24a11 11 0 0 1 22-3 11 11 0 0 1 22 3c0 15-22 28-22 28Z" fill="currentColor" fillOpacity=".16" /></svg>}
