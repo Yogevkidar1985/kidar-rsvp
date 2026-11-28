@@ -278,21 +278,32 @@ export default function EditorPage() {
     </Field>
   );
 
-  async function save(publish?: boolean) {
+  const [autoAt, setAutoAt] = useState('');
+  const autoKept = useRef(0);
+  async function save(publish?: boolean, quiet = false) {
+    const sent = draft;
     setSaving(true);
     const { id, created_at, updated_at, ...rest } = draft;
     void created_at; void updated_at;
     const row = { ...rest, design, published: publish ?? draft.published };
     for (const k of ['waze_url', 'gmaps_url', 'video_url'] as const) {
       const v = (row[k] ?? '').trim();
-      if (v && !/^https:\/\//i.test(v)) { setSaving(false); return toast('קישורים צריכים להתחיל ב-https://', true); }
+      if (v && !/^https:\/\//i.test(v)) { setSaving(false); return quiet ? undefined : toast('קישורים צריכים להתחיל ב-https://', true); }
       row[k] = v || null;
     }
     // the version that is about to be replaced is kept first; an identical copy is not written twice
-    if (canEdit) await versions.snapshot(id, 'event', 'לפני שינוי');
+    if (canEdit && !quiet) await versions.snapshot(id, 'event', 'לפני שינוי');
     const { data, error } = await db.from('events').update(row).eq('id', id).select('*').single();
     setSaving(false);
-    if (error || !data) return toast(error?.code === '23505' ? 'כתובת ההזמנה כבר תפוסה.' : dbError(error), true);
+    if (error || !data) return quiet ? undefined : toast(error?.code === '23505' ? 'כתובת ההזמנה כבר תפוסה.' : dbError(error), true);
+    if (quiet) {
+      // typing went on while the save travelled: what was typed since stays, only the saved base moves
+      setEvent(data as EventRow); setDraftRaw((cur) => (cur === sent ? (data as EventRow) : { ...cur, updated_at: (data as EventRow).updated_at }));
+      setAutoAt(new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }));
+      // one kept copy every few minutes of autosaving is enough: the list stays readable
+      if (Date.now() - autoKept.current > 180000) { autoKept.current = Date.now(); void versions.snapshot(id, 'event', 'שמירה אוטומטית').then(() => setVerStamp((n) => n + 1)); }
+      return;
+    }
     setEvent(data as EventRow); setDraftRaw(data as EventRow); void refreshPublic(event.id, event.slug);
     try { window.localStorage.removeItem(draftKey); } catch { /* nothing kept */ }
     void versions.snapshot(id, 'event', publish === true ? 'פורסמה' : publish === false ? 'הפרסום בוטל' : 'נשמרה').then(() => setVerStamp((n) => n + 1));
@@ -373,6 +384,15 @@ export default function EditorPage() {
   );
 
   saveRef.current = () => { if (canEdit && dirty && !saving) void save(); };
+  // ---- autosave: a draft nobody can see yet saves itself after a quiet moment. A published invitation never does:
+  // guests would see half a sentence. There the work waits on this device until "save" is pressed. ----
+  const autoRef = useRef<() => void>(() => {});
+  autoRef.current = () => { if (canEdit && dirty && !saving && !uploading && !draft.published && !recover && draft.name?.trim()) void save(undefined, true); };
+  useEffect(() => {
+    if (!dirty || draft.published) return;
+    const id = window.setTimeout(() => autoRef.current(), 2500);
+    return () => window.clearTimeout(id);
+  }, [draft, dirty]);
   stepRef.current = step;
   /** Puts an older version into the editor. Nothing is saved until the person saves; one undo brings back what was there. */
   const loadVersion = (data: Record<string, unknown>, label: string) => {
@@ -413,7 +433,7 @@ export default function EditorPage() {
   const tileColors = design.fall.colors.map((c) => (/^#f{3}(f{3})?$/i.test(c) ? design.colors.line : c));
   return (
     <PartCtx.Provider value={{ show: showPart, sizes }}>
-      <PageHead title="עיצוב ההזמנה" sub={saving ? 'שומרים…' : dirty ? 'יש שינויים שלא נשמרו' : draft.published ? 'פורסמה · כל השינויים שמורים' : 'טיוטה · כל השינויים שמורים'}>
+      <PageHead title="עיצוב ההזמנה" sub={saving ? 'שומרים…' : dirty ? (draft.published ? 'יש שינויים שלא נשמרו · האורחים יראו אותם רק אחרי שמירה' : 'נשמר לבד בעוד רגע…') : draft.published ? 'פורסמה · כל השינויים שמורים' : `טיוטה · נשמרת לבד${autoAt ? ` · נשמרה ב-${autoAt}` : ''}`}>
         <button className="btn btn-ghost btn-icon" aria-label="ביטול הפעולה האחרונה" title="ביטול" disabled={!hist.current.past.length} onClick={() => step('undo')}><Icon name="undo" /></button>
         <button className="btn btn-ghost btn-icon" aria-label="ביצוע מחדש" title="ביצוע מחדש" disabled={!hist.current.future.length} onClick={() => step('redo')}><Icon name="redo" /></button>
         <button className="btn btn-ghost hidden lg:inline-flex" data-testid="open-versions" title="כל הגרסאות השמורות של ההזמנה" onClick={() => setShowVersions(true)}>גרסאות</button>

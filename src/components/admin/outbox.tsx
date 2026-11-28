@@ -1,4 +1,5 @@
 'use client';
+import { resolveDesign } from '@/lib/defaults';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { BUILTIN, VARIABLES, render, variables, variableLabel, type Template, type TemplateKind } from '@/lib/templates';
@@ -108,6 +109,8 @@ export function MessageEditor({ kind, templates, body, setBody, templateId, setT
   const rr = useRender(event);
   const area = useRef<HTMLTextAreaElement>(null);
   const { text, missing } = rr(body, previewFor);
+  const share = resolveDesign(event.design).share;
+  const card = { title: share?.title?.trim() || event.name, description: share?.description?.trim() || [event.hosts, event.venue_name].filter(Boolean).join(' · ') };
   const insert = (k: string) => {
     const el = area.current, tag = `{{${k}}}`;
     if (!el) return setBody(body + tag);
@@ -135,7 +138,18 @@ export function MessageEditor({ kind, templates, body, setBody, templateId, setT
       <div className="min-w-0">
         <span className="label">כך זה ייראה ב-WhatsApp{previewFor ? ` · ${previewFor.contact_name || previewFor.family_name}` : ''}</span>
         <div className="rounded-2xl bg-[#e7ddd3] p-3" data-testid="wa-preview">
-          <div className="ms-auto max-w-[92%] whitespace-pre-wrap [overflow-wrap:anywhere] rounded-xl rounded-ss-sm bg-[#d9fdd3] px-3 py-2 text-[15px] leading-relaxed text-[#111b21] shadow-sm" dir="auto">{text || '…'}</div>
+          <div className="ms-auto max-w-[92%] rounded-xl rounded-ss-sm bg-[#d9fdd3] p-1.5 text-[15px] leading-relaxed text-[#111b21] shadow-sm">
+            {/* the card WhatsApp builds from the link: the same picture, title and line the guest's phone shows */}
+            {kind === 'invite' && body.includes('{{invitation_url}}') && (
+              <div className="wa-card wa-card--in" data-testid="wa-link-card">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={`/og/${event.slug}?v=${event.updated_at}`} alt="" loading="lazy" />
+                <div><b>{card.title}</b><span>{card.description}</span><small dir="ltr">{typeof window === 'undefined' ? '' : window.location.host}</small></div>
+              </div>
+            )}
+            <div className="whitespace-pre-wrap px-1.5 pb-0.5 pt-1 [overflow-wrap:anywhere]" dir="auto">{text || '…'}</div>
+            <div className="px-1.5 text-end text-[11px] text-[#667781]" aria-hidden="true" dir="ltr">{new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })} ✓✓</div>
+          </div>
         </div>
         {missing.length > 0 && <p role="alert" className="notice notice-bad mt-2">חסר ערך עבור: {missing.map(variableLabel).join(', ')}. ההודעה לא תישלח כך.</p>}
       </div>

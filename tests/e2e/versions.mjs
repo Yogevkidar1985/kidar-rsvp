@@ -17,6 +17,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const mock = await startMock(MOCK, root);
 const sql = mock.sql;
+await sql(`update events set published = true where slug = 'kidar-brit'`); // a published invitation never saves itself
 const [{ id, slug }] = await sql(`select id, slug from events where slug = 'kidar-brit'`);
 const add = async (name, adults, phone = null) => (await sql(`insert into guests (event_id, family_name, status, adults, phone, preferences) values ($1,$2,'attending',$3,$4,'צמחוני') returning id`, [id, name, adults, phone]))[0].id;
 const cohen = await add('משפחת כהן', 4, '0501234567'), levy = await add('משפחת לוי', 3), dror = await add('משפחת דרור', 2);
@@ -82,6 +83,21 @@ try {
   check('a restore puts the old text back', after.headline === h0, after.headline);
   check('…and leaves the address of the invitation alone', after.slug === slug);
   check('…and what it replaced is still among the versions', (await sql(`select count(*)::int n from audit_logs where entity='version' and diff->'data'->>'headline' = 'כותרת שנייה'`))[0].n >= 1);
+
+  // a draft nobody sees yet saves itself
+  await sql(`update events set published = false where id=$1`, [id]);
+  await p.goto(`${APP}/admin/events/${id}/editor`, { waitUntil: 'networkidle' }); await sleep(500);
+  await p.evaluate((h) => { const el = [...document.querySelectorAll('input, textarea')].find((x) => x.value === h); el.setAttribute('data-h', '1'); }, h0);
+  await p.locator('[data-h]').fill('נשמר לבד'); await sleep(4500);
+  check('an unpublished draft saves itself', (await sql(`select headline from events where id=$1`, [id]))[0].headline === 'נשמר לבד');
+  check('…and says so', (await p.locator('.page-title').locator('xpath=..').innerText()).includes('נשמרת לבד'));
+  check('…keeping a copy of it', (await vers('event')).some((x) => x.label === 'שמירה אוטומטית'));
+  await sql(`update events set published = true where id=$1`, [id]);
+  await p.reload({ waitUntil: 'networkidle' }); await sleep(400);
+  await p.evaluate(() => { const el = [...document.querySelectorAll('input, textarea')].find((x) => x.value === 'נשמר לבד'); el.setAttribute('data-h', '1'); });
+  await p.locator('[data-h]').fill('לא נשמר לבד'); await sleep(4500);
+  check('a published invitation waits for the save button', (await sql(`select headline from events where id=$1`, [id]))[0].headline === 'נשמר לבד');
+  await p.evaluate(() => window.localStorage.clear());
 
   // ---------- seating ----------
   await p.goto(`${APP}/admin/events/${id}/tables`, { waitUntil: 'networkidle' }); await sleep(500);

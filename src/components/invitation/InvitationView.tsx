@@ -264,11 +264,21 @@ export default function InvitationView({ data, token = null, preview = false, ce
   }, [preview, test, data.slug, token]);
   useEffect(() => { track('visit'); }, [track]);
   const closeSheet = useCallback(() => setSheet(null), []);
+  // a guest who answered from the general link sees that answer when they come back on the same phone
+  const mineKey = `rsvp:${data.slug}:${token ?? ''}:mine`;
+  useEffect(() => {
+    if (preview || test) return;
+    try {
+      const r = JSON.parse(localStorage.getItem(mineKey) ?? 'null') as RsvpResult | null;
+      if (r && ['attending', 'maybe', 'declined'].includes(r.status)) setMine((cur) => cur ?? r);
+    } catch { /* storage unavailable: the page simply asks again */ }
+  }, [mineKey, preview, test]);
   const onSaved = useCallback((r: RsvpResult) => {
     setMine(r);
+    if (!preview && !test) { try { localStorage.setItem(mineKey, JSON.stringify({ status: r.status, adults: r.adults, children: r.children, babies: r.babies })); } catch { /* ignore */ } }
     setGuest((g) => (g ? { ...g, ...r } : g));
     if (r.status === 'attending' && d.celebrate.enabled) setBurst((n) => n + 1);
-  }, [d.celebrate.enabled]);
+  }, [d.celebrate.enabled, mineKey, preview, test]);
   const flash = (t: string) => { setNote(t); window.setTimeout(() => setNote(''), 2200); };
   // What a guest passes on is the event's general link, never their own: a personal link lets its holder answer in the guest's name.
   const [shareUrl, setShareUrl] = useState('');
