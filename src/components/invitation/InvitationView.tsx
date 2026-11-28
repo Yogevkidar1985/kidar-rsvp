@@ -544,7 +544,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
                 </>
               ) : (
                 <>
-                  <p style={{ ...body, marginTop: 10, color: 'var(--inv-dim)', fontSize: `calc(${Math.round(d.styles.body.size * 0.9)}px * var(--inv-scale, 1))` }}>{L('rsvpHint', 'נשמח לדעת אם תגיעו')}</p>
+                  <p style={{ ...body, marginTop: 10, fontWeight: 700 }}>{L('rsvpHint', 'אנא סמנו את סטטוס ההגעה')}</p>
                   <div className="inv-options">
                     {OPTIONS.map((o, i) => (
                       <button key={o.key} type="button" className={`inv-btn inv-pick${i ? ' ghost' : ''}`} data-testid={i ? undefined : 'rsvp-open'} onClick={() => openRsvp(o.key)}>{o.label}</button>

@@ -223,7 +223,7 @@ export default function EditorPage() {
     one('latin', 'שורה באנגלית', design.latin); one('names', 'שמות בראש', draft.hosts); one('kicker', 'שם האירוע', draft.name);
     many('headline', 'כותרת', draft.headline); many('intro', 'פתיחה', draft.intro_text); many('closing', 'סיום', draft.closing_text); one('sign', 'חתימה', draft.hosts);
     one('dateline', 'יום ותאריך עברי', [draft.weekday_label, draft.hebrew_date].filter(Boolean).join(' – ')); one('venue', 'שם המקום', draft.venue_name); one('address', 'כתובת', draft.address);
-    one('rsvpTitle', 'כותרת אישור ההגעה', design.labels.rsvpTitle); out.push({ key: 'rsvpHint', label: 'אישור הגעה: נשמח לדעת אם תגיעו' });
+    one('rsvpTitle', 'כותרת אישור ההגעה', design.labels.rsvpTitle); out.push({ key: 'rsvpHint', label: 'אישור הגעה: אנא סמנו את סטטוס ההגעה' });
     return out;
   }, [draft, design]);
   const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(event), [draft, event]);
