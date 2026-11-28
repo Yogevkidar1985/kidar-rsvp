@@ -45,6 +45,8 @@ export type Design = {
   emblem: 'pacifier' | 'stroller' | 'heart' | 'star' | 'none';
   /** how large each part is drawn, as a multiple of its designed size */
   sizes: { date: number; countdown: number; emblem: number; logo: number; arrow: number; buttons: number; gallery: number };
+  /** a size of its own for one line of text, as a multiple of the size its style gives it. Keys: 'headline', 'intro.0', 'closing.1'… */
+  lines: Record<string, number>;
   /** 0 = the palette as chosen; 1 = every grey text pulled all the way to the main text colour */
   contrast: number;
 };

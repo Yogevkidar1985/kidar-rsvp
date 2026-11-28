@@ -353,6 +353,10 @@ export default function InvitationView({ data, token = null, preview = false, ce
   const anim = d.entrance;
   // inside the editor the page already has its own main heading
   const Headline = preview ? 'h2' : 'h1';
+  /** One line of text that can carry a size of its own (the editor's "גודל לכל שורה"). */
+  const lineSize = (k: string) => { const n = d.lines[k]; return n && n !== 1 ? `${n}em` : undefined; };
+  const L = (k: string, text: React.ReactNode) => <span key={k} data-line={k} style={{ display: 'block', fontSize: lineSize(k) }}>{text}</span>;
+  const LL = (k: string, text: string) => text.split('\n').map((row, i) => L(`${k}.${i}`, row || '\u00a0'));
   const times = [
     data.reception_time && { t: data.reception_time, l: 'קבלת פנים' },
     data.ceremony_time && { t: data.ceremony_time, l: 'טקס' },
@@ -423,22 +427,22 @@ export default function InvitationView({ data, token = null, preview = false, ce
               <Emblem kind={d.emblem} />
               <div className="inv-crest">
                 {lively && <Lottie className="inv-sparkle" animationData={sparkle} loop={3} aria-hidden="true" />}
-                {d.latin && <p className="inv-latin" dir="ltr" lang="en">{d.latin}</p>}
-                {data.hosts && <p className="inv-names" style={css(d.styles.hosts)}>{data.hosts}</p>}
-                {data.name && <p className="inv-kicker">{data.name}</p>}
+                {d.latin && <p className="inv-latin" dir="ltr" lang="en">{L('latin', d.latin)}</p>}
+                {data.hosts && <p className="inv-names" style={css(d.styles.hosts)}>{L('names', data.hosts)}</p>}
+                {data.name && <p className="inv-kicker">{L('kicker', data.name)}</p>}
               </div>
               {lively ? <Lottie className="inv-orn-draw" animationData={ornament} loop={false} aria-hidden="true" /> : <Ornament />}
             </Reveal>
           </header>
 
           <section className="inv-sec inv-first">
-            {guest && <Reveal on={anim}><p className="inv-dear">{guest.family_name} היקרים</p></Reveal>}
-            {data.headline && <Reveal on={anim}><Headline style={css(d.styles.headline)}>{data.headline}</Headline></Reveal>}
-            {data.intro_text && <Reveal on={anim} delay={50}><p style={{ ...body, marginTop: 12, whiteSpace: 'pre-line' }}>{data.intro_text}</p></Reveal>}
+            {guest && <Reveal on={anim}><p className="inv-dear">{L('dear', `${guest.family_name} היקרים`)}</p></Reveal>}
+            {data.headline && <Reveal on={anim}><Headline style={css(d.styles.headline)}>{LL('headline', data.headline)}</Headline></Reveal>}
+            {data.intro_text && <Reveal on={anim} delay={50}><p style={{ ...body, marginTop: 12 }}>{LL('intro', data.intro_text)}</p></Reveal>}
             {(data.closing_text || data.hosts) && (
               <Reveal on={anim} delay={100}>
-                {data.closing_text && <p style={{ ...body, marginTop: 24, whiteSpace: 'pre-line' }}>{data.closing_text}</p>}
-                {data.hosts && <p style={{ ...body, fontWeight: 500 }}>{data.hosts}</p>}
+                {data.closing_text && <p style={{ ...body, marginTop: 24 }}>{LL('closing', data.closing_text)}</p>}
+                {data.hosts && <p style={{ ...body, fontWeight: 500 }}>{L('sign', data.hosts)}</p>}
               </Reveal>
             )}
           </section>
@@ -448,7 +452,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
               <Reveal on={anim}>
                 <div className="inv-when" style={dateStyle}>
                   {date && <div className="inv-datenum" dir="ltr">{date.numeric}</div>}
-                  {(data.weekday_label || data.hebrew_date) && <div className="inv-dateline">{[data.weekday_label, data.hebrew_date].filter(Boolean).join(' – ')}</div>}
+                  {(data.weekday_label || data.hebrew_date) && <div className="inv-dateline">{L('dateline', [data.weekday_label, data.hebrew_date].filter(Boolean).join(' – '))}</div>}
                   {times.length > 0 && (
                     <div className="inv-times">
                       {times.map((x) => <div key={x.l}><b dir="ltr">{x.t}</b><Icon name="clock" size={18} />{times.length > 1 && <small>{x.l}</small>}</div>)}
@@ -468,9 +472,9 @@ export default function InvitationView({ data, token = null, preview = false, ce
                   {logo ? <img className="inv-venue-logo" src={img(logo, 384)} alt="" decoding="async" /> : <span className="inv-pin"><Icon name="pin" size={24} /></span>}
                   {data.venue_name && (site
                     ? <p style={css(d.styles.hosts)}><button ref={siteLink} type="button" className="inv-venue-link" data-testid="venue-site" onPointerDown={() => !preview && setSiteWarm(true)} onClick={() => !preview && setSheet('site')} aria-label={`האתר של ${data.venue_name}`}>
-                        <span>{data.venue_name}</span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m12 6-6 6 6 6" /><path d="m19 6-6 6 6 6" /></svg></button></p>
-                    : <p style={css(d.styles.hosts)}>{data.venue_name}</p>)}
-                  {data.address && !mapSrc && <p style={{ ...body, marginTop: 2 }}>{data.address}</p>}
+                        <span data-line="venue" style={{ fontSize: lineSize('venue') }}>{data.venue_name}</span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m12 6-6 6 6 6" /><path d="m19 6-6 6 6 6" /></svg></button></p>
+                    : <p style={css(d.styles.hosts)}>{L('venue', data.venue_name)}</p>)}
+                  {data.address && !mapSrc && <p style={{ ...body, marginTop: 2 }}>{L('address', data.address)}</p>}
                 </>
               )}
               <div className="inv-quick" data-testid="actions">
@@ -532,7 +536,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
           <section ref={rsvpRef} className="inv-sec inv-rsvp" id="rsvp">
             <Reveal on={anim}>
               <Ornament />
-              <h2 style={{ ...css(d.styles.headline), fontSize: `calc(${d.styles.headline.size * 0.74}px * var(--inv-scale, 1))` }}>{d.labels.rsvpTitle}</h2>
+              <h2 style={{ ...css(d.styles.headline), fontSize: `calc(${d.styles.headline.size * 0.74}px * var(--inv-scale, 1))` }}>{L('rsvpTitle', d.labels.rsvpTitle)}</h2>
               {!rsvpOpen ? <p style={{ ...body, marginTop: 14 }}>אישורי ההגעה נסגרו</p> : status ? (
                 <>
                   <p style={{ ...body, marginTop: 14 }}>{ANSWERED[status]}{status !== 'declined' && mine ? ` · ${mine.adults + mine.children + mine.babies} משתתפים` : ''}</p>
@@ -540,7 +544,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
                 </>
               ) : (
                 <>
-                  <p style={{ ...body, marginTop: 10, color: 'var(--inv-dim)', fontSize: `calc(${Math.round(d.styles.body.size * 0.9)}px * var(--inv-scale, 1))` }}>נשמח לדעת אם תגיעו</p>
+                  <p style={{ ...body, marginTop: 10, color: 'var(--inv-dim)', fontSize: `calc(${Math.round(d.styles.body.size * 0.9)}px * var(--inv-scale, 1))` }}>{L('rsvpHint', 'נשמח לדעת אם תגיעו')}</p>
                   <div className="inv-options">
                     {OPTIONS.map((o, i) => (
                       <button key={o.key} type="button" className={`inv-btn inv-pick${i ? ' ghost' : ''}`} data-testid={i ? undefined : 'rsvp-open'} onClick={() => openRsvp(o.key)}>{o.label}</button>

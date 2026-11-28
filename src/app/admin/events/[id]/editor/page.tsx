@@ -185,7 +185,7 @@ export default function EditorPage() {
   const flash = useRef(0);
   /** Brings a part of the invitation into the preview and outlines it for a moment. */
   const showPart = useCallback((part: string) => {
-    const box = frame.current, p = PARTS[part];
+    const box = frame.current, p = part.startsWith('line:') ? { sel: `[data-line="${part.slice(5)}"]` } : PARTS[part];
     if (!box || !p) return;
     const el = box.querySelector<HTMLElement>(p.sel);
     if (!el) return;
@@ -200,6 +200,12 @@ export default function EditorPage() {
   /** A tap on a part of the preview leads to the control that sizes it. */
   const fromPreview = (e: React.MouseEvent) => {
     const hit = e.target as HTMLElement;
+    const line = hit.closest<HTMLElement>('[data-line]')?.dataset.line;
+    if (line) { // a tap on a line of text leads to that line's own size
+      setTab('גדלים'); setView('edit'); showPart(`line:${line}`);
+      window.setTimeout(() => { const row = document.querySelector<HTMLElement>(`.rng[data-part="line:${line}"]`); row?.scrollIntoView({ block: 'center', behavior: 'smooth' }); row?.setAttribute('data-hit', ''); window.setTimeout(() => row?.removeAttribute('data-hit'), 1600); }, 120);
+      return;
+    }
     const part = ['date', 'countdown', 'emblem', 'logo', 'arrow', 'buttons', 'gallery'].find((k) => hit.closest(PARTS[k].sel)) ?? (hit.closest('.inv-names') ? 'hosts' : hit.closest('.inv-first h1, .inv-first h2') ? 'headline' : hit.closest('.inv-dateline') ? 'dateText' : hit.closest('.inv-first p') ? 'body' : null);
     if (!part) return;
     const style = Object.entries(PART_OF_STYLE).find(([, v]) => v === part)?.[0] as keyof Design['styles'] | undefined;
@@ -208,6 +214,18 @@ export default function EditorPage() {
     window.setTimeout(() => { const row = document.querySelector<HTMLElement>(`.rng[data-part="${part}"]`); row?.scrollIntoView({ block: 'center', behavior: 'smooth' }); row?.setAttribute('data-hit', ''); window.setTimeout(() => row?.removeAttribute('data-hit'), 1600); }, 120);
   };
   const design = useMemo(() => resolveDesign(draft.design), [draft.design]);
+  /** Every line of text on the invitation, in the order it is read. */
+  const textLines = useMemo(() => {
+    const out: { key: string; label: string }[] = [];
+    const cut = (t: string) => (t.length > 26 ? `${t.slice(0, 26)}…` : t);
+    const one = (key: string, what: string, t?: string | null) => { if (t?.trim()) out.push({ key, label: `${what}: ${cut(t.trim())}` }); };
+    const many = (key: string, what: string, t?: string | null) => { if (t) t.split('\n').forEach((row, i) => { if (row.trim()) out.push({ key: `${key}.${i}`, label: `${what}: ${cut(row.trim())}` }); }); };
+    one('latin', 'שורה באנגלית', design.latin); one('names', 'שמות בראש', draft.hosts); one('kicker', 'שם האירוע', draft.name);
+    many('headline', 'כותרת', draft.headline); many('intro', 'פתיחה', draft.intro_text); many('closing', 'סיום', draft.closing_text); one('sign', 'חתימה', draft.hosts);
+    one('dateline', 'יום ותאריך עברי', [draft.weekday_label, draft.hebrew_date].filter(Boolean).join(' – ')); one('venue', 'שם המקום', draft.venue_name); one('address', 'כתובת', draft.address);
+    one('rsvpTitle', 'כותרת אישור ההגעה', design.labels.rsvpTitle); out.push({ key: 'rsvpHint', label: 'אישור הגעה: נשמח לדעת אם תגיעו' });
+    return out;
+  }, [draft, design]);
   const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(event), [draft, event]);
 
   const loadMedia = useCallback(async () => {
@@ -426,6 +444,7 @@ export default function EditorPage() {
         const px = p.unit === 'font' ? parseFloat(cs.fontSize) : p.unit === 'height' ? el.offsetHeight : el.offsetWidth;
         if (px) next[key] = `${Math.round(px)}px`;
       }
+      box.querySelectorAll<HTMLElement>('[data-line]').forEach((el) => { next[`line:${el.dataset.line}`] = `${Math.round(parseFloat(getComputedStyle(el).fontSize))}px`; });
       setSizes((old) => (JSON.stringify(old) === JSON.stringify(next) ? old : next));
     }, 180);
     return () => window.clearTimeout(id);
@@ -575,6 +594,11 @@ export default function EditorPage() {
               <p className="text-sm text-muted">נגיעה במחוון מביאה את החלק הזה לתצוגה המקדימה ומסמנת אותו. ליד כל ערך כתוב הגודל בפועל. אפשר גם ללחוץ על חלק בתצוגה כדי להגיע למחוון שלו.</p>
               <Range part="text" label="כל הטקסט בהזמנה" value={design.textScale} min={0.85} max={1.4} step={0.05} onChange={(n) => setDesign({ textScale: n })} suffix="×" />
               {SIZE_KEYS.map((s) => <Range key={s.key} part={s.key} label={s.label} value={design.sizes[s.key]} min={s.min} max={s.max} step={0.05} onChange={(n) => setDesign({ sizes: { ...design.sizes, [s.key]: n } })} suffix="×" />)}
+              <div className="grid gap-3 border-t border-line pt-3" data-testid="line-sizes">
+                <div><b className="text-[15px]">גודל לכל שורה</b><p className="text-sm text-muted">כל שורת טקסט בהזמנה מקבלת גודל משלה. 1× הוא הגודל הרגיל שלה. אפשר גם ללחוץ על שורה בתצוגה.</p></div>
+                {textLines.map((l) => <Range key={l.key} part={`line:${l.key}`} label={l.label} value={design.lines[l.key] ?? 1} min={0.5} max={2.5} step={0.05} onChange={(n) => { const next = { ...design.lines }; if (n === 1) delete next[l.key]; else next[l.key] = n; setDesign({ lines: next }); }} suffix="×" />)}
+                {Object.keys(design.lines).length > 0 && <button type="button" className="btn btn-ghost btn-sm justify-self-start" data-testid="lines-reset" onClick={() => setDesign({ lines: {} })}>איפוס גודל השורות</button>}
+              </div>
               <Range part="spacing" label="מרווח בין חלקי ההזמנה" value={design.spacing} min={0.4} max={1.8} step={0.05} onChange={(n) => setDesign({ spacing: n })} suffix="×" />
               <Range part="confetti" label="כמות הקונפטי" value={design.fall.count} min={4} max={120} step={2} onChange={(n) => setDesign({ fall: { ...design.fall, count: n } })} />
               <Range part="confetti" label="גודל הקונפטי" value={design.fall.size} min={0.5} max={2.5} step={0.1} onChange={(n) => setDesign({ fall: { ...design.fall, size: n } })} suffix="×" />
