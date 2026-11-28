@@ -1,4 +1,5 @@
 'use client';
+import { Icon } from '@/components/admin/icons';
 import { useEffect, useMemo, useState } from 'react';
 import { supabaseBrowser } from '@/lib/supabase/client';
 import { useEvent } from '@/components/admin/EventContext';
@@ -255,34 +256,41 @@ export default function GuestsPage() {
         <>
         <ul className="grid gap-2 lg:hidden" data-testid="guests-cards">
           {rows.map((g) => (
-            <li key={g.id} className={`card p-3.5 ${picked.has(g.id) ? 'is-picked' : ''}`}>
-              <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
-                <label className="-m-2.5 flex-none p-2.5"><input type="checkbox" className="mt-1 !h-5 !w-5" aria-label={`בחירת ${g.family_name}`} checked={picked.has(g.id)} onChange={() => toggle(g.id)} /></label>
-                <div className="min-w-[9.5rem] flex-1">
-                  <div className="truncate font-semibold">{g.is_vip && <span className="me-1 rounded bg-brass px-1.5 py-0.5 text-[11px] font-bold text-white">VIP</span>}{g.family_name}</div>
-                  <div className="text-sm text-muted"><span dir="ltr">{g.phone || 'אין טלפון'}</span>{g.group_name ? ` · ${g.group_name}` : ''}</div>
-                  <div className="text-xs text-muted" data-testid="registered">נרשם <span dir="ltr">{stamp(g.created_at)?.date} {stamp(g.created_at)?.time}</span>{dups.ids.has(g.id) && <button type="button" className="pill pill-maybe ms-2 !text-[11px]" onClick={() => setView('dups')}>כפילות אפשרית</button>}</div>
+            <li key={g.id} className={`card gcard gcard--${g.status} ${picked.has(g.id) ? 'is-picked' : ''}`}>
+              <div className="gcard__head">
+                <label className="gcard__pick"><input type="checkbox" className="!h-5 !w-5" aria-label={`בחירת ${g.family_name}`} checked={picked.has(g.id)} onChange={() => toggle(g.id)} /></label>
+                <span className="gcard__av" aria-hidden="true">{(g.family_name.replace(/^משפחת\s+/, '').trim()[0] ?? '?')}</span>
+                <div className="gcard__who">
+                  <div className="gcard__name">{g.is_vip && <span className="gcard__vip">VIP</span>}{g.family_name}</div>
+                  <div className="gcard__phone">{g.phone ? <a href={`tel:${g.phone}`} dir="ltr">{g.phone}</a> : <span>אין טלפון</span>}{g.group_name ? <span> · {g.group_name}</span> : null}</div>
                 </div>
                 {canEdit ? (
-                  <select className={`pill pill-${g.status} ms-auto min-h-10 flex-none border-0 !text-base`} aria-label={`סטטוס של ${g.family_name}`} value={g.status}
+                  <select className={`pill pill-${g.status} gcard__status`} aria-label={`סטטוס של ${g.family_name}`} value={g.status}
                     onChange={(e) => updateGuest(g.id, { status: e.target.value as GuestStatus }).then((ok) => ok && toast('הסטטוס עודכן'))}>
                     {STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
                   </select>
                 ) : <StatusPill status={g.status} />}
               </div>
-              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted">
-                {g.status !== 'pending' && g.status !== 'declined' && <span><b className="font-semibold text-text">{total(g)}</b> משתתפים ({g.adults} / {g.children} / {g.babies})</span>}
-                {g.allocated_seats != null && <span>הוקצו {g.allocated_seats}</span>}
-                {g.table_id && <span>{tname.get(g.table_id)}</span>}
-                {g.arrived && <span className="font-semibold text-ok">הגיעו: {g.arrived_count ?? total(g)}</span>}
-                {hasWa && <span>{g.opted_out ? 'לא לשלוח הודעות' : g.invited_at ? 'הזמנה נשלחה' : 'טרם הוזמנו'}</span>}
-              </div>
-              {[g.preferences, g.notes, g.admin_notes].some(Boolean) && <p className="mt-1.5 text-sm text-muted">{[g.preferences, g.notes, g.admin_notes].filter(Boolean).join(' · ')}</p>}
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                <button className="btn btn-ghost btn-sm" onClick={() => copy(g)}>קישור אישי</button>
-                {wa(g) && <a className="btn btn-ghost btn-sm" href={wa(g)!} target="_blank" rel="noopener noreferrer">WhatsApp</a>}
+              <ul className="gcard__facts">
+                {g.status !== 'pending' && g.status !== 'declined' && <>
+                  <li className="is-people"><b>{total(g)}</b> משתתפים</li>
+                  {g.adults > 0 && <li><b>{g.adults}</b> מבוגרים</li>}
+                  {g.children > 0 && <li><b>{g.children}</b> ילדים</li>}
+                  {g.babies > 0 && <li><b>{g.babies}</b> תינוקות</li>}
+                </>}
+                {g.allocated_seats != null && <li>הוקצו <b>{g.allocated_seats}</b></li>}
+                {g.table_id && <li className="is-table">{tname.get(g.table_id)}</li>}
+                {g.arrived && <li className="is-ok">הגיעו: <b>{g.arrived_count ?? total(g)}</b></li>}
+                {hasWa && <li className={g.opted_out ? 'is-off' : g.invited_at ? 'is-ok' : 'is-wait'}>{g.opted_out ? 'לא לשלוח הודעות' : g.invited_at ? 'הזמנה נשלחה' : 'טרם הוזמנו'}</li>}
+                {(g.preferences ?? '').split(',').map((x) => x.trim()).filter(Boolean).map((x) => <li key={x} className="is-pref">{x}</li>)}
+              </ul>
+              {[g.notes, g.admin_notes].some(Boolean) && <p className="gcard__note">{[g.notes, g.admin_notes].filter(Boolean).join(' · ')}</p>}
+              <div className="gcard__meta" data-testid="registered">נרשם <span dir="ltr">{stamp(g.created_at)?.date} {stamp(g.created_at)?.time}</span>{dups.ids.has(g.id) && <button type="button" className="pill pill-maybe ms-2" onClick={() => setView('dups')}>כפילות אפשרית</button>}</div>
+              <div className="gcard__actions">
+                <button className="btn btn-ghost btn-sm" onClick={() => copy(g)}><Icon name="link" size={15} />קישור</button>
+                {wa(g) && <a className="btn btn-ghost btn-sm is-wa" href={wa(g)!} target="_blank" rel="noopener noreferrer"><Icon name="message" size={15} />WhatsApp</a>}
                 {canEdit && <>
-                  <button className="btn btn-ghost btn-sm" onClick={() => g.arrived ? updateGuest(g.id, { arrived: false }) : setArrive({ g, n: total(g) || g.allocated_seats || 1 })}>{g.arrived ? 'ביטול הגעה' : 'סימון הגעה'}</button>
+                  <button className={`btn btn-ghost btn-sm ${g.arrived ? 'is-arrived' : ''}`} onClick={() => g.arrived ? updateGuest(g.id, { arrived: false }) : setArrive({ g, n: total(g) || g.allocated_seats || 1 })}><Icon name="check" size={15} />{g.arrived ? 'ביטול הגעה' : 'הגיעו'}</button>
                   <button className="btn btn-ghost btn-sm" onClick={() => openEdit(g)}>עריכה</button>
                 </>}
               </div>

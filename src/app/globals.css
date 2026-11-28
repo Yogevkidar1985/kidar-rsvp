@@ -811,3 +811,42 @@ li.is-picked { box-shadow: inset 0 0 0 1.5px var(--color-ink); }
 }
 
 .inv-another { display: block; min-height: 44px; margin: 8px auto 0; padding: 8px 12px; border: 0; background: none; font: 500 15px/1.4 var(--inv-font); color: var(--inv-ink); text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+
+/* ---- The guest list on a phone: each family a card in the colour of its answer. Spacing from 4 8 12 16. ---- */
+.gcard { --tone: #8a94a6; --tint: #eef1f5; --deep: #3d4763; display: grid; gap: 12px; padding: 16px; border-inline-start: 4px solid var(--tone); min-width: 0; }
+.gcard--attending { --tone: #1e9a6c; --tint: #e7f4ee; --deep: #12694a; }
+.gcard--maybe { --tone: #d99a2b; --tint: #fbf1df; --deep: #8a5a10; }
+.gcard--declined { --tone: #d94a4a; --tint: #fbeaea; --deep: #b03a3a; }
+.gcard__head { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: 4px 12px; }
+.gcard__pick { display: grid; place-items: center; width: 40px; height: 40px; margin: -8px; }
+.gcard__av { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--tint); color: var(--deep); font-size: 20px; font-weight: 700; line-height: 1; }
+.gcard__who { min-width: 0; }
+.gcard__name { font-size: 17px; line-height: 1.3; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gcard__vip { margin-inline-end: 6px; padding: 2px 6px; border-radius: 6px; background: linear-gradient(135deg, #c9a24a, #9c7a2b); color: #fff; font-size: 12px; font-weight: 700; vertical-align: 2px; }
+.gcard__phone { font-size: 13px; line-height: 1.5; color: #566074; }
+.gcard__phone a { color: var(--color-ink); font-weight: 500; text-decoration: underline; text-decoration-color: #c5cddb; text-underline-offset: 3px; }
+.gcard__status { grid-column: 1 / -1; justify-self: stretch; min-height: 40px; padding-inline: 12px; border: 0; font-size: 16px !important; font-weight: 600; }
+.gcard__facts { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.gcard__facts li { display: inline-flex; align-items: baseline; gap: 4px; padding: 4px 12px; border-radius: 999px; background: var(--color-paper); border: 1px solid var(--color-line); font-size: 13px; line-height: 1.5; color: #3d4763; }
+.gcard__facts b { font-weight: 700; color: var(--color-text); font-variant-numeric: tabular-nums; }
+.gcard__facts .is-people { background: var(--tint); border-color: transparent; color: var(--deep); font-weight: 600; }
+.gcard__facts .is-people b { color: var(--deep); }
+.gcard__facts .is-ok { background: #e7f4ee; border-color: transparent; color: #12694a; }
+.gcard__facts .is-wait { background: #fff7e8; border-color: #f2dfb8; color: #8a5a10; }
+.gcard__facts .is-off { background: #fbeaea; border-color: transparent; color: #b03a3a; }
+.gcard__facts .is-pref { background: #eef0fb; border-color: transparent; color: #3b3f8f; }
+.gcard__facts .is-table { background: #e9f3fb; border-color: transparent; color: #1f5f8f; }
+.gcard__note { font-size: 13px; line-height: 1.5; color: #566074; }
+.gcard__meta { font-size: 12px; line-height: 1.5; color: #566074; }
+.gcard__actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 8px; padding-top: 12px; border-top: 1px solid var(--color-line); }
+.gcard__actions .btn { width: 100%; min-width: 0; padding-inline: 4px; gap: 4px; font-size: 13px; }
+.gcard__actions .is-wa { background: #e9f8ef; border-color: #bfe6cd; color: #136c3a; }
+.gcard__actions .is-arrived { background: #e7f4ee; border-color: #bfe0d0; color: #12694a; }
+.gcard.is-picked { background: #f3f6fb; }
+@media (max-width: 359px) { .gcard { padding: 12px; } .gcard__actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 420px) { .gcard__head { grid-template-columns: auto auto minmax(0, 1fr) auto; } .gcard__status { grid-column: auto; justify-self: end; } }
+/* the counters above the list carry the colour of what they count */
+.kpi { border-top-width: 3px; }
+.kpi.ok { border-top-color: #1e9a6c; background: linear-gradient(#f3faf6, #fff 70%); }
+.kpi.warn { border-top-color: #d99a2b; background: linear-gradient(#fdf8ee, #fff 70%); }
+.kpi.no { border-top-color: #d94a4a; background: linear-gradient(#fdf3f3, #fff 70%); }
