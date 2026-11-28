@@ -880,3 +880,5 @@ li.is-picked { box-shadow: inset 0 0 0 1.5px var(--color-ink); }
 /* five actions under a guest: two even rows on a phone, delete at the end in its own colour */
 @media (max-width: 479px) { .gcard__actions { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 359px) { .gcard__actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.inv-venue-note { margin: 6px 0 0; text-align: center; font: 400 calc(15px * var(--inv-scale, 1)) / 1.4 var(--inv-font); letter-spacing: .08em; color: var(--inv-dim); }

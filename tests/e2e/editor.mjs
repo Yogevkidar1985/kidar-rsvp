@@ -354,9 +354,9 @@ try {
     check('links: the screen fits a phone', await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     await p.screenshot({ path: path.join(out, 'links-phone.png'), fullPage: true });
     const main = p.locator('[data-testid=link-main]');
-    await main.locator('input').fill('Kidar Party!'); 
-    check('links: the address field keeps only valid characters', (await main.locator('input').inputValue()) === 'kidarparty');
-    await main.locator('input').fill('kidar-party'); await main.getByRole('button', { name: 'שמירת הכתובת' }).click(); await sleep(1200);
+    await main.locator('input[aria-label="כתובת ההזמנה"]').fill('Kidar Party!'); 
+    check('links: the address field keeps only valid characters', (await main.locator('input[aria-label="כתובת ההזמנה"]').inputValue()) === 'kidarparty');
+    await main.locator('input[aria-label="כתובת ההזמנה"]').fill('kidar-party'); await main.getByRole('button', { name: 'שמירת הכתובת' }).click(); await sleep(1200);
     check('links: the new address opens the invitation and the old one does not', (await fetch(`${APP}/kidar-party/cohen`)).status === 200 && (await fetch(`${APP}/kidar-brit`)).status === 404);
     await mock.sql(`update events set slug = 'kidar-brit' where id = $1`, [id]);
     await ctx.close();

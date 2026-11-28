@@ -228,7 +228,7 @@ export default function EditorPage() {
     const many = (key: string, what: string, t?: string | null) => { if (t) t.split('\n').forEach((row, i) => { if (row.trim()) out.push({ key: `${key}.${i}`, label: `${what}: ${cut(row.trim())}` }); }); };
     one('latin', 'שורה באנגלית', design.latin); one('names', 'שמות בראש', draft.hosts); one('kicker', 'שם האירוע', draft.name);
     many('headline', 'כותרת', draft.headline); many('intro', 'פתיחה', draft.intro_text); many('closing', 'סיום', draft.closing_text); one('sign', 'חתימה', draft.hosts);
-    one('dateline', 'יום ותאריך עברי', [draft.weekday_label, draft.hebrew_date].filter(Boolean).join(' – ')); one('times', 'שעה', [draft.reception_time && !draft.ceremony_time ? 'קבלת פנים' : '', draft.reception_time, draft.ceremony_time].filter(Boolean).join(' ')); one('venue', 'שם המקום', draft.venue_name); one('address', 'כתובת', draft.address);
+    one('dateline', 'יום ותאריך עברי', [draft.weekday_label, draft.hebrew_date].filter(Boolean).join(' – ')); one('times', 'שעה', [draft.reception_time && !draft.ceremony_time ? 'קבלת פנים' : '', draft.reception_time, draft.ceremony_time].filter(Boolean).join(' ')); one('venue', 'שם המקום', draft.venue_name); one('venueNote', 'שורה מתחת לשם המקום', design.venueNote); one('address', 'כתובת', draft.address);
     one('rsvpTitle', 'כותרת אישור ההגעה', design.labels.rsvpTitle); out.push({ key: 'rsvpHint', label: 'אישור הגעה: אנא סמנו את סטטוס ההגעה' });
     return out;
   }, [draft, design]);
@@ -569,6 +569,9 @@ export default function EditorPage() {
                   {design.venueWordmark && <button type="button" className="btn btn-danger btn-sm" onClick={() => setDesign({ venueWordmark: null })}>חזרה לשם מוקלד</button>}
                 </div>
               </div>
+              <Field label="שורה קטנה מתחת לשם המקום" hint="למשל שם העיר. מוצגת ממורכזת מתחת ללוגו ולשם.">
+                <input className="field" data-testid="venue-note-input" maxLength={60} value={design.venueNote} onChange={(e) => setDesign({ venueNote: e.target.value })} />
+              </Field>
               {text('waze_url', 'קישור Waze', { ltr: true, placeholder: 'https://waze.com/ul/...', hint: 'אם יישאר ריק, הניווט ייפתח לפי הכתובת.' })}
               {text('gmaps_url', 'קישור Google Maps', { ltr: true, placeholder: 'https://maps.app.goo.gl/...' })}
               {text('contact_phone', 'טלפון ליצירת קשר', { ltr: true })}

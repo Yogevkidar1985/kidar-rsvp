@@ -514,6 +514,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
                     ? <p style={css(d.styles.hosts)}><button ref={siteLink} type="button" className="inv-venue-link" data-testid="venue-site" onPointerDown={() => !preview && setSiteWarm(true)} onClick={() => !preview && setSheet('site')} aria-label={`האתר של ${data.venue_name}`}>
                         <span data-line="venue" style={{ fontSize: lineSize('venue') }}>{venueName}</span><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m12 6-6 6 6 6" /><path d="m19 6-6 6 6 6" /></svg></button></p>
                     : <p style={css(d.styles.hosts)}>{L('venue', venueName)}</p>)}
+                  {d.venueNote.trim() && <p className="inv-venue-note" data-testid="venue-note">{L('venueNote', d.venueNote.trim())}</p>}
                   {data.address && !mapSrc && <p style={{ ...body, marginTop: 2 }}>{L('address', data.address)}</p>}
                 </>
               )}

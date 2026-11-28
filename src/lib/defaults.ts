@@ -54,6 +54,7 @@ export const DEFAULT_DESIGN: Design = {
   shortUrl: '',
   venueLogo: null,
   venueWordmark: null,
+  venueNote: '',
   textScale: 1.15,
   venueUrl: '',
   venuePreload: false,
