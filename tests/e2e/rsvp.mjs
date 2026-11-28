@@ -65,9 +65,11 @@ try {
   await p.goto(APP + '/admin/login'); await p.fill('input', '1007'); await p.click('button[aria-label="כניסה"]'); await p.waitForURL(/admin\/events/);
   await p.goto(`${APP}/admin/events/${id}`, { waitUntil: 'networkidle' }); await sleep(600);
   const kpis = await p.locator('[data-testid=kpis]').innerText(); const flat = kpis.replace(/\s+/g, ' ');
-  check('the dashboard counts one family of each answer and 3 people coming', /(^| )3 אנשים/.test(flat) && flat.includes('3 מבוגרים') && flat.includes('3 כיסאות') && flat.includes('עדיין לא בטוחים 1 משפחות') && flat.includes('לא מגיעים 1 משפחות') && flat.includes('100% השיבו'), flat);
+  check('the dashboard counts one family of each answer and 3 people coming', /(^| )3 אנשים/.test(flat) && flat.includes('3 מבוגרים') && flat.includes('3 כיסאות') && flat.includes('עדיין לא בטוחים 1 משפחה') && flat.includes('לא מגיעים 1 משפחה') && flat.includes('100% השיבו'), flat);
   const rep = await p.locator('[data-testid=owner-report] pre').innerText();
-  check('the report for the event owner carries the same numbers', rep.includes('מגיעים: 3 אנשים (1 משפחות)') && rep.includes('כיסאות נדרשים: 3') && rep.includes('עדיין לא בטוחים: 1 משפחות') && rep.includes('לא מגיעים: 1 משפחות') && rep.includes('טרם השיבו: 0 משפחות') && rep.includes('צמחוני: 1'), rep.replace(/\n/g, ' | '));
+  check('the report for the event owner carries the same numbers', rep.includes('*מגיעים: 3 אנשים* (משפחה אחת)') && rep.includes('כיסאות נדרשים: 3') && rep.includes('עדיין לא בטוחים: משפחה אחת') && rep.includes('לא מגיעים: משפחה אחת') && rep.includes('טרם השיבו: 0 משפחות') && rep.includes('צמחוני: 1'), rep.replace(/\n/g, ' | '));
+  const seen = (await p.locator('[data-testid=owner-report] dl').innerText()).replace(/\s+/g, ' ');
+  check('the report on screen shows the same figures as rows', seen.includes('מגיעים משפחה אחת 3 אנשים') && seen.includes('כיסאות נדרשים 3') && seen.includes('טרם השיבו 0 משפחות'), seen);
   check('the report opens WhatsApp with its text, for the owner to choose whom to send to', decodeURIComponent((await p.locator('[data-testid=report-wa]').getAttribute('href')) ?? '').includes('כיסאות נדרשים: 3'));
   await p.screenshot({ path: path.join(out, 'rsvp-dashboard.png'), fullPage: true });
   await p.goto(`${APP}/admin/events/${id}/guests`, { waitUntil: 'networkidle' }); await sleep(600);
