@@ -250,19 +250,25 @@ export default function InvitationView({ data, token = null, preview = false, ce
     ro.observe(el);
     return () => ro.disconnect();
   }, [data.hero_pos?.ratio, d.heroShape]);
-  // the floating button shows once the hero is behind the reader, and steps aside at the RSVP section
+  // The floating button shows as soon as the reader starts down the page, and steps aside while the answer buttons
+  // themselves are on screen. It is worked out from plain scroll positions, so it behaves the same in every browser,
+  // with or without a photo at the top.
   useEffect(() => {
-    if (preview || !rsvpRef.current || !heroRef.current) return;
-    let pastHero = false, atRsvp = false;
-    const io = new IntersectionObserver((list) => {
-      for (const e of list) {
-        if (e.target === heroRef.current) pastHero = !e.isIntersecting && e.boundingClientRect.top < 0;
-        else atRsvp = e.isIntersecting;
-      }
-      setSticky(pastHero && !atRsvp);
-    }, { threshold: 0.05 });
-    io.observe(heroRef.current); io.observe(rsvpRef.current);
-    return () => io.disconnect();
+    if (preview) return;
+    let raf = 0;
+    const read = () => {
+      raf = 0;
+      const el = rsvpRef.current; if (!el) return;
+      const r = el.getBoundingClientRect(), vh = window.innerHeight || document.documentElement.clientHeight;
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      const atRsvp = r.top < vh - 96 && r.bottom > 96; // a real piece of the answer section is visible
+      setSticky(y > 64 && !atRsvp);
+    };
+    const on = () => { if (!raf) raf = requestAnimationFrame(read); };
+    read();
+    window.addEventListener('scroll', on, { passive: true }); window.addEventListener('resize', on); window.addEventListener('orientationchange', on);
+    const late = window.setTimeout(read, 800); // images and fonts settle after the first paint
+    return () => { window.removeEventListener('scroll', on); window.removeEventListener('resize', on); window.removeEventListener('orientationchange', on); window.clearTimeout(late); if (raf) cancelAnimationFrame(raf); };
   }, [preview]);
   // a slow drift of the photograph while it scrolls past
   useEffect(() => {
@@ -597,7 +603,7 @@ export default function InvitationView({ data, token = null, preview = false, ce
 
       {!preview && rsvpOpen && (
         <div className={`inv-sticky${sticky && !sheet ? ' show' : ''}`}>
-          <button type="button" className="inv-btn" tabIndex={sticky ? 0 : -1} onClick={() => rsvpRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>{status ? 'עדכון אישור ההגעה' : d.labels.rsvp}</button>
+          <button type="button" className="inv-btn" data-testid="rsvp-float" tabIndex={sticky ? 0 : -1} aria-hidden={!sticky} onClick={() => (rsvpOpen ? openRsvp(status) : rsvpRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))}>{status ? 'עדכון אישור ההגעה' : d.labels.rsvp}</button>
         </div>
       )}
       {sheet === 'rsvp' && (
