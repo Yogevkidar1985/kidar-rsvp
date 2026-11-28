@@ -12,6 +12,17 @@ export const VARIABLES: { key: string; label: string }[] = [
   { key: 'waze_url', label: 'קישור Waze' }, { key: 'maps_url', label: 'קישור Google Maps' },
 ];
 
+/** How the library is laid out: what a text is for, and when it is the right one to send. */
+export const TEMPLATE_GROUPS = [
+  { key: 'invite', label: 'הזמנות', hint: 'ההודעה הראשונה, עם הקישור להזמנה ולאישור ההגעה.' },
+  { key: 'follow', label: 'מעקב למי שלא ענה', hint: 'בשליחה מסננים "טרם ענו" ומסמנים "שליחה חוזרת", כי המשפחות האלה כבר קיבלו הזמנה.' },
+  { key: 'update', label: 'עדכונים', hint: 'שינוי בשעה או במקום. מסמנים "שליחה חוזרת" כדי שיגיע גם למי שכבר הוזמן.' },
+  { key: 'reminder', label: 'תזכורות לפני האירוע', hint: 'נשלחות רק למי שאישר הגעה, במועד שקובעים במסך התזכורות.' },
+] as const;
+export type TemplateGroup = (typeof TEMPLATE_GROUPS)[number]['key'];
+export const templateGroup = (t: Pick<Template, 'id' | 'kind'>): TemplateGroup =>
+  t.kind === 'reminder' ? 'reminder' : /^builtin:(nudge|last-call)$/.test(t.id) ? 'follow' : t.id === 'builtin:update' ? 'update' : 'invite';
+
 const b = (id: string, kind: TemplateKind, name: string, body: string): Template => ({ id: `builtin:${id}`, kind, name, body, builtin: true });
 /** Ready-made texts. Dates, time and links come from the event, so they follow any change made in the editor. */
 export const BUILTIN: Template[] = [
@@ -222,12 +233,6 @@ Waze:
 כל הפרטים המעודכנים נמצאים תמיד בהזמנה:
 {{invitation_url}}
 
-{{hosts}}`),
-  b('thanks', 'invite', 'תודה אחרי האירוע', `{{guest_name}} היקרים ❤️
-
-תודה שבאתם לחגוג איתנו. שמחנו והתרגשנו לראות אתכם, והייתם חלק מרגע שלא נשכח.
-
-באהבה,
 {{hosts}}`),
   b('tomorrow-emoji', 'reminder', 'מחר נפגשים 🥳', `היי {{guest_name}}!
 

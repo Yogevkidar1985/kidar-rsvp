@@ -5,7 +5,7 @@ import { useEvent } from '@/components/admin/EventContext';
 import { PageHead } from '@/components/admin/Shell';
 import { Field, Modal, StatusPill, dbError, useToast } from '@/components/admin/ui';
 import { CampaignList, GreenNotice, MessageEditor, SetupNotice, useOutbox, useRender, type PreviewGuest } from '@/components/admin/outbox';
-import { BUILTIN, variableLabel, type Template, type TemplateKind } from '@/lib/templates';
+import { BUILTIN, TEMPLATE_GROUPS, templateGroup, variableLabel, type Template, type TemplateGroup, type TemplateKind } from '@/lib/templates';
 import { STATUS_LABEL, type Guest, type GuestStatus } from '@/lib/types';
 import { normPhone } from '@/lib/phone';
 
@@ -27,6 +27,7 @@ export default function WhatsAppPage() {
   const [fGroup, setFGroup] = useState('');
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [resend, setResend] = useState(false);
+  const [tplGroup, setTplGroup] = useState<TemplateGroup | ''>('');
   const [groupName, setGroupName] = useState('');
   const [one, setOne] = useState({ guestId: '', name: '', phone: '', save: true });
   const templates = box.templates('invite');
@@ -237,11 +238,16 @@ export default function WhatsAppPage() {
             <button className="btn" onClick={() => setEdit({ id: null, kind: 'invite', name: '', body: '', is_default: false })}>תבנית הזמנה חדשה</button>
             <button className="btn btn-ghost" onClick={() => setEdit({ id: null, kind: 'reminder', name: '', body: '', is_default: false })}>תבנית תזכורת חדשה</button>
           </div>}
-          {(['invite', 'reminder'] as const).map((k) => (
-            <section key={k}>
-              <h2 className="mb-2 font-display text-lg font-medium">{k === 'invite' ? 'תבניות הזמנה' : 'תבניות תזכורת'}</h2>
+          <div className="tabs tabs-wrap" role="group" aria-label="סוג התבנית" data-testid="tpl-groups">
+            <button type="button" aria-pressed={tplGroup === ''} onClick={() => setTplGroup('')}>הכול</button>
+            {TEMPLATE_GROUPS.map((g) => <button key={g.key} type="button" aria-pressed={tplGroup === g.key} onClick={() => setTplGroup(g.key)}>{g.label}</button>)}
+          </div>
+          {TEMPLATE_GROUPS.filter((g) => !tplGroup || tplGroup === g.key).map(({ key: grp, label, hint }) => { const k: TemplateKind = grp === 'reminder' ? 'reminder' : 'invite'; return (
+            <section key={grp} data-testid={`tpl-${grp}`}>
+              <h2 className="font-display text-lg font-medium">{label}</h2>
+              <p className="mb-2 text-sm text-muted">{hint}</p>
               <div className="grid gap-2 md:grid-cols-2">
-                {[...box.custom.filter((t) => t.kind === k), ...BUILTIN.filter((t) => t.kind === k)].map((t) => (
+                {[...box.custom.filter((t) => templateGroup(t) === grp), ...BUILTIN.filter((t) => templateGroup(t) === grp)].map((t) => (
                   <article key={t.id} className="card flex flex-col p-4">
                     <h3 className="font-semibold">{t.name} {t.builtin ? <span className="pill pill-pending">מוכנה</span> : <span className="pill pill-maybe">שלי</span>} {t.is_default && <span className="pill pill-attending">ברירת מחדל</span>}</h3>
                     <p className="mt-2 line-clamp-5 whitespace-pre-wrap text-sm text-muted">{t.body}</p>
@@ -256,7 +262,7 @@ export default function WhatsAppPage() {
                 ))}
               </div>
             </section>
-          ))}
+          ); })}
         </div>
       )}
 

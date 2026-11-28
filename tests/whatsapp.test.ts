@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { wallTime, eventStart } from '@/lib/when';
-import { BUILTIN, render, variables } from '@/lib/templates';
+import { BUILTIN, TEMPLATE_GROUPS, render, templateGroup, variables } from '@/lib/templates';
 
 describe('event time in Israel', () => {
   it('follows winter and summer time', () => {
@@ -26,8 +26,8 @@ describe('event time in Israel', () => {
 describe('message templates', () => {
   const ev = { slug: 'kidar-brit', name: 'מסיבת הברית', hosts: 'יוגב ואביה קידר', event_date: '2026-12-02', weekday_label: 'יום רביעי', hebrew_date: 'כ״ב בכסלו התשפ״ז',
     reception_time: '15:00', ceremony_time: null, venue_name: null, address: null, waze_url: null, gmaps_url: null };
-  it('has fourteen invitations and six reminders ready, each under its own name', () => {
-    expect(BUILTIN.filter((t) => t.kind === 'invite')).toHaveLength(14);
+  it('has thirteen invitations and six reminders ready, each under its own name', () => {
+    expect(BUILTIN.filter((t) => t.kind === 'invite')).toHaveLength(13);
     expect(BUILTIN.filter((t) => t.kind === 'reminder')).toHaveLength(6);
     expect(new Set(BUILTIN.map((t) => t.id)).size).toBe(BUILTIN.length); expect(new Set(BUILTIN.map((t) => t.name)).size).toBe(BUILTIN.length);
   });
@@ -37,7 +37,7 @@ describe('message templates', () => {
     for (const t of BUILTIN.filter((x) => x.kind === 'invite')) {
       const r = render(t.body, full);
       expect(r.missing).toEqual([]);
-      if (t.id !== 'builtin:thanks') expect(r.text).toContain('https://example.com/e/kidar-brit?g=abc123');
+      expect(r.text).toContain('https://example.com/e/kidar-brit?g=abc123');
       expect(r.text.includes('{{') || r.text.includes('undefined')).toBe(false);
     }
     expect(render(BUILTIN[0].body, v).text).toContain('שלום דנה,');
@@ -61,5 +61,13 @@ describe('the warmer templates', () => {
     const bare = { id: 'e', slug: 'kidar-brit', name: 'ברית', hosts: 'יוגב ואביה', event_date: '2026-12-02', weekday_label: 'יום רביעי', hebrew_date: 'כ״ב בכסלו', reception_time: '15:00', ceremony_time: null, venue_name: null, address: null, waze_url: null, gmaps_url: null };
     const r = render(BUILTIN.find((t) => t.id === 'builtin:warm')!.body, variables(bare as never, { family_name: 'לוי', contact_name: 'דנה' }, 'https://example.com'));
     expect(r.missing).toEqual(['venue_name']);
+  });
+});
+
+describe('the library groups', () => {
+  it('put every ready text in a group that exists, and leave none empty', () => {
+    const keys = TEMPLATE_GROUPS.map((g) => g.key);
+    for (const t of BUILTIN) expect(keys).toContain(templateGroup(t));
+    for (const k of keys) expect(BUILTIN.some((t) => templateGroup(t) === k), k).toBe(true);
   });
 });
